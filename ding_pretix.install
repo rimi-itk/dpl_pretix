@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * @file
+ * Installation file for ding_pretix module.
+ */
+
+/**
+ * Implementation of hook_schema().
+ */
+function ding_pretix_schema() {
+	return array(
+		'ding_pretix' => array(
+			'description' => 'Table to hold information about Pretix events.',
+			'fields' => array(
+				'nid' => array(
+					'description' => 'The foreign key to {node}.nid',
+					'type' => 'int',
+					'unsigned' => TRUE,
+					'not null' => TRUE,
+				),
+				'pretix_organizer' => array(
+					'description' => 'The Pretix organizer slug',
+					'type' => 'varchar',
+					'length' => 50,
+					'not null' => TRUE,
+					'default' => '',
+				),
+				'pretix_slug' => array(
+					'description' => 'The unique Pretix event slug',
+					'type' => 'varchar',
+					'length' => 50,
+					'not null' => TRUE,
+					'default' => '',
+				),
+				'capacity' => array(
+					'description' => 'The maximum capacity on the Pretix event. 0 is interpreted as unlimited capacity on the event (default)',
+					'type' => 'int',
+					'unsigned' => TRUE,
+					'not null' => TRUE,
+					'default' => 0,
+				),
+				'maintain_copy' => array(
+					'description' => 'Event is created and updated in Pretix',
+					'type' => 'int',
+					'unsigned' => TRUE,
+					'not null' => TRUE,
+					'default' => 1,
+				),
+				'ticket_type' => array(
+					'description' => t('Ticket type'),
+					'type' => 'varchar',
+					'length' => 255,
+					'not null' => TRUE,
+					'default' => '',
+				),
+			),
+			'primary key' => array('nid'),
+		),
+	);
+}
