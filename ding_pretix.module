@@ -49,8 +49,9 @@ function ding_pretix_node_insert($node) {
 			$quota        = _ding_pretix_get_quota( $service_settings, $pretix_info );
 			$quota_result = _ding_pretix_update_quota_size( $quota, $service_settings, $pretix_info );
 		} else {
-			watchdog('ding_pretix', 'Pretix API: @error: @data (Request: @request)',
-				array('@error' => $result->error, '@data' => $result->data, '@request' => $result->request), $severity = WATCHDOG_ERROR);
+			watchdog('ding_pretix', 'Pretix API: @error: @data (Request: @request, URL: @url)',
+				array('@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $clone_url),
+				$severity = WATCHDOG_ERROR);
 		}
 	}
 }
