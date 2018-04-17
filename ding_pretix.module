@@ -39,14 +39,18 @@ function ding_pretix_node_insert($node) {
 
 		// Create Event via clone
 		$result = drupal_http_request($clone_url, $clone_options);
-		$pretix_info = _ding_pretix_insert_pretix_node_info($node, $service_settings['organizer_slug'], $result->data);
+		if(201 === (int) $result->code) {
+			$pretix_info = _ding_pretix_insert_pretix_node_info( $node, $service_settings['organizer_slug'], $result->data );
 
-		// Set event to 'live' if node is published.
-		$live_result  = _ding_pretix_update_live($node->status, $service_settings, $pretix_info);
+			// Set event to 'live' if node is published.
+			$live_result = _ding_pretix_update_live( $node->status, $service_settings, $pretix_info );
 
-		// Set correct quota
-		$quota = _ding_pretix_get_quota($service_settings, $pretix_info);
-		$quota_result = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info);
+			// Set correct quota
+			$quota        = _ding_pretix_get_quota( $service_settings, $pretix_info );
+			$quota_result = _ding_pretix_update_quota_size( $quota, $service_settings, $pretix_info );
+		} else {
+			watchdog('ding_pretix', 'Pretix API: @error: @data', array('@error' => $result->error, '@data' => $result->data), $severity = WATCHDOG_ERROR);
+		}
 	}
 }
 
