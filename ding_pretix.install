@@ -23,14 +23,14 @@ function ding_pretix_schema() {
 					'description' => 'The Pretix organizer slug',
 					'type' => 'varchar',
 					'length' => 50,
-					'not null' => TRUE,
+					'not null' => FALSE,
 					'default' => '',
 				),
 				'pretix_slug' => array(
 					'description' => 'The unique Pretix event slug',
 					'type' => 'varchar',
 					'length' => 50,
-					'not null' => TRUE,
+					'not null' => FALSE,
 					'default' => '',
 				),
 				'capacity' => array(

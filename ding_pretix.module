@@ -24,34 +24,45 @@ function ding_pretix_menu() {
  */
 function ding_pretix_node_insert($node) {
 	// We only handles event nodes.
-	if ($node->type === 'ding_event' && $node->pretix['maintain_copy'] === 1) {
-		$service_settings = variable_get('ding_pretix', array());
+	if ($node->type === 'ding_event') {
+    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+		$service_settings = variable_get( 'ding_pretix', [] );
 
-		$headers = _ding_pretix_built_request_headers($service_settings);
-		$body = _ding_pretix_built_request_body($node, 'INSERT');
+		if ($node->pretix['maintain_copy'] === 1) {
 
-		$clone_options = array(
-			'method' => 'POST',
-			'headers' => $headers,
-			'data' => json_encode($body)
-		);
-		$clone_url = _ding_pretix_get_event_endpoint($service_settings) . 'clone/';
+			$headers = _ding_pretix_built_request_headers( $service_settings );
+			$body    = _ding_pretix_built_request_body( $node, 'INSERT' );
 
-		// Create Event via clone
-		$result = drupal_http_request($clone_url, $clone_options);
-		if(201 === (int) $result->code) {
-			$pretix_info = _ding_pretix_insert_pretix_node_info( $node, $service_settings['organizer_slug'], $result->data );
+			$clone_options = [
+				'method'  => 'POST',
+				'headers' => $headers,
+				'data'    => json_encode( $body )
+			];
+			$clone_url     = _ding_pretix_get_event_endpoint( $service_settings ) . 'clone/';
 
-			// Set event to 'live' if node is published.
-			$live_result = _ding_pretix_update_live( $node->status, $service_settings, $pretix_info );
+			// Create Event via clone
+			$result = drupal_http_request( $clone_url, $clone_options );
+			if ( 201 === (int) $result->code ) {
+				$pretix_info_result = _ding_pretix_insert_pretix_node_info( $node, $service_settings['organizer_slug'], $result->data );
 
-			// Set correct quota
-			$quota        = _ding_pretix_get_quota( $service_settings, $pretix_info );
-			$quota_result = _ding_pretix_update_quota_size( $quota, $service_settings, $pretix_info );
+				// Set event to 'live' if node is published.
+				$live_result = _ding_pretix_update_live( $node->status, $service_settings, $pretix_info_result );
+
+				//Set ticket price
+        $item         = _ding_pretix_get_item( $service_settings, $pretix_info_result );
+        $item_result = _ding_pretix_update_item_price( $node,  $item, $service_settings, $pretix_info_result );
+
+				// Set correct quota
+				$quota        = _ding_pretix_get_quota( $item, $service_settings, $pretix_info_result );
+				$quota_result = _ding_pretix_update_quota_size( $quota, $service_settings, $pretix_info_result );
+			} else {
+				watchdog( 'ding_pretix',
+					'Pretix API: @error: @data (Request: @request, URL: @url)',
+					[ '@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $clone_url ],
+					$severity = WATCHDOG_ERROR );
+			}
 		} else {
-			watchdog('ding_pretix', 'Pretix API: @error: @data (Request: @request, URL: @url)',
-				array('@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $clone_url),
-				$severity = WATCHDOG_ERROR);
+			$pretix_info_result = _ding_pretix_insert_pretix_node_info( $node, $service_settings['organizer_slug']);
 		}
 	}
 }
@@ -61,26 +72,49 @@ function ding_pretix_node_insert($node) {
  */
 function ding_pretix_node_update($node) {
 	if ( $node->type == 'ding_event' ) {
+    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 		$pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
+		$service_settings = variable_get('ding_pretix', array());
 
-		// If the node has not previously been set to maintain a copy in Pretix we need to save it first.
-		if(!$pretix_info['pretix_slug'] && $node->pretix['maintain_copy'] === 1) {
-			ding_pretix_node_insert($node);
+		if(empty($pretix_info['pretix_slug'])) {
+			if($node->pretix['maintain_copy'] === 1) {
+				// If the node has not previously been set to maintain a copy in Pretix we need to save it first.
+				ding_pretix_node_insert($node);
+			} else {
+				// Only save pretix node info in Drupal
+				$pretix_info = _ding_pretix_update_pretix_node_info($node);
+			}
 		} else {
-			$service_settings = variable_get('ding_pretix', array());
 
-			$headers = _ding_pretix_built_request_headers($service_settings);
-			$body = _ding_pretix_built_request_body($node, 'UPDATE');
+			if($node->pretix['maintain_copy'] === 1) {
+				// Update existing event in pretix
+				$headers = _ding_pretix_built_request_headers($service_settings);
+				$body = _ding_pretix_built_request_body($node, 'UPDATE');
 
-			$options = array(
-				'method' => 'PATCH',
-				'headers' => $headers,
-				'data' => json_encode($body)
-			);
-			$url = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']);
+				$options = array(
+					'method' => 'PATCH',
+					'headers' => $headers,
+					'data' => json_encode($body)
+				);
+				$url = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']);
 
-			$result = drupal_http_request($url, $options);
-			$pretix_info = _ding_pretix_update_pretix_node_info($node);
+				$result = drupal_http_request($url, $options);
+				$pretix_info_result = _ding_pretix_update_pretix_node_info($node);
+
+        //Set ticket price
+        $item         = _ding_pretix_get_item( $service_settings, $pretix_info_result );
+        $item_result = _ding_pretix_update_item_price( $node,  $item, $service_settings, $pretix_info_result );
+
+        // Set correct quota
+        $quota        = _ding_pretix_get_quota( $item, $service_settings, $pretix_info_result );
+        $quota_result = _ding_pretix_update_quota_size( $quota, $service_settings, $pretix_info_result );
+
+			} else {
+				// The event exist in Pretix but the user has changed the 'maintain_copy' setting to false.
+				// Best we can do is to take the event offline.
+				$result = _ding_pretix_update_live(false, $service_settings, $pretix_info );
+				$pretix_info = _ding_pretix_update_pretix_node_info($node);
+			}
 		}
 	}
 }
@@ -91,6 +125,7 @@ function ding_pretix_node_update($node) {
 function ding_pretix_node_delete($node) {
 	// We only handle event nodes.
 	if ($node->type == 'ding_event') {
+    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 		$service_settings = variable_get('ding_pretix', array());
 		$pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
 
@@ -99,190 +134,6 @@ function ding_pretix_node_delete($node) {
 			$result = _ding_pretix_delete_pretix_node_info($node->nid);
 		}
 	}
-}
-
-function _ding_pretix_update_live($is_live, $service_settings, $pretix_info ) {
-	$live_url     = _ding_pretix_get_event_endpoint( $service_settings, $pretix_info['pretix_slug'] );
-	$live_options = [
-		'method'  => 'PATCH',
-		'headers' => _ding_pretix_built_request_headers( $service_settings ),
-		'data'    => json_encode( [ 'live' => $is_live ] ),
-	];
-	$result       = drupal_http_request( $live_url, $live_options );
-
-	return $result;
-}
-
-function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info) {
-	if($quota && $pretix_info['capacity'] !== $quota->size) {
-		$options        = [
-			'method'  => 'PATCH',
-			'headers' => _ding_pretix_built_request_headers( $service_settings ),
-			'data'    => json_encode( [ 'size' => (int) $pretix_info['capacity'] ] )
-		];
-		$quota_endpoint = _ding_pretix_get_event_endpoint( $service_settings, $pretix_info['pretix_slug'] ) . 'quotas/' . $quota->id . '/';
-		$result         = drupal_http_request( $quota_endpoint, $options );
-	}
-
-	return $result ? $result : null;
-}
-
-function _ding_pretix_get_quota($service_settings, $pretix_info) {
-	$options = [
-		'method' => 'GET',
-		'headers' => _ding_pretix_built_request_headers($service_settings)
-	];
-	$quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'quotas/';
-	$result  = drupal_http_request( $quota_endpoint, $options );
-
-	if(200 === (int) $result->code) {
-		$data = json_decode($result->data);
-		$quota = count($data->results[0]) > 0 ? $data->results[0] : null;
-	}
-
-	return isset($quota) ? $quota : null;
-}
-
-function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null) {
-	$event_slug = $event_slug !== null ? $event_slug : $service_settings['template_event_slug'];
-	$endpoint = $service_settings['service_url'] . 'api/v1/organizers/' . $service_settings['organizer_slug'] . '/events/' . $event_slug . '/';
-
-	return $endpoint;
-}
-
-function _ding_pretix_get_event_admin_url($service_settings, $event_slug) {
-	$endpoint = $service_settings['service_url'] . 'control/event/' . $service_settings['organizer_slug'] . '/' . $event_slug . '/';
-
-	return $endpoint;
-}
-
-/**
- * @param $service_settings
- *
- * @return array
- */
-function _ding_pretix_built_request_headers($service_settings) {
-	$headers = array(
-		'Accept' => 'application/json, text/javascript',
-		'Authorization' => 'Token ' . $service_settings['api_key'],
-		'Content-Type' => 'application/json'
-	);
-
-	return $headers;
-}
-
-/**
- * @param $node
- * @param $request_type
- *
- * @return array
- * @throws Exception
- */
-function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
-	$wrapper = entity_metadata_wrapper('node', $node);
-
-	$start_date = date_create('@'.$wrapper->field_ding_event_date->value->value());
-	$end_date = date_create('@'.$wrapper->field_ding_event_date->value2->value());
-
-	$field_address = field_get_items('node', $node, 'field_ding_event_location');
-	$place = '';
-	$place = empty($field_address[0]['name_line']) ? $place : $place . $field_address[0]['name_line'] . "\n";
-	$place = empty($field_address[0]['thoroughfare']) ? $place : $place . $field_address[0]['thoroughfare'] . "\n";
-	$place = empty($field_address[0]['premise']) ? $place : $place . $field_address[0]['premise'] . "\n";
-	$place = empty($field_address[0]['postal_code']) ? $place : $place . $field_address[0]['postal_code'] . "\n";
-	$place = empty($field_address[0]['locality']) ? $place : $place . $field_address[0]['locality'] . "\n";
-	$place = empty($field_address[0]['country']) ? $place : $place . $field_address[0]['country'] . "\n";
-
-	// Events cannot be created as 'live' in Pretix.
-	$live = ($request_type === 'INSERT') ? false : $node->status;
-
-	$body = [
-		'name' => ['da' => check_plain($node->title)],
-		'slug' => $node->nid,
-		'live' => $live,
-		'currency' => 'DKK',
-		'date_from' => date_format($start_date, 'c'),
-		'date_to' => date_format($end_date, 'c'),
-		'is_public' => $node->status,
-		'presale_start' => date_format(date_sub(clone $start_date, new DateInterval('P30D')), 'c'),
-		'presale_end' => date_format($start_date,  'c'),
-		'location' => ['da' => $place],
-		'has_subevents' => false
-	];
-
-	return $body;
-}
-
-/**
- * Private function to save data on the Pretix event
- *
- * @param $node
- * @param $organizer
- * @param $data
- *
- * @return array
- * @throws Exception
- */
-function _ding_pretix_insert_pretix_node_info($node, $organizer, $data) {
-	$data = json_decode($data);
-
-	$pretix_info = array(
-		'nid' => $node->nid,
-		'pretix_organizer' => $organizer,
-		'pretix_slug' => $data->slug,
-		'capacity' => (int) $node->pretix['capacity'],
-		'maintain_copy' => $node->pretix['maintain_copy'],
-		'ticket_type' => $node->pretix['ticket_type']
-	);
-
-	db_insert('ding_pretix')->fields($pretix_info)->execute();
-
-	return $pretix_info;
-}
-
-function _ding_pretix_update_pretix_node_info($node) {
-	$pretix_info = array(
-		'nid' => $node->nid,
-		'capacity' => (int) $node->pretix['capacity'],
-		'maintain_copy' => $node->pretix['maintain_copy'],
-		'ticket_type' => $node->pretix['ticket_type']
-	);
-
-	db_update('ding_pretix')
-		->fields($pretix_info)
-		->condition('nid', $node->nid, '=')
-		->execute();
-}
-
-function _ding_pretix_get_pretix_node_info($nid) {
-	$pretix_info = db_select('ding_pretix', 'p')
-		->fields('p')
-		->condition('nid', $nid,'=')
-		->execute()
-		->fetchAssoc();
-
-	return $pretix_info;
-}
-
-function _ding_pretix_delete_pretix_node_info($nid) {
-	$pretix_info = db_delete('ding_pretix')
-		->condition('nid', $nid,'=')
-		->execute();
-
-	return $pretix_info;
-}
-
-function _ding_pretix_get_pretix_node_info_defaults() {
-	$settings = variable_get('ding_pretix_event_nodes', array());
-
-	$pretix_defaults = [
-		'capacity' => (int) $settings['capacity'],
-		'ticket_type' => $settings['ticket_type'],
-		'maintain_copy' => $settings['defaults']['maintain_copy'],
-		'passive' => $settings['defaults']['passive'],
-	];
-
-	return $pretix_defaults;
 }
 
 /*
@@ -302,9 +153,10 @@ function ding_pretix_node_view($node, $view_mode, $langcode) {
  * Implementation of hook_form_FORM_ID_alter().
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id) {
+  module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 	$nid = isset($form['nid']['#value']) ? $form['nid']['#value'] : NULL;
 	$pretix_node_info = _ding_pretix_get_pretix_node_info($nid);
-	$pretix_node_defaults = _ding_pretix_get_pretix_node_info_defaults();
+	$pretix_node_defaults = _ding_pretix_get_pretix_node_info_defaults($nid);
 
 	// Service settings.
 	$service_settings = variable_get('ding_pretix', array());
@@ -318,9 +170,6 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 		$pretix_link = t('None');
 		$pretix_info = t('If more ticket types on this event is needed, edit the corresponding event on Pretix after this event has been created.');
 	}
-
-	//remove field_pretix_tickets from the form - it is only a placeholder and need not be seen nor edited, and it has default value
-//	$form['field_pretix_tickets'] = NULL;
 
 	$form['pretix'] = array(
 		'#type' => 'fieldset',
@@ -338,7 +187,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 		'#title' => t('Event capacity'),
 		'#size' => 5,
 		'#maxlength' => 5,
-		'#default_value' => isset($pretix_node_info['capacity']) ? $pretix_node_info['capacity'] : $pretix_node_defaults['capacity'],
+		'#default_value' => $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'],
 		'#description' => t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.'),
 	);
 
@@ -347,14 +196,14 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 		'#title' => t('Ticket type'),
 		'#size' => 30,
 		'#maxlength' => 255,
-		'#default_value' => isset($pretix_node_info['ticket_type']) ? $pretix_node_info['ticket_type'] : $pretix_node_defaults['ticket_type'],
+		'#default_value' => $pretix_node_info['ticket_type'] ?? $pretix_node_defaults['ticket_type'],
 		'#description' => t('E. g. Adult, Child or Standard. Adgang is the default ticket type.') . ' ' . $pretix_info,
 	);
 
 	$form['pretix']['maintain_copy'] = array(
 		'#type' => 'checkbox',
 		'#title' => t('Maintain copy on Pretix'),
-		'#default_value' => isset($pretix_node_info['maintain_copy']) ? $pretix_node_info['maintain_copy'] : (bool) $pretix_node_defaults['maintain_copy'],
+		'#default_value' => $pretix_node_info['maintain_copy'] ?? (bool) $pretix_node_defaults['maintain_copy'],
 		'#description' => t('When set, a corresponding event is created and updated on the Pretix ticket booking service.'),
 	);
 
@@ -368,7 +217,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 	$form['pretix']['passive'] = array(
 		'#type' => 'checkbox',
 		'#title' => t('Passive event'),
-		'#default_value' => isset($pretix_node_info['passive']) ? $pretix_node_info['passive'] : (bool) $pretix_node_defaults['passive'],
+		'#default_value' => $pretix_node_info['passive'] ?? (bool) $pretix_node_defaults['passive'],
 		'#description' => t('If checked, Pretix flags the event as passive with no ticket sale. This can be useful for using Pretix for keeping record of all events with or without tickets.'),
 	);
 }
