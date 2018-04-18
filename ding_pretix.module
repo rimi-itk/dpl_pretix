@@ -154,7 +154,7 @@ function ding_pretix_node_view($node, $view_mode, $langcode) {
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id) {
   module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
-	$nid = isset($form['nid']['#value']) ? $form['nid']['#value'] : NULL;
+	$nid = $form['nid']['#value'] ?? $form['nid']['#value'];
 	$pretix_node_info = _ding_pretix_get_pretix_node_info($nid);
 	$pretix_node_defaults = _ding_pretix_get_pretix_node_info_defaults($nid);
 
@@ -200,6 +200,23 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 		'#description' => t('E. g. Adult, Child or Standard. Adgang is the default ticket type.') . ' ' . $pretix_info,
 	);
 
+  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
+  if(count($ding_pretix_psp_elements['list'])) {
+    $options = [];
+    foreach ($ding_pretix_psp_elements['list'] as $element) {
+      $options[$element['psp_value']] = $element['psp_name'];
+    }
+
+    $form['pretix']['psp_element'] = array(
+      '#type' => 'select',
+      '#title' => t('PSP Element'),
+      '#options' => $options,
+      '#default_value' => $pretix_node_info['psp_element'] ?? $pretix_node_defaults['psp_element'],
+      '#required' => FALSE,
+      '#description' => t('Select the PSP element the ticket sales should be registered under.'),
+    );
+  }
+
 	$form['pretix']['maintain_copy'] = array(
 		'#type' => 'checkbox',
 		'#title' => t('Maintain copy on Pretix'),
@@ -214,10 +231,4 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 		'#description' => t('A link to the corresponding event on the Pretix ticket booking service.'),
 	);
 
-	$form['pretix']['passive'] = array(
-		'#type' => 'checkbox',
-		'#title' => t('Passive event'),
-		'#default_value' => $pretix_node_info['passive'] ?? (bool) $pretix_node_defaults['passive'],
-		'#description' => t('If checked, Pretix flags the event as passive with no ticket sale. This can be useful for using Pretix for keeping record of all events with or without tickets.'),
-	);
 }

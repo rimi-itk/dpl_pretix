@@ -150,6 +150,12 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
 		'has_subevents' => false
 	];
 
+  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
+  if(array_key_exists('pretix_psp_meta_key', $ding_pretix_psp_elements) && !empty($ding_pretix_psp_elements['pretix_psp_meta_key'])) {
+    $key = $ding_pretix_psp_elements['pretix_psp_meta_key'];
+    $body['meta_data'] = [$key => $node->pretix['psp_element']];
+  }
+
 	return $body;
 }
 
@@ -172,7 +178,8 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null) {
 		'pretix_slug' => $slug,
 		'capacity' => (int) $node->pretix['capacity'],
 		'maintain_copy' => $node->pretix['maintain_copy'],
-		'ticket_type' => $node->pretix['ticket_type']
+		'ticket_type' => $node->pretix['ticket_type'],
+    'psp_element' => $node->pretix['psp_element']
 	);
 
 	db_insert('ding_pretix')->fields($pretix_info)->execute();
@@ -185,7 +192,8 @@ function _ding_pretix_update_pretix_node_info($node) {
 		'nid' => $node->nid,
 		'capacity' => (int) $node->pretix['capacity'],
 		'maintain_copy' => $node->pretix['maintain_copy'],
-		'ticket_type' => $node->pretix['ticket_type']
+		'ticket_type' => $node->pretix['ticket_type'],
+    'psp_element' => $node->pretix['psp_element']
 	);
 
 	db_update('ding_pretix')

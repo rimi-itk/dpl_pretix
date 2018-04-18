@@ -8,12 +8,10 @@
 /**
  * The main settings form.
  */
-function ding_pretix_admin_settings_form($form_state) {
+function ding_pretix_admin_settings_form($form, &$form_state) {
   global $user;
 
-  $form = array(
-    '#tree' => TRUE,
-  );
+  $form['#tree'] = TRUE;
 
   $form['ding_pretix_ticketinfo_labels'] = array(
     '#type' => 'item',
@@ -97,30 +95,96 @@ function ding_pretix_admin_settings_form($form_state) {
 		  '#collapsed' => FALSE,
 	  );
 
-	  $form['ding_pretix_libraries'][$library->nid][$library->nid.'_slug'] = array(
+	  $form['ding_pretix_libraries'][$library->nid]['slug'] = array(
 		  '#type' => 'textfield',
 		  '#title' => t('Slug ') . check_plain($library->title),
-		  '#default_value' => array_key_exists($library->nid, $defaults) ? $defaults[$library->nid] : '',
+		  '#default_value' => array_key_exists($library->nid, $defaults) ? $defaults[$library->nid]['slug'] : '',
 		  '#description' => t('The slug of the Pretix organizer to map to.'),
 	  );
 
-    $form['ding_pretix_libraries'][$library->nid][$library->nid.'_apikey'] = array(
+    $form['ding_pretix_libraries'][$library->nid]['apikey'] = array(
       '#type' => 'textfield',
       '#title' => t('API key ') . check_plain($library->title),
-      '#default_value' => array_key_exists($library->nid, $defaults) ? $defaults[$library->nid] : '',
+      '#default_value' => array_key_exists($library->nid, $defaults) ? $defaults[$library->nid]['apikey'] : '',
       '#description' => t('The API key of the Organizer Team'),
     );
   }
+
+  // Get PSP's previously saved to a variable (first load), else use formstate data (ajax calls).
+  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
+  $psp_elements = $form_state['values']['ding_pretix_psp_elements']['list'] ?? $ding_pretix_psp_elements['list'];
+
+  $form['ding_pretix_psp_elements'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('PSP elements'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['ding_pretix_psp_elements']['pretix_psp_meta_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Pretix PSP property name'),
+    '#default_value' => array_key_exists('pretix_psp_meta_key', $ding_pretix_psp_elements) ? $ding_pretix_psp_elements['pretix_psp_meta_key'] : '',
+    '#size' => 50,
+    '#maxlength' => 50,
+    '#description' => t('The name of the organizer metadata property for the PSP element in Pretix (case sensitive).'),
+  );
+
+  $form['ding_pretix_psp_elements']['list'] = array(
+    '#prefix' => '<div id="ding-pretix-psp-elements-list">',
+    '#suffix' => '</div>',
+  );
+
+  foreach($psp_elements as $key => $value) {
+    $form['ding_pretix_psp_elements']['list'][$key] = array(
+      '#type' => 'fieldset',
+      '#title' => $key ? t('PSP element') : t('PSP element (default)'),
+      '#collapsible' => FALSE,
+      '#collapsed' => FALSE,
+    );
+    $form['ding_pretix_psp_elements']['list'][$key]['psp_name'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Name'),
+      '#default_value' => $value['psp_name']
+    );
+    $form['ding_pretix_psp_elements']['list'][$key]['psp_value'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Value'),
+      '#size' => 50,
+      '#maxlength' => 50,
+      '#default_value' => $value['psp_value']
+    );
+  }
+
+  $form['ding_pretix_psp_elements']['add_psp'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add PSP element'),
+    '#submit' => array('ding_pretix_admin_settings_form_add_psp_element'),
+    '#ajax' => array(
+      'callback' => 'ding_pretix_admin_settings_form_psp_callback',
+      'wrapper' => 'ding-pretix-psp-elements-list',
+    ),
+  );
+
+  $form['ding_pretix_psp_elements']['remove_psp'] = array(
+    '#type' => 'submit',
+    '#value' => t('Remove PSP element'),
+    '#submit' => array('ding_pretix_admin_settings_form_remove_psp_element'),
+    '#ajax' => array(
+      'callback' => 'ding_pretix_admin_settings_form_psp_callback',
+      'wrapper' => 'ding-pretix-psp-elements-list',
+    ),
+  );
+
+  // Load default event node pretix settings
+  $defaults = variable_get('ding_pretix_event_nodes', array());
 
   $form['ding_pretix_event_nodes'] = array(
     '#type' => 'fieldset',
     '#title' => t('Pretix event node defaults'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
+    '#collapsed' => FALSE,
   );
-
-  // Load default settings
-  $defaults = variable_get('ding_pretix_event_nodes', array());
 
   $form['ding_pretix_event_nodes']['capacity'] = array(
     '#type' => 'textfield',
@@ -150,4 +214,35 @@ function ding_pretix_admin_settings_form($form_state) {
   );
 
   return system_settings_form($form);
+}
+
+/**
+ * Callback for both ajax-enabled buttons.
+ *
+ * Selects and returns the fieldset with the PSP elements in it.
+ */
+function ding_pretix_admin_settings_form_psp_callback($form, $form_state) {
+  return $form['ding_pretix_psp_elements']['list'];
+}
+
+/**
+ * Submit handler for the "add-one-more" button.
+ *
+ * Increments the max counter and causes a rebuild.
+ */
+function ding_pretix_admin_settings_form_add_psp_element($form, &$form_state) {
+  $form_state['values']['ding_pretix_psp_elements']['list'][] = ['psp_name' => '', 'psp_value' => ''];
+
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Submit handler for the "remove one" button.
+ *
+ * Decrements the max counter and causes a form rebuild.
+ */
+function ding_pretix_admin_settings_form_remove_psp_element($form, &$form_state) {
+  array_pop($form_state['values']['ding_pretix_psp_elements']['list']);
+
+  $form_state['rebuild'] = TRUE;
 }
