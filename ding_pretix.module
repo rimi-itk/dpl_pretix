@@ -206,7 +206,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   );
 
   $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
-  if (count($ding_pretix_psp_elements['list'])) {
+  if ($ding_pretix_psp_elements && !empty($ding_pretix_psp_elements['pretix_psp_meta_key']) && count($ding_pretix_psp_elements['list'])) {
     $options = [];
     foreach ($ding_pretix_psp_elements['list'] as $element) {
       $options[$element['psp_value']] = $element['psp_name'];
