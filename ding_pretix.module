@@ -52,7 +52,7 @@ function ding_pretix_node_insert($node)
 
         //Set ticket price
         $item = _ding_pretix_get_item($service_settings, $pretix_info_result);
-        $item_result = _ding_pretix_update_item_price($node, $item, $service_settings, $pretix_info_result);
+        $item_result = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info_result);
 
         // Set correct quota
         $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info_result);
@@ -102,15 +102,15 @@ function ding_pretix_node_update($node)
         $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']);
 
         $result = drupal_http_request($url, $options);
-        $pretix_info_result = _ding_pretix_update_pretix_node_info($node);
+        $pretix_info = _ding_pretix_update_pretix_node_info($node);
 
         //Set ticket price
-        $item = _ding_pretix_get_item($service_settings, $pretix_info_result);
-        $item_result = _ding_pretix_update_item_price($node, $item, $service_settings, $pretix_info_result);
+        $item = _ding_pretix_get_item($service_settings, $pretix_info);
+        $item_result = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info);
 
         // Set correct quota
-        $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info_result);
-        $quota_result = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info_result);
+        $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info);
+        $quota_result = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info);
 
       } else {
         // The event exist in Pretix but the user has changed the 'maintain_copy' setting to false.
@@ -212,13 +212,18 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       $options[$element['psp_value']] = $element['psp_name'];
     }
 
+    // PSP is a code for accounting. Once set, we don't allow this to be changed, as this would invalidate the accounts.
+    $disabled = empty($pretix_node_info['psp_element']) ? FALSE : TRUE;
+    $description = $disabled ? t('For accounting reasons the PSP element cannot be changed.') : t('Select the PSP element the ticket sales should be registered under.');
+
     $form['pretix']['psp_element'] = array(
       '#type' => 'select',
       '#title' => t('PSP Element'),
       '#options' => $options,
       '#default_value' => $pretix_node_info['psp_element'] ?? $pretix_node_defaults['psp_element'],
       '#required' => FALSE,
-      '#description' => t('Select the PSP element the ticket sales should be registered under.'),
+      '#description' => $description,
+      '#disabled' => $disabled,
     );
   }
 

@@ -63,6 +63,7 @@ function _ding_pretix_get_item($service_settings, $pretix_info)
     foreach ($data->results as $result) {
       if ($result->admission) {
         $item = $result;
+        break;
       }
     }
   }
@@ -70,16 +71,16 @@ function _ding_pretix_get_item($service_settings, $pretix_info)
   return $item ?? null;
 }
 
-function _ding_pretix_update_item_price($node, $item, $service_settings, $pretix_info)
+function _ding_pretix_update_item($node, $item, $service_settings, $pretix_info)
 {
   $wrapper = entity_metadata_wrapper('node', $node);
   $price = $wrapper->field_ding_event_price->value();
 
-  if ($item && $price !== $item->default_price) {
+  if ($item) {
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['default_price' => (int)$price])
+      'data' => json_encode(['default_price' => (int)$price, 'name' => ['da' => $node->pretix['ticket_type']]])
     ];
     $endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'items/' . $item->id . '/';
     $result = drupal_http_request($endpoint, $options);
@@ -88,9 +89,8 @@ function _ding_pretix_update_item_price($node, $item, $service_settings, $pretix
   return $result ?? null;
 }
 
-function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null)
+function _ding_pretix_get_event_endpoint($service_settings, $event_slug)
 {
-  $event_slug = $event_slug ?? $service_settings['template_event_slug'];
   $endpoint = $service_settings['service_url'] . 'api/v1/organizers/' . $service_settings['organizer_slug'] . '/events/' . $event_slug . '/';
 
   return $endpoint;
@@ -154,7 +154,7 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE')
   ];
 
   $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
-  if (array_key_exists('pretix_psp_meta_key', $ding_pretix_psp_elements) && !empty($ding_pretix_psp_elements['pretix_psp_meta_key'])) {
+  if ($request_type === 'INSERT' && array_key_exists('pretix_psp_meta_key', $ding_pretix_psp_elements) && !empty($ding_pretix_psp_elements['pretix_psp_meta_key'])) {
     $key = $ding_pretix_psp_elements['pretix_psp_meta_key'];
     $body['meta_data'] = [$key => $node->pretix['psp_element']];
   }
@@ -261,7 +261,6 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
 function _ding_pretix_update_pretix_node_info($node)
 {
   $pretix_info = array(
-    'nid' => $node->nid,
     'capacity' => (int)$node->pretix['capacity'],
     'maintain_copy' => $node->pretix['maintain_copy'],
     'ticket_type' => $node->pretix['ticket_type'],
@@ -272,6 +271,8 @@ function _ding_pretix_update_pretix_node_info($node)
     ->fields($pretix_info)
     ->condition('nid', $node->nid, '=')
     ->execute();
+
+  return _ding_pretix_get_pretix_node_info($node->nid);
 }
 
 function _ding_pretix_get_pretix_node_info($nid)
