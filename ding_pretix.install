@@ -5,8 +5,19 @@
  * Installation file for ding_pretix module.
  */
 
+
 /**
- * Implementation of hook_schema().
+ * Implements hook_disable().
+ */
+function ding_pretix_uninstall() {
+  variable_del('ding_pretix_psp_elements');
+  variable_del('ding_pretix_event_nodes');
+  variable_del('ding_pretix');
+  variable_del('ding_pretix_libraries');
+}
+
+/**
+ * Implements hook_schema().
  */
 function ding_pretix_schema() {
 	return array(
