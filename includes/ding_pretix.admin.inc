@@ -204,6 +204,15 @@ function ding_pretix_admin_settings_form($form, &$form_state) {
     '#description' => t('The default ticket type for new events.'),
   );
 
+  $form['ding_pretix_event_nodes']['defaults'] = array(
+    '#type' => 'checkboxes',
+    '#options' => array(
+      'maintain_copy' => t('Maintain copy'),
+    ),
+    '#default_value' => array_key_exists('defaults', $defaults) ? $defaults['defaults'] : array(),
+  );
+
+
   return system_settings_form($form);
 }
 

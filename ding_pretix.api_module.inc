@@ -305,7 +305,10 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
     'psp_element' => $node->pretix['psp_element']
   );
 
-  db_insert('ding_pretix')->fields($pretix_info)->execute();
+  db_merge('ding_pretix')
+    ->fields($pretix_info)
+    ->condition('nid', $node->nid, '=')
+    ->execute();
 
   return $pretix_info;
 }
@@ -319,7 +322,7 @@ function _ding_pretix_update_pretix_node_info($node)
     'psp_element' => $node->pretix['psp_element']
   );
 
-  db_update('ding_pretix')
+  db_merge('ding_pretix')
     ->fields($pretix_info)
     ->condition('nid', $node->nid, '=')
     ->execute();
