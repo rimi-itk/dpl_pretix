@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function ding_pretix_menu()
 {
@@ -21,7 +21,7 @@ function ding_pretix_menu()
 }
 
 /**
- * Implementation of hook_node_insert()
+ * Implements hook_node_insert()
  */
 function ding_pretix_node_insert($node)
 {
@@ -32,50 +32,45 @@ function ding_pretix_node_insert($node)
 
     if ($node->pretix['maintain_copy'] === 1) {
 
-      $headers = _ding_pretix_built_request_headers($service_settings);
-      $body = _ding_pretix_built_request_body($node, 'INSERT');
+      $result = _ding_pretix_create_event($node, $service_settings);
 
-      $clone_options = [
-        'method' => 'POST',
-        'headers' => $headers,
-        'data' => json_encode($body)
-      ];
-      $clone_url = _ding_pretix_get_event_endpoint($service_settings) . 'clone/';
-
-      // Create Event via clone
-      $result = drupal_http_request($clone_url, $clone_options);
-      if (201 === (int)$result->code) {
-        $pretix_info_result = _ding_pretix_insert_pretix_node_info($node, $service_settings['organizer_slug'], $result->data);
+      if (201 === (int) $result->code) {
+        $pretix_info = _ding_pretix_insert_pretix_node_info($node, $service_settings['organizer_slug'], $result->data);
 
         // Set event to 'live' if node is published.
-        $live_result = _ding_pretix_update_live($node->status, $service_settings, $pretix_info_result);
+        $results[] = _ding_pretix_update_live($node->status, $service_settings, $pretix_info['pretix_slug']);
 
         //Set ticket price
-        $item = _ding_pretix_get_item($service_settings, $pretix_info_result);
-        $item_result = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info_result);
+        $item = _ding_pretix_get_item($service_settings, $pretix_info['pretix_slug']);
+        $results[] = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info['pretix_slug']);
 
         // Set correct quota
-        $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info_result);
-        $quota_result = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info_result);
+        $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info['pretix_slug']);
+        $results[] = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info['pretix_slug'], $pretix_info['capacity']);
+
+        $errors = array_filter($results, function ($result) { return isset($result->error); });
+        if (!empty($errors)) {
+          drupal_set_message(t('There was a problem configuring the event in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
+        } else {
+          drupal_set_message(t('The event was successfully created in Pretix.'));
+        }
       } else {
-        watchdog('ding_pretix',
-          'Pretix API: @error: @data (Request: @request, URL: @url)',
-          ['@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $clone_url],
-          $severity = WATCHDOG_ERROR);
+        drupal_set_message(t('The event could not be created in Pretix. Contact an administrator.'), 'error');
       }
     } else {
-      $pretix_info_result = _ding_pretix_insert_pretix_node_info($node, $service_settings['organizer_slug']);
+      _ding_pretix_insert_pretix_node_info($node, $service_settings['organizer_slug']);
     }
   }
 }
 
 /**
- * Implementation of hook_node_update()
+ * Implements hook_node_update()
  */
 function ding_pretix_node_update($node)
 {
   if ($node->type == 'ding_event') {
     module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
     $service_settings = variable_get('ding_pretix', array());
 
@@ -83,47 +78,58 @@ function ding_pretix_node_update($node)
       if ($node->pretix['maintain_copy'] === 1) {
         // If the node has not previously been set to maintain a copy in Pretix we need to save it first.
         ding_pretix_node_insert($node);
-      } else {
-        // Only save pretix node info in Drupal
-        $pretix_info = _ding_pretix_update_pretix_node_info($node);
       }
-    } else {
+      else {
+        // Only save pretix node info in Drupal
+        _ding_pretix_update_pretix_node_info($node);
+      }
+    }
+    else {
 
       if ($node->pretix['maintain_copy'] === 1) {
         // Update existing event in pretix
-        $headers = _ding_pretix_built_request_headers($service_settings);
-        $body = _ding_pretix_built_request_body($node, 'UPDATE');
+        $result = _ding_pretix_update_event($node, $service_settings, $pretix_info['pretix_slug']);
 
-        $options = array(
-          'method' => 'PATCH',
-          'headers' => $headers,
-          'data' => json_encode($body)
-        );
-        $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']);
+        if (200 === (int) $result->code) {
+          $pretix_info = _ding_pretix_update_pretix_node_info($node);
 
-        $result = drupal_http_request($url, $options);
-        $pretix_info = _ding_pretix_update_pretix_node_info($node);
+          //Set ticket price
+          $item = _ding_pretix_get_item($service_settings, $pretix_info['pretix_slug']);
+          $results[] = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info['pretix_slug']);
 
-        //Set ticket price
-        $item = _ding_pretix_get_item($service_settings, $pretix_info);
-        $item_result = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info);
+          // Set correct quota
+          $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info['pretix_slug']);
+          $results[] = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info['pretix_slug'], $pretix_info['capacity']);
 
-        // Set correct quota
-        $quota = _ding_pretix_get_quota($item, $service_settings, $pretix_info);
-        $quota_result = _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info);
+          $errors = array_filter($results, function ($result) { return isset($result->error); });
+          if (!empty($errors)) {
+            drupal_set_message(t('There was a problem configuring the updated event in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
+          } else {
+            drupal_set_message(t('The event was successfully updated in Pretix.'));
+          }
+        } else {
+          drupal_set_message(t('The event could not be updated in Pretix. Contact an administrator.'), 'error');
+        }
 
-      } else {
+      }
+      else {
         // The event exist in Pretix but the user has changed the 'maintain_copy' setting to false.
         // Best we can do is to take the event offline.
-        $result = _ding_pretix_update_live(false, $service_settings, $pretix_info);
-        $pretix_info = _ding_pretix_update_pretix_node_info($node);
+        $result = _ding_pretix_update_live(false, $service_settings, $pretix_info['pretix_slug']);
+        if (200 === (int) $result->code) {
+          $pretix_info = _ding_pretix_update_pretix_node_info($node);
+
+          drupal_set_message(t('The event already exists in Pretix. It has been taken offline.'));
+        } else {
+          drupal_set_message(t('The event could not be updated in Pretix. Contact an administrator.'), 'error');
+        }
       }
     }
   }
 }
 
 /**
- * Implementation of hook_node_delete()
+ * Implements hook_node_delete()
  */
 function ding_pretix_node_delete($node)
 {
@@ -134,14 +140,29 @@ function ding_pretix_node_delete($node)
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
 
     if ($pretix_info['pretix_slug']) {
-      $live_result = _ding_pretix_update_live(false, $service_settings, $pretix_info);
-      $result = _ding_pretix_delete_pretix_node_info($node->nid);
+      $result = _ding_pretix_delete_event($service_settings, $pretix_info['pretix_slug']);
+
+      if(204 === (int) $result->code) {
+        _ding_pretix_delete_pretix_node_info($node->nid);
+
+        drupal_set_message(t('The event was successfully deleted from Pretix.'));
+      } else {
+        $live_result = _ding_pretix_update_live(false, $service_settings, $pretix_info['pretix_slug']);
+
+        if(200 === (int) $live_result->code) {
+          drupal_set_message(t('The event could not be deleted in Pretix - most likely because there are already orders. It has been taken offline instead.'), 'warning');
+        } else {
+          drupal_set_message(t('The event could not be deleted in Pretix. Contact an administrator.'), 'error');
+        }
+
+        _ding_pretix_delete_pretix_node_info($node->nid);
+      }
     }
   }
 }
 
 /**
- * Implementation of hook_node_view()
+ * Implements hook_node_view()
  */
 function ding_pretix_node_view($node, $view_mode, $langcode)
 {
@@ -155,7 +176,7 @@ function ding_pretix_node_view($node, $view_mode, $langcode)
 }
 
 /**
- * Implementation of hook_form_FORM_ID_alter().
+ * Implements hook_form_FORM_ID_alter().
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id)
 {

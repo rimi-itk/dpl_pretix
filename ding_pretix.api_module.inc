@@ -1,41 +1,89 @@
 <?php
 
-function _ding_pretix_update_live($is_live, $service_settings, $pretix_info)
+function _ding_pretix_create_event($node, $service_settings)
 {
-  $live_url = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']);
+  $headers = _ding_pretix_built_request_headers($service_settings);
+  $body = _ding_pretix_built_request_body($node, 'INSERT');
+
+  $clone_options = [
+    'method' => 'POST',
+    'headers' => $headers,
+    'data' => json_encode($body)
+  ];
+  $clone_url = _ding_pretix_get_event_endpoint($service_settings) . $service_settings['template_event_slug'] . '/clone/';
+
+  // Create Event via clone
+  $result = _ding_pretix_http_request($clone_url, $clone_options);
+
+  return $result;
+}
+
+function _ding_pretix_update_event($node, $service_settings, $pretix_slug)
+{
+  $headers = _ding_pretix_built_request_headers($service_settings);
+  $body = _ding_pretix_built_request_body($node, 'UPDATE');
+
+  $options = array(
+    'method' => 'PATCH',
+    'headers' => $headers,
+    'data' => json_encode($body)
+  );
+  $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
+  $result = _ding_pretix_http_request($url, $options);
+
+  return $result;
+}
+
+function _ding_pretix_delete_event($service_settings, $pretix_slug)
+{
+  $headers = _ding_pretix_built_request_headers($service_settings);
+
+  $options = array(
+    'method' => 'PATCH',
+    'headers' => $headers
+  );
+  $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
+  $result = _ding_pretix_http_request($url, $options);
+
+  return $result;
+}
+
+function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug)
+{
+  $live_url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
   $live_options = [
     'method' => 'PATCH',
     'headers' => _ding_pretix_built_request_headers($service_settings),
     'data' => json_encode(['live' => $is_live]),
   ];
-  $result = drupal_http_request($live_url, $live_options);
+  $result = _ding_pretix_http_request($live_url, $live_options);
 
   return $result;
 }
 
-function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_info)
+function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity)
 {
-  if ($quota && $pretix_info['capacity'] !== $quota->size) {
+  if ($quota && $pretix_capacity !== $quota->size) {
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['size' => (int)$pretix_info['capacity']])
+      'data' => json_encode(['size' => (int) $pretix_capacity])
     ];
-    $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'quotas/' . $quota->id . '/';
-    $result = drupal_http_request($quota_endpoint, $options);
+    $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/' . $quota->id . '/';
+    $result = _ding_pretix_http_request($quota_endpoint, $options);
   }
 
   return $result ?? null;
 }
 
-function _ding_pretix_get_quota($item, $service_settings, $pretix_info)
+function _ding_pretix_get_quota($item, $service_settings, $pretix_slug)
 {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings)
   ];
-  $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'quotas/';
-  $result = drupal_http_request($quota_endpoint, $options);
+  $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/';
+  $result = _ding_pretix_http_request($quota_endpoint, $options);
 
   if (200 === (int)$result->code) {
     $data = json_decode($result->data);
@@ -49,14 +97,14 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_info)
   return $quota ?? null;
 }
 
-function _ding_pretix_get_item($service_settings, $pretix_info)
+function _ding_pretix_get_item($service_settings, $pretix_slug)
 {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings)
   ];
-  $item_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'items/';
-  $result = drupal_http_request($item_endpoint, $options);
+  $item_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/';
+  $result = _ding_pretix_http_request($item_endpoint, $options);
 
   if (200 === (int)$result->code) {
     $data = json_decode($result->data);
@@ -71,7 +119,7 @@ function _ding_pretix_get_item($service_settings, $pretix_info)
   return $item ?? null;
 }
 
-function _ding_pretix_update_item($node, $item, $service_settings, $pretix_info)
+function _ding_pretix_update_item($node, $item, $service_settings, $pretix_slug)
 {
   $wrapper = entity_metadata_wrapper('node', $node);
   $price = $wrapper->field_ding_event_price->value();
@@ -82,16 +130,20 @@ function _ding_pretix_update_item($node, $item, $service_settings, $pretix_info)
       'headers' => _ding_pretix_built_request_headers($service_settings),
       'data' => json_encode(['default_price' => (int)$price, 'name' => ['da' => $node->pretix['ticket_type']]])
     ];
-    $endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_info['pretix_slug']) . 'items/' . $item->id . '/';
-    $result = drupal_http_request($endpoint, $options);
+    $endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/' . $item->id . '/';
+    $result = _ding_pretix_http_request($endpoint, $options);
   }
 
   return $result ?? null;
 }
 
-function _ding_pretix_get_event_endpoint($service_settings, $event_slug)
+function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null)
 {
-  $endpoint = $service_settings['service_url'] . 'api/v1/organizers/' . $service_settings['organizer_slug'] . '/events/' . $event_slug . '/';
+  $endpoint = $service_settings['service_url'] . 'api/v1/organizers/' . $service_settings['organizer_slug'] . '/events/';
+
+  if($event_slug) {
+    $endpoint .= $event_slug . '/';
+  }
 
   return $endpoint;
 }
@@ -310,4 +362,19 @@ function _ding_pretix_get_pretix_node_info_defaults($nid)
   ];
 
   return $pretix_defaults;
+}
+
+function _ding_pretix_http_request($item_endpoint, $options)
+{
+  $result = drupal_http_request($item_endpoint, $options);
+
+  if(isset($result->error))
+  {
+    watchdog('ding_pretix',
+      'Pretix API: @error: @data (Request: @request, URL: @url)',
+      ['@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $item_endpoint],
+      $severity = WATCHDOG_ERROR);
+  }
+
+  return $result;
 }
