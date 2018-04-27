@@ -1,6 +1,18 @@
 <?php
 
 /**
+ * Implements hook_permission().
+ */
+function ding_pretix_permission() {
+  return array(
+    'administer pretix settings' => array(
+      'title' => t('Administer pretix settings'),
+      'description' => t('Perform administration tasks for ding_pretix.'),
+    ),
+  );
+}
+
+/**
  * Implements hook_menu().
  */
 function ding_pretix_menu()
