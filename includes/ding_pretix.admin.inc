@@ -206,12 +206,24 @@ function ding_pretix_admin_settings_form($form, &$form_state) {
 
   $form['ding_pretix_event_nodes']['defaults'] = array(
     '#type' => 'checkboxes',
+    '#title' => t('Maintain copy in Pretix'),
     '#options' => array(
       'maintain_copy' => t('Maintain copy'),
     ),
     '#default_value' => array_key_exists('defaults', $defaults) ? $defaults['defaults'] : array(),
+    '#description' => t('Should new events be saved and updated to Pretix by default?'),
   );
 
+  $form['ding_pretix_event_nodes']['default_ticket_form'] = array(
+    '#type' => 'radios',
+    '#title' => t('Use PDF or Email tickets'),
+    '#options' => array(
+      'pdf_ticket' => t('PDF Tickets'),
+      'email_ticket' => t('Email Tickets'),
+    ),
+    '#default_value' => array_key_exists('default_ticket_form', $defaults) ? $defaults['default_ticket_form'] : array(),
+    '#description' => t('Should new events use PDF or Email tickets by default?'),
+  );
 
   return system_settings_form($form);
 }

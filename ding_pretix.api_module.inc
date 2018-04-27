@@ -36,11 +36,9 @@ function _ding_pretix_update_event($node, $service_settings, $pretix_slug)
 
 function _ding_pretix_delete_event($service_settings, $pretix_slug)
 {
-  $headers = _ding_pretix_built_request_headers($service_settings);
-
   $options = array(
-    'method' => 'PATCH',
-    'headers' => $headers
+    'method' => 'DELETE',
+    'headers' => _ding_pretix_built_request_headers($service_settings)
   );
   $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
   $result = _ding_pretix_http_request($url, $options);
@@ -50,15 +48,42 @@ function _ding_pretix_delete_event($service_settings, $pretix_slug)
 
 function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug)
 {
-  $live_url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
-  $live_options = [
+  $options = [
     'method' => 'PATCH',
     'headers' => _ding_pretix_built_request_headers($service_settings),
     'data' => json_encode(['live' => $is_live]),
   ];
-  $result = _ding_pretix_http_request($live_url, $live_options);
+  $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
+  $result = _ding_pretix_http_request($url, $options);
 
   return $result;
+}
+
+function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settings, $pretix_slug)
+{
+  $pdf_plugin_name = 'pretix.plugins.ticketoutputpdf';
+
+  $data = json_decode($data);
+  $enabled_plugins = $data->plugins;
+  $key = array_search($pdf_plugin_name, $enabled_plugins);
+
+  if ($key !== false && !$use_pdf_tickets) {
+    unset($enabled_plugins[$key]);
+  } else if ($key === false && $use_pdf_tickets) {
+    $enabled_plugins[] = $pdf_plugin_name;
+  }
+
+  if($data->plugins !== $enabled_plugins ) {
+    $options = [
+      'method' => 'PATCH',
+      'headers' => _ding_pretix_built_request_headers($service_settings),
+      'data' => json_encode(['plugins' => $enabled_plugins]),
+    ];
+    $live_url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
+    $result = _ding_pretix_http_request($live_url, $options);
+  }
+
+  return $result ?? null;
 }
 
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity)
@@ -302,7 +327,8 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
     'capacity' => (int)$node->pretix['capacity'],
     'maintain_copy' => $node->pretix['maintain_copy'],
     'ticket_type' => $node->pretix['ticket_type'],
-    'psp_element' => $node->pretix['psp_element']
+    'psp_element' => $node->pretix['psp_element'],
+    'ticket_form' => $node->pretix['ticket_form']
   );
 
   db_merge('ding_pretix')
@@ -316,10 +342,12 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
 function _ding_pretix_update_pretix_node_info($node)
 {
   $pretix_info = array(
+    'nid' => $node->nid,
     'capacity' => (int)$node->pretix['capacity'],
     'maintain_copy' => $node->pretix['maintain_copy'],
     'ticket_type' => $node->pretix['ticket_type'],
-    'psp_element' => $node->pretix['psp_element']
+    'psp_element' => $node->pretix['psp_element'],
+    'ticket_form' => $node->pretix['ticket_form']
   );
 
   db_merge('ding_pretix')
@@ -361,7 +389,7 @@ function _ding_pretix_get_pretix_node_info_defaults($nid)
     'capacity' => (int)$settings['capacity'],
     'ticket_type' => $settings['ticket_type'],
     'maintain_copy' => $maintain_copy,
-    'passive' => $settings['defaults']['passive'],
+    'default_ticket_form' => $settings['default_ticket_form'],
   ];
 
   return $pretix_defaults;
@@ -374,8 +402,8 @@ function _ding_pretix_http_request($item_endpoint, $options)
   if(isset($result->error))
   {
     watchdog('ding_pretix',
-      'Pretix API: @error: @data (Request: @request, URL: @url)',
-      ['@error' => $result->error, '@data' => $result->data, '@request' => $result->request, '@url' => $item_endpoint],
+      '@error: @method @data (Request: @request, URL: @url)',
+      ['@error' => $result->error, '@method' => $options['method'], '@data' => $result->data ?? null, '@request' => $result->request ?? null, '@url' => $item_endpoint],
       $severity = WATCHDOG_ERROR);
   }
 
