@@ -33,7 +33,10 @@ function ding_pretix_menu()
 }
 
 /**
- * Implements hook_node_insert()
+ * Implements hook_node_insert().
+ *
+ * @param $node
+ * @throws Exception
  */
 function ding_pretix_node_insert($node)
 {
@@ -80,7 +83,10 @@ function ding_pretix_node_insert($node)
 }
 
 /**
- * Implements hook_node_update()
+ * Implements hook_node_update().
+ *
+ * @param $node
+ * @throws InvalidMergeQueryException
  */
 function ding_pretix_node_update($node)
 {
@@ -145,7 +151,9 @@ function ding_pretix_node_update($node)
 }
 
 /**
- * Implements hook_node_delete()
+ * Implements hook_node_delete().
+ *
+ * @param $node
  */
 function ding_pretix_node_delete($node)
 {
@@ -178,7 +186,11 @@ function ding_pretix_node_delete($node)
 }
 
 /**
- * Implements hook_node_view()
+ * Implements hook_node_view().
+ *
+ * @param $node
+ * @param $view_mode
+ * @param $langcode
  */
 function ding_pretix_node_view($node, $view_mode, $langcode)
 {
@@ -193,6 +205,10 @@ function ding_pretix_node_view($node, $view_mode, $langcode)
 
 /**
  * Implements hook_form_FORM_ID_alter().
+ *
+ * @param $form
+ * @param $form_state
+ * @param $form_id
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id)
 {

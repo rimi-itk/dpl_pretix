@@ -5,7 +5,6 @@
  * Installation file for ding_pretix module.
  */
 
-
 /**
  * Implements hook_disable().
  */

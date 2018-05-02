@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * Create event.
+ *
+ * Uses Pretix 'clone' endpoint to create a new event with settings copied from the cloned event.
+ *
+ * @param $node
+ * @param $service_settings
+ * @return object
+ * @throws Exception
+ */
 function _ding_pretix_create_event($node, $service_settings)
 {
   $headers = _ding_pretix_built_request_headers($service_settings);
@@ -18,6 +28,15 @@ function _ding_pretix_create_event($node, $service_settings)
   return $result;
 }
 
+/**
+ * Update the given the event in pretix.
+ *
+ * @param $node
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return object
+ * @throws Exception
+ */
 function _ding_pretix_update_event($node, $service_settings, $pretix_slug)
 {
   $headers = _ding_pretix_built_request_headers($service_settings);
@@ -34,6 +53,13 @@ function _ding_pretix_update_event($node, $service_settings, $pretix_slug)
   return $result;
 }
 
+/**
+ * Delete the given event in pretix.
+ *
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return object
+ */
 function _ding_pretix_delete_event($service_settings, $pretix_slug)
 {
   $options = array(
@@ -46,6 +72,14 @@ function _ding_pretix_delete_event($service_settings, $pretix_slug)
   return $result;
 }
 
+/**
+ * Update 'live' for the given event in pretix.
+ *
+ * @param $is_live
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return object
+ */
 function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug)
 {
   $options = [
@@ -59,6 +93,15 @@ function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug)
   return $result;
 }
 
+/**
+ * Enable or disable the 'PDF ticket plugin' in pretix.
+ *
+ * @param $data
+ * @param $use_pdf_tickets
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return null|object
+ */
 function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settings, $pretix_slug)
 {
   $pdf_plugin_name = 'pretix.plugins.ticketoutputpdf';
@@ -86,6 +129,15 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
   return $result ?? null;
 }
 
+/**
+ * Update the size of the given quota.
+ *
+ * @param $quota
+ * @param $service_settings
+ * @param $pretix_slug
+ * @param $pretix_capacity
+ * @return null|object
+ */
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity)
 {
   if ($quota && $pretix_capacity !== $quota->size) {
@@ -101,6 +153,14 @@ function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug,
   return $result ?? null;
 }
 
+/**
+ * Get the given quota from pretix.
+ *
+ * @param $item
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return null
+ */
 function _ding_pretix_get_quota($item, $service_settings, $pretix_slug)
 {
   $options = [
@@ -122,6 +182,13 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_slug)
   return $quota ?? null;
 }
 
+/**
+ * Get the given item from pretix.
+ *
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return null
+ */
 function _ding_pretix_get_item($service_settings, $pretix_slug)
 {
   $options = [
@@ -144,6 +211,15 @@ function _ding_pretix_get_item($service_settings, $pretix_slug)
   return $item ?? null;
 }
 
+/**
+ * Update the given item in pretix.
+ *
+ * @param $node
+ * @param $item
+ * @param $service_settings
+ * @param $pretix_slug
+ * @return null|object
+ */
 function _ding_pretix_update_item($node, $item, $service_settings, $pretix_slug)
 {
   $wrapper = entity_metadata_wrapper('node', $node);
@@ -162,6 +238,14 @@ function _ding_pretix_update_item($node, $item, $service_settings, $pretix_slug)
   return $result ?? null;
 }
 
+/**
+ * Get the api endpoint for the given event. If the no event is given the create event endpoint for
+ * the default organizer is returned.
+ *
+ * @param $service_settings
+ * @param null $event_slug
+ * @return string
+ */
 function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null)
 {
   $endpoint = $service_settings['service_url'] . 'api/v1/organizers/' . $service_settings['organizer_slug'] . '/events/';
@@ -173,6 +257,13 @@ function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null)
   return $endpoint;
 }
 
+/**
+ * Get the pretix admin url for the given event.
+ *
+ * @param $service_settings
+ * @param $event_slug
+ * @return string
+ */
 function _ding_pretix_get_event_admin_url($service_settings, $event_slug)
 {
   $endpoint = $service_settings['service_url'] . 'control/event/' . $service_settings['organizer_slug'] . '/' . $event_slug . '/';
@@ -181,6 +272,8 @@ function _ding_pretix_get_event_admin_url($service_settings, $event_slug)
 }
 
 /**
+ * Get the http request headers.
+ *
  * @param $service_settings
  *
  * @return array
@@ -197,6 +290,8 @@ function _ding_pretix_built_request_headers($service_settings)
 }
 
 /**
+ * Get the http request body for the event with values set from the node and request type.
+ *
  * @param $node
  * @param $request_type
  *
@@ -239,6 +334,13 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE')
   return $body;
 }
 
+/**
+ * Get the place for the node. If 'name' is set on the address field on the node this field is used.
+ * Otherwise the address field on the attached library is used.
+ *
+ * @param $node
+ * @return field|bool
+ */
 function _ding_pretix_get_place($node)
 {
   $field_address = field_get_items('node', $node, 'field_ding_event_location');
@@ -273,6 +375,12 @@ function _ding_pretix_get_place($node)
   return $field_address;
 }
 
+/**
+ * Get a formatted string from the address field.
+ *
+ * @param $field_address
+ * @return string
+ */
 function _ding_pretix_get_place_string($field_address) {
   $place = '';
   $place = empty($field_address[0]['name_line']) ? $place : $place . $field_address[0]['name_line'] . "\n";
@@ -292,7 +400,7 @@ function _ding_pretix_get_place_string($field_address) {
  *   The entity to find library node id for.
  *
  * @return null|int
- *   If the no library is selected on the entity NULL is returned else the
+ *   If no library is selected on the entity NULL is returned else the
  *   entity id (nid) for the first library found.
  */
 function _ding_pretix_get_library_nid($entity)
@@ -307,7 +415,7 @@ function _ding_pretix_get_library_nid($entity)
 }
 
 /**
- * Private function to save node specific Pretix data
+ * Save pretix values for the given node.
  *
  * @param $node
  * @param $organizer
@@ -339,6 +447,13 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
   return $pretix_info;
 }
 
+/**
+ * Update the saved pretix values for the given node.
+ *
+ * @param $node
+ * @return mixed
+ * @throws InvalidMergeQueryException
+ */
 function _ding_pretix_update_pretix_node_info($node)
 {
   $pretix_info = array(
@@ -358,6 +473,12 @@ function _ding_pretix_update_pretix_node_info($node)
   return _ding_pretix_get_pretix_node_info($node->nid);
 }
 
+/**
+ * Get the saved pretix values for the given node.
+ *
+ * @param $nid
+ * @return mixed
+ */
 function _ding_pretix_get_pretix_node_info($nid)
 {
   $pretix_info = db_select('ding_pretix', 'p')
@@ -369,6 +490,12 @@ function _ding_pretix_get_pretix_node_info($nid)
   return $pretix_info;
 }
 
+/**
+ * Remove saved pretix values for the node.
+ *
+ * @param $nid
+ * @return int
+ */
 function _ding_pretix_delete_pretix_node_info($nid)
 {
   $pretix_info = db_delete('ding_pretix')
@@ -378,6 +505,12 @@ function _ding_pretix_delete_pretix_node_info($nid)
   return $pretix_info;
 }
 
+/**
+ * Get the default values for pretix settings.
+ *
+ * @param $nid
+ * @return array
+ */
 function _ding_pretix_get_pretix_node_info_defaults($nid)
 {
   $settings = variable_get('ding_pretix_event_nodes', array());
@@ -395,6 +528,15 @@ function _ding_pretix_get_pretix_node_info_defaults($nid)
   return $pretix_defaults;
 }
 
+/**
+ * Perform http request.
+ *
+ * Uses 'drupal_http_request', logs all errors through watchdog
+ *
+ * @param $item_endpoint
+ * @param $options
+ * @return object
+ */
 function _ding_pretix_http_request($item_endpoint, $options)
 {
   $result = drupal_http_request($item_endpoint, $options);
