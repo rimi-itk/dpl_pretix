@@ -115,6 +115,10 @@ function ding_pretix_node_update($node)
         if (200 === (int) $result->code) {
           $pretix_info = _ding_pretix_update_pretix_node_info($node);
 
+          // Set pdf ticket plugin
+          $use_pdf_tickets = $node->pretix['ticket_form'] === 'pdf_ticket';
+          $results[] = _ding_pretix_update_pdf_plugin($result->data, $use_pdf_tickets, $service_settings, $pretix_info['pretix_slug']);
+
           //Set ticket price
           $item = _ding_pretix_get_item($service_settings, $pretix_info['pretix_slug']);
           $results[] = _ding_pretix_update_item($node, $item, $service_settings, $pretix_info['pretix_slug']);

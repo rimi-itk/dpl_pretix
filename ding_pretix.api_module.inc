@@ -120,7 +120,7 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['plugins' => $enabled_plugins]),
+      'data' => json_encode(['plugins' => array_values($enabled_plugins)]),
     ];
     $live_url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
     $result = _ding_pretix_http_request($live_url, $options);
