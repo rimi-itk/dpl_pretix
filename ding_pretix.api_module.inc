@@ -345,9 +345,9 @@ function _ding_pretix_get_place($node)
 {
   $field_address = field_get_items('node', $node, 'field_ding_event_location');
 
-  // If the events has a thoroughfare (street) value we use the place set on the event. Else we load the location of
+  // If the events has a name value we use the place set on the event. Else we load the location of
   // the first selected library.
-  if(empty($field_address[0]['thoroughfare'])) {
+  if(empty($field_address[0]['name_line'])) {
     $library_nid = _ding_pretix_get_library_nid($node);
 
     $query = new EntityFieldQuery();
