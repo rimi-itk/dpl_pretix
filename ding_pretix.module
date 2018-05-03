@@ -33,6 +33,20 @@ function ding_pretix_menu()
 }
 
 /**
+ * Implements hook_field_formatter_info().
+ */
+function ding_pretix_field_formatter_info() {
+  return array(
+    'ding_pretix_default' => array(
+      'label' => t('Default'),
+      'field types' => array(
+        'ding_pretix_ticket_link',
+      ),
+    ),
+  );
+}
+
+/**
  * Implements hook_node_insert().
  *
  * @param $node
@@ -190,20 +204,29 @@ function ding_pretix_node_delete($node)
 }
 
 /**
- * Implements hook_node_view().
+ * Implements hook_entity_load().
  *
- * @param $node
- * @param $view_mode
- * @param $langcode
+ * @param $entities
+ * @param $type
  */
-function ding_pretix_node_view($node, $view_mode, $langcode)
-{
-  // We only handle event nodes.
-  // Check that node is not new and check that the pretix
-  // field should be shown this view mode.
-  if ($node->type == 'ding_event' && isset($node->nid) && isset($node->content['field_pretix_tickets'])) {
-    // @todo: Replace input with a div with a data-attribute. That is a more appropriate placeholder.
-    $node->content['field_pretix_tickets'][0]['#markup'] = '<input type="hidden" class="pretix-ticketinfo" data-ticket="' . $node->nid . '" value="' . $node->nid . '"/>';
+function ding_pretix_entity_load($entities, $type) {
+  if($type === 'node' && count($entities) === 1) {
+    $keys = array_keys($entities);
+    $key = array_pop($keys);
+
+    if($entities[$key]->type === 'ding_event') {
+      module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+
+      $service_settings = variable_get('ding_pretix', array());
+      $pretix_info = _ding_pretix_get_pretix_node_info($entities[$key]->nid);
+
+      if($pretix_info['maintain_copy']) {
+        $url = _ding_pretix_get_event_shop_url($service_settings, $pretix_info['pretix_slug']);
+
+        $entities[$key]->field_ding_event_ticket_link['und'] = [];
+        $entities[$key]->field_ding_event_ticket_link['und'][] = ['url' => $url];
+      }
+    }
   }
 }
 
@@ -309,4 +332,21 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#description' => t('A link to the corresponding event on the Pretix ticket booking service.'),
   );
 
+  $form['#validate'][] = '_ding_pretix_form_ding_event_node_form_alter_validate';
+
+}
+
+/**
+ * Validate maintain copy.
+ *
+ * Maintain copy should not be selected if the ding_event_ticket_link is used.
+ *
+ * @param $form
+ * @param $form_state
+ */
+function _ding_pretix_form_ding_event_node_form_alter_validate($form, &$form_state) {
+  if (!empty($form_state['values']['field_ding_event_ticket_link']['und'][0]['url']) && $form_state['values']['pretix']['maintain_copy'] === 1) {
+    form_set_error('field_ding_event_ticket_link', '"Book ticket" should not be used if "maintain copy" is selected for Pretix. 
+                          Please either deselect "maintain copy" or leave "Book ticket" empty.');
+  }
 }

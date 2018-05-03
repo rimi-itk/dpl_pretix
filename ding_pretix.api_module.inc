@@ -258,6 +258,20 @@ function _ding_pretix_get_event_endpoint($service_settings, $event_slug = null)
 }
 
 /**
+ * Get the pretix shop url for the given event.
+ *
+ * @param $service_settings
+ * @param $event_slug
+ * @return string
+ */
+function _ding_pretix_get_event_shop_url($service_settings, $event_slug)
+{
+  $endpoint = $service_settings['service_url'] . $service_settings['organizer_slug'] . '/' . $event_slug . '/';
+
+  return $endpoint;
+}
+
+/**
  * Get the pretix admin url for the given event.
  *
  * @param $service_settings
