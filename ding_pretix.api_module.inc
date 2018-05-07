@@ -1,6 +1,25 @@
 <?php
 
 /**
+ * Get the shop url for a given event.
+ *
+ * @param $nid
+ * @return string|null
+ */
+function ding_pretix_get_shop_url($nid) {
+  $service_settings = variable_get('ding_pretix', []);
+  $info = _ding_pretix_get_pretix_node_info($nid);
+
+  if($info['maintain_copy']) {
+    $shop_url = _ding_pretix_get_event_shop_url($service_settings, $info['pretix_slug']);
+
+    return $shop_url;
+  }
+
+  return null;
+}
+
+/**
  * Create event.
  *
  * Uses Pretix 'clone' endpoint to create a new event with settings copied from the cloned event.
