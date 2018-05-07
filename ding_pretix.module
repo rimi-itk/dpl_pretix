@@ -332,21 +332,58 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#description' => t('A link to the corresponding event on the Pretix ticket booking service.'),
   );
 
-  $form['#validate'][] = '_ding_pretix_form_ding_event_node_form_alter_validate';
-
 }
 
 /**
- * Validate maintain copy.
+ * Implements hook_node_validate().
  *
- * Maintain copy should not be selected if the ding_event_ticket_link is used.
+ * Validate if ticket url has been set or changed
  *
+ * @param $node
  * @param $form
  * @param $form_state
  */
-function _ding_pretix_form_ding_event_node_form_alter_validate($form, &$form_state) {
-  if (!empty($form_state['values']['field_ding_event_ticket_link']['und'][0]['url']) && $form_state['values']['pretix']['maintain_copy'] === 1) {
-    form_set_error('field_ding_event_ticket_link', '"Book ticket" should not be used if "maintain copy" is selected for Pretix. 
-                          Please either deselect "maintain copy" or leave "Book ticket" empty.');
+function ding_pretix_node_validate($node, $form, &$form_state)
+{
+  if ($node->type === 'ding_event' && $form_state['values']['pretix']['maintain_copy'] === 1 && !empty($form_state['values']['field_ding_event_ticket_link']['und'][0]['url'])) {
+    if (!$node->nid) {
+      // For new events, if pretix is used we disallow manual entry.
+      form_set_error('field_ding_event_ticket_link', '"Book ticket" should not be used if "maintain copy" is selected for Pretix. 
+                            Please either deselect "maintain copy" or leave "Book ticket" empty.');
+    } else {
+      module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+      $pretix_shop_url = ding_pretix_get_shop_url($node->nid);
+
+      // For existing events, if pretix is used we disallow manual change.
+      if($pretix_shop_url !== $form_state['values']['field_ding_event_ticket_link']['und'][0]['url']) {
+        form_set_error('field_ding_event_ticket_link', '"Book ticket" should not be changed manually if "maintain copy" is selected for Pretix. 
+                              Please either deselect "maintain copy" or leave "Book ticket" unchanged.');
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_node_presave().
+ *
+ * Update the 'field_ding_event_ticket_link' on save.
+ *
+ * @param $node
+ */
+function ding_pretix_node_presave($node) {
+  if ($node->type === 'ding_event') {
+    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+    $pretix_shop_url = ding_pretix_get_shop_url($node->nid);
+    $wrapper = entity_metadata_wrapper('node', $node);
+
+    $field_ding_event_ticket_link = $wrapper->field_ding_event_ticket_link->value();
+
+    if ($node->pretix['maintain_copy'] === 1) {
+      // Save the pretix shop url
+      $wrapper->field_ding_event_ticket_link->set(['url' => $pretix_shop_url]);
+    } elseif ($pretix_shop_url === $field_ding_event_ticket_link['url']) {
+      // Clear the pretix shop url if we do not use pretix
+      $wrapper->field_ding_event_ticket_link->set(['url' => '']);
+    }
   }
 }
