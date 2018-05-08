@@ -459,10 +459,11 @@ function _ding_pretix_get_library_nid($entity)
  */
 function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
 {
+  $nid = (int) $node->nid;
   $slug = $data ? json_decode($data)->slug : null;
 
   $pretix_info = array(
-    'nid' => $node->nid,
+    'nid' => $nid,
     'pretix_organizer' => $organizer,
     'pretix_slug' => $slug,
     'capacity' => (int)$node->pretix['capacity'],
@@ -473,8 +474,8 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
   );
 
   db_merge('ding_pretix')
+    ->key(['nid' => $nid])
     ->fields($pretix_info)
-    ->condition('nid', $node->nid, '=')
     ->execute();
 
   return $pretix_info;
@@ -489,9 +490,11 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
  */
 function _ding_pretix_update_pretix_node_info($node)
 {
+  $nid = (int) $node->nid;
+
   if($node->pretix) {
     $pretix_info = array(
-      'nid' => $node->nid,
+      'nid' => $nid,
       'capacity' => (int)$node->pretix['capacity'],
       'maintain_copy' => $node->pretix['maintain_copy'],
       'ticket_type' => $node->pretix['ticket_type'],
@@ -500,8 +503,8 @@ function _ding_pretix_update_pretix_node_info($node)
     );
 
     db_merge('ding_pretix')
+      ->key(['nid' => $nid])
       ->fields($pretix_info)
-      ->condition('nid', $node->nid, '=')
       ->execute();
   }
 

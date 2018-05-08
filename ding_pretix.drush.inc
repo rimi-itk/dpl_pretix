@@ -69,10 +69,10 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
   }
   $limit = 50;
 
-  $percentage = (int) $context['sandbox']['progress'] / $context['sandbox']['max'] * 100;
+  $percentage = sprintf('%0.2f', $context['sandbox']['progress'] / $context['sandbox']['max'] * 100);
   $context['message'] = check_plain( t('Migrating @max place2book events, @percentage% complete', ['@max' => $context['sandbox']['max'], '@percentage' => $percentage]) );
 
-  $result = db_select('ding_place2book', 'p2b')
+  $rows = db_select('ding_place2book', 'p2b')
     ->fields('p2b')
     ->condition('nid', $context['sandbox']['current_node'], '>')
     ->orderBy('nid')
@@ -80,7 +80,7 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
     ->execute()
     ->fetchAllAssoc('nid');
 
-  $nids = array_keys($result);
+  $nids = array_keys($rows);
   $nodes = entity_load('node', $nids);
 
   foreach ($nodes as $node) {
@@ -92,27 +92,31 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
     $external_ticket = $wrapper->field_ding_event_ticket_link->value();
     if (empty($external_ticket) && isset($og_group->nid)) {
       $url = ding_pretix_get_shop_url($node->nid, $og_group->nid);
+      $url = 'https://stackoverflow.com/questions/4483540/show-a-number-to-2-decimal-places';
 
-      if(!empty($url)) {
+      if (!empty($url)) {
         $wrapper->field_ding_event_ticket_link->set(['url' => $url]);
         $wrapper->save();
       }
+    }
 
-      $place2book_info = $result[$node->nid];
+    if(array_key_exists($node->nid, $rows)) {
+      $place2book_info = $rows[$node->nid];
+
+      $nid = (int) $node->nid;
 
       $pretix_info = array(
-        'nid' => $node->nid,
-        'capacity' => $place2book_info->capacity,
+        'nid' => $nid,
+        'capacity' => (int) $place2book_info->capacity,
         'maintain_copy' => 0,
         'ticket_type' => $place2book_info->ticket_type,
       );
 
       db_merge('ding_pretix')
+        ->key(['nid' => $nid])
         ->fields($pretix_info)
-        ->condition('nid', $node->nid, '=')
         ->execute();
     }
-
 
     $context['results'][] = $node->nid . ' : ' . check_plain($node->title);
     $context['sandbox']['progress']++;
