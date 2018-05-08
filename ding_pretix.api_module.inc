@@ -489,19 +489,21 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = null)
  */
 function _ding_pretix_update_pretix_node_info($node)
 {
-  $pretix_info = array(
-    'nid' => $node->nid,
-    'capacity' => (int)$node->pretix['capacity'],
-    'maintain_copy' => $node->pretix['maintain_copy'],
-    'ticket_type' => $node->pretix['ticket_type'],
-    'psp_element' => $node->pretix['psp_element'],
-    'ticket_form' => $node->pretix['ticket_form']
-  );
+  if($node->pretix) {
+    $pretix_info = array(
+      'nid' => $node->nid,
+      'capacity' => (int)$node->pretix['capacity'],
+      'maintain_copy' => $node->pretix['maintain_copy'],
+      'ticket_type' => $node->pretix['ticket_type'],
+      'psp_element' => $node->pretix['psp_element'],
+      'ticket_form' => $node->pretix['ticket_form']
+    );
 
-  db_merge('ding_pretix')
-    ->fields($pretix_info)
-    ->condition('nid', $node->nid, '=')
-    ->execute();
+    db_merge('ding_pretix')
+      ->fields($pretix_info)
+      ->condition('nid', $node->nid, '=')
+      ->execute();
+  }
 
   return _ding_pretix_get_pretix_node_info($node->nid);
 }

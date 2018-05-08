@@ -94,7 +94,7 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
       $url = ding_pretix_get_shop_url($node->nid, $og_group->nid);
 
       if(!empty($url)) {
-        $wrapper->field_ding_event_ticket_link->set($url);
+        $wrapper->field_ding_event_ticket_link->set(['url' => $url]);
         $wrapper->save();
       }
 
