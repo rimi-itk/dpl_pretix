@@ -92,7 +92,6 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
     $external_ticket = $wrapper->field_ding_event_ticket_link->value();
     if (empty($external_ticket) && isset($og_group->nid)) {
       $url = ding_pretix_get_shop_url($node->nid, $og_group->nid);
-      $url = 'https://stackoverflow.com/questions/4483540/show-a-number-to-2-decimal-places';
 
       if (!empty($url)) {
         $wrapper->field_ding_event_ticket_link->set(['url' => $url]);
