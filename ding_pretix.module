@@ -13,6 +13,27 @@ function ding_pretix_permission() {
 }
 
 /**
+ * Define pretix permissions in code.
+ *
+ * @param string $role
+ *   The role for which the permissions are being requested.
+ *
+ * @return array
+ *   An array defining all the permissions for the site.
+ */
+function ding_pretix_secure_permissions($role) {
+  $permissions = array(
+    'administrators' => array(
+      'administer pretix settings'
+    ),
+  );
+
+  if (isset($permissions[$role])) {
+    return $permissions[$role];
+  }
+}
+
+/**
  * Implements hook_menu().
  */
 function ding_pretix_menu()
