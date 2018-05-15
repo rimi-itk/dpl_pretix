@@ -9,14 +9,14 @@
  * Implements hook_drush_command().
  */
 function ding_pretix_drush_command() {
-  $commands = array();
-  $commands['pretix-migrate-place2book'] = array(
+  $commands = [];
+  $commands['pretix-migrate-place2book'] = [
     'description' => 'Drush command to migrate place2book data to DDB and Pretix fields.',
-    'aliases' => array('pmp'),
-    'examples' => array(
+    'aliases' => ['pmp'],
+    'examples' => [
       'Migrate data for all ding_event nodes' => 'drush pmp',
-    ),
-  );
+    ],
+  ];
   return $commands;
 }
 
@@ -43,15 +43,15 @@ function drush_ding_pretix_pretix_migrate_place2book() {
 
   if (!$error) {
     $module_path = drupal_get_path('module', 'ding_pretix');
-    $batch = array(
+    $batch = [
       'title' => t('Batching migration of place2book events'),
-      'operations' => array(
-        array('ding_pretix_batch_migrate_place2book_nodes', []),
-      ),
+      'operations' => [
+        ['ding_pretix_batch_migrate_place2book_nodes', []],
+      ],
       'finished' => 'ding_pretix_batch_migrate_place2book_nodes_finished',
       'file' => $module_path . '/ding_pretix.drush.inc',
       'css' => [],
-    );
+    ];
     batch_set($batch);
 
     drush_backend_batch_process();
@@ -111,12 +111,12 @@ function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
 
       $nid = (int) $node->nid;
 
-      $pretix_info = array(
+      $pretix_info = [
         'nid' => $nid,
         'capacity' => (int) $place2book_info->capacity,
         'maintain_copy' => 0,
         'ticket_type' => $place2book_info->ticket_type,
-      );
+      ];
 
       db_merge('ding_pretix')
         ->key(['nid' => $nid])
@@ -169,9 +169,9 @@ function ding_pretix_get_ticketinfo($event_nid, $library_nid) {
   $place2book_id = 0;
 
   // Get data from ding_place2book table.
-  $place2book_result = db_query('SELECT place2book_id, maintain_copy, passive FROM {ding_place2book} WHERE nid = :nid', array(
+  $place2book_result = db_query('SELECT place2book_id, maintain_copy, passive FROM {ding_place2book} WHERE nid = :nid', [
     ':nid' => $event_nid,
-  ));
+  ]);
   foreach ($place2book_result as $place2book) {
     // Only find ticket links for non-passive events.
     if ($place2book->passive == 0) {
@@ -181,30 +181,30 @@ function ding_pretix_get_ticketinfo($event_nid, $library_nid) {
 
   // Check cache for the URL.
   if ($cache = cache_get($place2book_id . '_' . $library_nid, 'cache_place2book')) {
-    return array(
+    return [
       'url' => $cache->data,
-    );
+    ];
   };
 
-  $data = array(
+  $data = [
     'url' => '',
-  );
+  ];
 
   if ($place2book_id) {
-    $service_settings = variable_get('ding_place2book', array());
+    $service_settings = variable_get('ding_place2book', []);
 
     $api_key = place2book_get_api_key($library_nid);
     if ($api_key == NULL) {
       return $data;
     }
 
-    $options = array(
+    $options = [
       'method' => 'GET',
-      'headers' => array(
+      'headers' => [
         'X-PLACE2BOOK-API-TOKEN' => $api_key,
         'X-PLACE2BOOK-EVENT-ID' => $place2book_id,
-      ),
-    );
+      ],
+    ];
     $p2b_result = drupal_http_request($service_settings['service_url'] . '/available_tickets', $options);
 
     // We must have a sales-status header.

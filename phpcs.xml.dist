@@ -13,4 +13,5 @@
   <arg value="p"/>
 
   <rule ref="Drupal"/>
+  <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
 </ruleset>
