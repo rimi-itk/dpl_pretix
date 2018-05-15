@@ -72,11 +72,11 @@ function _ding_pretix_update_event($node, $service_settings, $pretix_slug) {
   $headers = _ding_pretix_built_request_headers($service_settings);
   $body = _ding_pretix_built_request_body($node, 'UPDATE');
 
-  $options = array(
+  $options = [
     'method' => 'PATCH',
     'headers' => $headers,
     'data' => json_encode($body),
-  );
+  ];
   $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
   $result = _ding_pretix_http_request($url, $options);
 
@@ -92,10 +92,10 @@ function _ding_pretix_update_event($node, $service_settings, $pretix_slug) {
  * @return object
  */
 function _ding_pretix_delete_event($service_settings, $pretix_slug) {
-  $options = array(
+  $options = [
     'method' => 'DELETE',
     'headers' => _ding_pretix_built_request_headers($service_settings),
-  );
+  ];
   $url = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug);
   $result = _ding_pretix_http_request($url, $options);
 
@@ -326,11 +326,11 @@ function _ding_pretix_get_event_admin_url($service_settings, $event_slug) {
  * @return array
  */
 function _ding_pretix_built_request_headers($service_settings) {
-  $headers = array(
+  $headers = [
     'Accept' => 'application/json, text/javascript',
     'Authorization' => 'Token ' . $service_settings['api_key'],
     'Content-Type' => 'application/json',
-  );
+  ];
 
   return $headers;
 }
@@ -374,7 +374,7 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
     'has_subevents' => FALSE,
   ];
 
-  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
+  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', []);
   if ($request_type === 'INSERT' && array_key_exists('pretix_psp_meta_key', $ding_pretix_psp_elements) && !empty($ding_pretix_psp_elements['pretix_psp_meta_key'])) {
     $key = $ding_pretix_psp_elements['pretix_psp_meta_key'];
     $body['meta_data'] = [$key => $node->pretix['psp_element']];
@@ -414,7 +414,7 @@ function _ding_pretix_get_place($node) {
       $field_id = $fields['field_ding_library_addresse']['field_id'];
 
       // Attach a field of selected id only to get value for it.
-      field_attach_load('node', $libraries, FIELD_LOAD_CURRENT, array('field_id' => $field_id));
+      field_attach_load('node', $libraries, FIELD_LOAD_CURRENT, ['field_id' => $field_id]);
       $library = $libraries[$library_nid];
 
       // Get the field.
@@ -480,7 +480,7 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = NULL) {
   $nid = (int) $node->nid;
   $slug = $data ? json_decode($data)->slug : NULL;
 
-  $pretix_info = array(
+  $pretix_info = [
     'nid' => $nid,
     'pretix_organizer' => $organizer,
     'pretix_slug' => $slug,
@@ -489,7 +489,7 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = NULL) {
     'ticket_type' => $node->pretix['ticket_type'],
     'psp_element' => $node->pretix['psp_element'],
     'ticket_form' => $node->pretix['ticket_form'],
-  );
+  ];
 
   db_merge('ding_pretix')
     ->key(['nid' => $nid])
@@ -512,14 +512,14 @@ function _ding_pretix_update_pretix_node_info($node) {
   $nid = (int) $node->nid;
 
   if ($node->pretix) {
-    $pretix_info = array(
+    $pretix_info = [
       'nid' => $nid,
       'capacity' => (int) $node->pretix['capacity'],
       'maintain_copy' => $node->pretix['maintain_copy'],
       'ticket_type' => $node->pretix['ticket_type'],
       'psp_element' => $node->pretix['psp_element'],
       'ticket_form' => $node->pretix['ticket_form'],
-    );
+    ];
 
     db_merge('ding_pretix')
       ->key(['nid' => $nid])
@@ -570,7 +570,7 @@ function _ding_pretix_delete_pretix_node_info($nid) {
  * @return array
  */
 function _ding_pretix_get_pretix_node_info_defaults($nid) {
-  $settings = variable_get('ding_pretix_event_nodes', array());
+  $settings = variable_get('ding_pretix_event_nodes', []);
 
   // If this is a new node we use the defaults. If it's an existing node we
   // don't automatically add it to Pretix.

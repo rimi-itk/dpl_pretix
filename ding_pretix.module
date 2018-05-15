@@ -9,12 +9,12 @@
  * Implements hook_permission().
  */
 function ding_pretix_permission() {
-  return array(
-    'administer pretix settings' => array(
+  return [
+    'administer pretix settings' => [
       'title' => t('Administer pretix settings'),
       'description' => t('Perform administration tasks for ding_pretix.'),
-    ),
-  );
+    ],
+  ];
 }
 
 /**
@@ -27,11 +27,11 @@ function ding_pretix_permission() {
  *   An array defining all the permissions for the site.
  */
 function ding_pretix_secure_permissions($role) {
-  $permissions = array(
-    'administrators' => array(
+  $permissions = [
+    'administrators' => [
       'administer pretix settings',
-    ),
-  );
+    ],
+  ];
 
   if (isset($permissions[$role])) {
     return $permissions[$role];
@@ -44,15 +44,15 @@ function ding_pretix_secure_permissions($role) {
 function ding_pretix_menu() {
   $items = [];
 
-  $items['admin/config/ding/pretix'] = array(
+  $items['admin/config/ding/pretix'] = [
     'title' => 'Pretix settings',
     'description' => 'Settings and defaults for Pretix integration',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('ding_pretix_admin_settings_form'),
-    'access arguments' => array('administer pretix settings'),
+    'page arguments' => ['ding_pretix_admin_settings_form'],
+    'access arguments' => ['administer pretix settings'],
     'type' => MENU_NORMAL_ITEM,
     'file' => 'includes/ding_pretix.admin.inc',
-  );
+  ];
 
   return $items;
 }
@@ -61,14 +61,14 @@ function ding_pretix_menu() {
  * Implements hook_field_formatter_info().
  */
 function ding_pretix_field_formatter_info() {
-  return array(
-    'ding_pretix_default' => array(
+  return [
+    'ding_pretix_default' => [
       'label' => t('Default'),
-      'field types' => array(
+      'field types' => [
         'ding_pretix_ticket_link',
-      ),
-    ),
-  );
+      ],
+    ],
+  ];
 }
 
 /**
@@ -130,7 +130,7 @@ function ding_pretix_node_update($node) {
     module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
-    $service_settings = variable_get('ding_pretix', array());
+    $service_settings = variable_get('ding_pretix', []);
 
     if (empty($pretix_info['pretix_slug'])) {
       if ($node->pretix['maintain_copy'] === 1) {
@@ -204,7 +204,7 @@ function ding_pretix_node_delete($node) {
   // We only handle event nodes.
   if ($node->type == 'ding_event') {
     module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
-    $service_settings = variable_get('ding_pretix', array());
+    $service_settings = variable_get('ding_pretix', []);
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
 
     if ($pretix_info['pretix_slug']) {
@@ -242,7 +242,7 @@ function ding_pretix_entity_load($entities, $type) {
     if ($entities[$key]->type === 'ding_event') {
       module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 
-      $service_settings = variable_get('ding_pretix', array());
+      $service_settings = variable_get('ding_pretix', []);
       $pretix_info = _ding_pretix_get_pretix_node_info($entities[$key]->nid);
 
       if ($pretix_info['maintain_copy']) {
@@ -265,48 +265,48 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   $pretix_node_defaults = _ding_pretix_get_pretix_node_info_defaults($nid);
 
   // Service settings.
-  $service_settings = variable_get('ding_pretix', array());
+  $service_settings = variable_get('ding_pretix', []);
 
   if ($pretix_node_info['pretix_slug']) {
     $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_slug']);
-    $pretix_link = l($pretix_url, array('absolute' => TRUE));
-    $pretix_info = t('If more ticket types on this event is needed, go to <a href="@pretix-url">the Pretix event</a>. (Note: You may need to log on)', array('@pretix-url' => $pretix_url));
+    $pretix_link = l($pretix_url, ['absolute' => TRUE]);
+    $pretix_info = t('If more ticket types on this event is needed, go to <a href="@pretix-url">the Pretix event</a>. (Note: You may need to log on)', ['@pretix-url' => $pretix_url]);
   }
   else {
     $pretix_link = t('None');
     $pretix_info = t('If more ticket types on this event is needed, edit the corresponding event on Pretix after this event has been created.');
   }
 
-  $form['pretix'] = array(
+  $form['pretix'] = [
     '#type' => 'fieldset',
     '#title' => t('Pretix'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
     '#group' => 'additional_settings',
     '#tree' => TRUE,
-  );
+  ];
 
   $form['field_ding_event_price']['und'][0]['value']['#description'] = $pretix_info;
 
-  $form['pretix']['capacity'] = array(
+  $form['pretix']['capacity'] = [
     '#type' => 'textfield',
     '#title' => t('Event capacity'),
     '#size' => 5,
     '#maxlength' => 5,
     '#default_value' => $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'],
     '#description' => t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.'),
-  );
+  ];
 
-  $form['pretix']['ticket_type'] = array(
+  $form['pretix']['ticket_type'] = [
     '#type' => 'textfield',
     '#title' => t('Ticket type'),
     '#size' => 30,
     '#maxlength' => 255,
     '#default_value' => $pretix_node_info['ticket_type'] ?? $pretix_node_defaults['ticket_type'],
     '#description' => t('E. g. Adult, Child or Standard. Adgang is the default ticket type.') . ' ' . $pretix_info,
-  );
+  ];
 
-  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', array());
+  $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', []);
   if ($ding_pretix_psp_elements && !empty($ding_pretix_psp_elements['pretix_psp_meta_key']) && count($ding_pretix_psp_elements['list'])) {
     $options = [];
     foreach ($ding_pretix_psp_elements['list'] as $element) {
@@ -318,7 +318,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     $disabled = empty($pretix_node_info['psp_element']) ? FALSE : TRUE;
     $description = $disabled ? t('For accounting reasons the PSP element cannot be changed.') : t('Select the PSP element the ticket sales should be registered under.');
 
-    $form['pretix']['psp_element'] = array(
+    $form['pretix']['psp_element'] = [
       '#type' => 'select',
       '#title' => t('PSP Element'),
       '#options' => $options,
@@ -326,33 +326,33 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       '#required' => FALSE,
       '#description' => $description,
       '#disabled' => $disabled,
-    );
+    ];
   }
 
-  $form['pretix']['maintain_copy'] = array(
+  $form['pretix']['maintain_copy'] = [
     '#type' => 'checkbox',
     '#title' => t('Maintain copy on Pretix'),
     '#default_value' => $pretix_node_info['maintain_copy'] ?? (bool) $pretix_node_defaults['maintain_copy'],
     '#description' => t('When set, a corresponding event is created and updated on the Pretix ticket booking service.'),
-  );
+  ];
 
-  $form['pretix']['ticket_form'] = array(
+  $form['pretix']['ticket_form'] = [
     '#type' => 'radios',
     '#title' => t('Use PDF or Email tickets'),
-    '#options' => array(
+    '#options' => [
       'pdf_ticket' => t('PDF Tickets'),
       'email_ticket' => t('Email Tickets'),
-    ),
+    ],
     '#default_value' => $pretix_node_info['ticket_form'] ?? $pretix_node_defaults['default_ticket_form'],
     '#description' => t('Use PDF or Email tickets for the event?'),
-  );
+  ];
 
-  $form['pretix']['pretix_slug'] = array(
+  $form['pretix']['pretix_slug'] = [
     '#type' => 'item',
     '#title' => t('Pretix Event'),
     '#markup' => $pretix_link,
     '#description' => t('A link to the corresponding event on the Pretix ticket booking service.'),
-  );
+  ];
 
 }
 

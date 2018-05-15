@@ -19,81 +19,81 @@ function ding_pretix_uninstall() {
  * Implements hook_schema().
  */
 function ding_pretix_schema() {
-  return array(
-    'ding_pretix' => array(
+  return [
+    'ding_pretix' => [
       'description' => 'Table to hold information about Pretix events.',
-      'fields' => array(
-        'nid' => array(
+      'fields' => [
+        'nid' => [
           'description' => 'The foreign key to {node}.nid',
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
-        ),
-        'pretix_organizer' => array(
+        ],
+        'pretix_organizer' => [
           'description' => 'The Pretix organizer slug',
           'type' => 'varchar',
           'length' => 50,
           'not null' => FALSE,
           'default' => NULL,
-        ),
-        'pretix_slug' => array(
+        ],
+        'pretix_slug' => [
           'description' => 'The unique Pretix event slug',
           'type' => 'varchar',
           'length' => 50,
           'not null' => FALSE,
           'default' => NULL,
-        ),
-        'capacity' => array(
+        ],
+        'capacity' => [
           'description' => 'The maximum capacity on the Pretix event. 0 is interpreted as unlimited capacity on the event (default)',
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
           'default' => 0,
-        ),
-        'maintain_copy' => array(
+        ],
+        'maintain_copy' => [
           'description' => 'Event is created and updated in Pretix',
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
           'default' => 1,
-        ),
-        'ticket_type' => array(
+        ],
+        'ticket_type' => [
           'description' => 'Ticket type',
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
-        ),
-        'psp_element' => array(
+        ],
+        'psp_element' => [
           'description' => 'PSP element for accounting',
           'type' => 'varchar',
           'length' => 50,
           'not null' => FALSE,
           'default' => NULL,
-        ),
-        'ticket_form' => array(
+        ],
+        'ticket_form' => [
           'description' => 'Ticket form',
           'type' => 'varchar',
           'length' => 50,
           'not null' => FALSE,
           'default' => NULL,
-        ),
-      ),
-      'primary key' => array('nid'),
-    ),
-  );
+        ],
+      ],
+      'primary key' => ['nid'],
+    ],
+  ];
 }
 
 /**
  * Add PSP element field to {ding_pretix} table.
  */
 function ding_pretix_update_7100() {
-  $spec = array(
+  $spec = [
     'description' => 'PSP element for accounting',
     'type' => 'varchar',
     'length' => 50,
     'not null' => FALSE,
     'default' => NULL,
-  );
+  ];
   db_add_field('ding_pretix', 'psp_element', $spec);
 }
 
@@ -101,22 +101,22 @@ function ding_pretix_update_7100() {
  * Make fields pretix_organizer and pretix_slug on {ding_pretix} table nullable.
  */
 function ding_pretix_update_7101() {
-  $spec = array(
+  $spec = [
     'description' => 'The Pretix organizer slug',
     'type' => 'varchar',
     'length' => 50,
     'not null' => FALSE,
     'default' => NULL,
-  );
+  ];
   db_change_field('ding_pretix', 'pretix_organizer', 'pretix_organizer', $spec);
 
-  $spec = array(
+  $spec = [
     'description' => 'The unique Pretix event slug',
     'type' => 'varchar',
     'length' => 50,
     'not null' => FALSE,
     'default' => NULL,
-  );
+  ];
   db_change_field('ding_pretix', 'pretix_slug', 'pretix_slug', $spec);
 }
 
@@ -124,12 +124,12 @@ function ding_pretix_update_7101() {
  * Add ticket form (PDF/Email) field to {ding_pretix} table.
  */
 function ding_pretix_update_7102() {
-  $spec = array(
+  $spec = [
     'description' => 'Ticket form',
     'type' => 'varchar',
     'length' => 50,
     'not null' => FALSE,
     'default' => NULL,
-  );
+  ];
   db_add_field('ding_pretix', 'ticket_form', $spec);
 }
