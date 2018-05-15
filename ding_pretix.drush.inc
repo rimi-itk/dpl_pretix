@@ -1,7 +1,12 @@
 <?php
 
 /**
- * Implementation of hook_drush_command().
+ * @file
+ * Ding Pretix drush commands.
+ */
+
+/**
+ * Implements hook_drush_command().
  */
 function ding_pretix_drush_command() {
   $commands = array();
@@ -16,14 +21,14 @@ function ding_pretix_drush_command() {
 }
 
 /**
- * Drush command callback function
+ * Drush command callback function.
  */
 function drush_ding_pretix_pretix_migrate_place2book() {
-  $error = false;
+  $error = FALSE;
 
-  if(!module_exists('ding_place2book')) {
+  if (!module_exists('ding_place2book')) {
     drupal_set_message(t('Cannot migrate! Place2book module not enabled. Migration must happen before uninstall.'), 'error');
-    $error = true;
+    $error = TRUE;
   }
 
   module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
@@ -32,11 +37,11 @@ function drush_ding_pretix_pretix_migrate_place2book() {
   foreach ($service_settings as $key => $setting) {
     if (empty($setting)) {
       drupal_set_message(t('Cannot migrate! The @key setting is under ding > pretix is not set.', ['@key' => $key]), 'error');
-      $error = true;
+      $error = TRUE;
     }
   }
 
-  if(!$error) {
+  if (!$error) {
     $module_path = drupal_get_path('module', 'ding_pretix');
     $batch = array(
       'title' => t('Batching migration of place2book events'),
@@ -45,7 +50,7 @@ function drush_ding_pretix_pretix_migrate_place2book() {
       ),
       'finished' => 'ding_pretix_batch_migrate_place2book_nodes_finished',
       'file' => $module_path . '/ding_pretix.drush.inc',
-      'css' => []
+      'css' => [],
     );
     batch_set($batch);
 
@@ -54,12 +59,14 @@ function drush_ding_pretix_pretix_migrate_place2book() {
 }
 
 /**
- * Batch migrate place2book nodes
+ * Batch migrate place2book nodes.
  *
- * @param $context
+ * @param array $context
+ *   The context.
+ *
  * @throws InvalidMergeQueryException
  */
-function ding_pretix_batch_migrate_place2book_nodes(&$context) {
+function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
   module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
 
   if (empty($context['sandbox'])) {
@@ -70,7 +77,7 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
   $limit = 50;
 
   $percentage = sprintf('%0.2f', $context['sandbox']['progress'] / $context['sandbox']['max'] * 100);
-  $context['message'] = check_plain( t('Migrating @max place2book events, @percentage% complete', ['@max' => $context['sandbox']['max'], '@percentage' => $percentage]) );
+  $context['message'] = check_plain(t('Migrating @max place2book events, @percentage% complete', ['@max' => $context['sandbox']['max'], '@percentage' => $percentage]));
 
   $rows = db_select('ding_place2book', 'p2b')
     ->fields('p2b')
@@ -99,7 +106,7 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
       }
     }
 
-    if(array_key_exists($node->nid, $rows)) {
+    if (array_key_exists($node->nid, $rows)) {
       $place2book_info = $rows[$node->nid];
 
       $nid = (int) $node->nid;
@@ -127,9 +134,8 @@ function ding_pretix_batch_migrate_place2book_nodes(&$context) {
 
 }
 
-
 /**
- * Batch function finished handler
+ * Batch function finished handler.
  *
  * @param $success
  * @param $results
@@ -214,8 +220,7 @@ function ding_pretix_get_ticketinfo($event_nid, $library_nid) {
         $data['url'] = $p2b_result->headers['location'];
       }
       else {
-
-        /**
+        /*
          * Check if we have no tickets left.
          *
          * Number from Available-Tickets header is a string and must be tested
@@ -226,7 +231,7 @@ function ding_pretix_get_ticketinfo($event_nid, $library_nid) {
           $data['url'] = $p2b_result->headers['location'];
         }
         else {
-          /**
+          /*
            * Check to see if we should present an link for ordering a ticket.
            *
            * Number from Available-Tickets header is a string and must be
