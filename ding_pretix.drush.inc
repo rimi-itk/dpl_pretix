@@ -31,7 +31,7 @@ function drush_ding_pretix_pretix_migrate_place2book() {
     $error = TRUE;
   }
 
-  module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+  module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
   $service_settings = variable_get('ding_pretix', []);
 
   foreach ($service_settings as $key => $setting) {
@@ -59,20 +59,20 @@ function drush_ding_pretix_pretix_migrate_place2book() {
 }
 
 /**
- * Batch migrate place2book nodes.
+ * Batch migrate place2book ticket information.
  *
- * @param array $context
+ * @param ArrayObject $context
  *   The context.
  *
  * @throws InvalidMergeQueryException
  */
-function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
-  module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+function ding_pretix_batch_migrate_place2book_nodes(ArrayObject &$context) {
+  module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
   if (empty($context['sandbox'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['current_node'] = 0;
-    $context['sandbox']['max'] = db_query('SELECT COUNT(DISTINCT nid) FROM {ding_place2book}')->fetchField();
+    $context['sandbox']['max'] = db_query('SELECT COUNT(DISTINCT nid) FROM {ding_place2book} WHERE maintain_copy = 1')->fetchField();
   }
   $limit = 50;
 
@@ -82,6 +82,7 @@ function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
   $rows = db_select('ding_place2book', 'p2b')
     ->fields('p2b')
     ->condition('nid', $context['sandbox']['current_node'], '>')
+    ->condition('maintain_copy', 1)
     ->orderBy('nid')
     ->range(0, $limit)
     ->execute()
@@ -97,6 +98,8 @@ function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
     $og_group = $og_group ? reset($og_group) : $og_group;
 
     $external_ticket = $wrapper->field_ding_event_ticket_link->value();
+
+    // Check if the event exists in pretix and if it do get the URL.
     if (empty($external_ticket) && isset($og_group->nid)) {
       $url = ding_pretix_get_shop_url($node->nid, $og_group->nid);
 
@@ -104,24 +107,31 @@ function ding_pretix_batch_migrate_place2book_nodes(array &$context) {
         $wrapper->field_ding_event_ticket_link->set(['url' => $url]);
         $wrapper->save();
       }
-    }
+      else {
+        if (array_key_exists($node->nid, $rows)) {
+          $place2book_info = $rows[$node->nid];
+          $nid = $node->nid;
 
-    if (array_key_exists($node->nid, $rows)) {
-      $place2book_info = $rows[$node->nid];
+          // Get URL from place2book.
+          $url = ding_pretix_migrate_get_place2book_url($place2book_info->place2book_id, $og_group->nid);
 
-      $nid = (int) $node->nid;
+          // Update the node with that link, so place2book can be disabled.
+          $wrapper->field_ding_event_ticket_link->set(['url' => $url]);
+          $wrapper->save();
 
-      $pretix_info = [
-        'nid' => $nid,
-        'capacity' => (int) $place2book_info->capacity,
-        'maintain_copy' => 0,
-        'ticket_type' => $place2book_info->ticket_type,
-      ];
+          $pretix_info = [
+            'nid' => $nid,
+            'capacity' => (int) $place2book_info->capacity,
+            'maintain_copy' => 0,
+            'ticket_type' => $place2book_info->ticket_type,
+          ];
 
-      db_merge('ding_pretix')
-        ->key(['nid' => $nid])
-        ->fields($pretix_info)
-        ->execute();
+          db_merge('ding_pretix')
+            ->key(['nid' => $nid])
+            ->fields($pretix_info)
+            ->execute();
+        }
+      }
     }
 
     $context['results'][] = $node->nid . ' : ' . check_plain($node->title);
@@ -153,105 +163,40 @@ function ding_pretix_batch_migrate_place2book_nodes_finished($success, $results,
 }
 
 /**
- * Get place2book ticket information.
+ * Get place2book ticket URL.
  *
- * Base on the render function found in the place2book module.
- *
- * @param int $event_nid
+ * @param int $place2book_id
  *   The events node id to find ticket for.
- * @param int $library_nid
+ * @param int $library_id
  *   The node id of the library that has the event.
  *
- * @return array
- *   With the keys 'url' if ticket is found.
+ * @return string
+ *   The ticket URL if ticket is found.
  */
-function ding_pretix_get_ticketinfo($event_nid, $library_nid) {
-  $place2book_id = 0;
-
-  // Get data from ding_place2book table.
-  $place2book_result = db_query('SELECT place2book_id, maintain_copy, passive FROM {ding_place2book} WHERE nid = :nid', [
-    ':nid' => $event_nid,
-  ]);
-  foreach ($place2book_result as $place2book) {
-    // Only find ticket links for non-passive events.
-    if ($place2book->passive == 0) {
-      $place2book_id = $place2book->place2book_id;
-    }
+function ding_pretix_migrate_get_place2book_url($place2book_id, $library_id) {
+  $service_settings = variable_get('ding_place2book', array());
+  $api_key = place2book_get_api_key($library_id);
+  if ($api_key == NULL) {
+    return '';
   }
 
   // Check cache for the URL.
-  if ($cache = cache_get($place2book_id . '_' . $library_nid, 'cache_place2book')) {
-    return [
-      'url' => $cache->data,
-    ];
+  if ($cache = cache_get($place2book_id . '_' . $library_id, 'cache_place2book')) {
+    return $cache->data;
   };
 
-  $data = [
-    'url' => '',
-  ];
+  $headers = array(
+    'X-PLACE2BOOK-API-TOKEN' => $api_key,
+    'X-PLACE2BOOK-EVENT-ID' => $place2book_id,
+  );
+  $options = array(
+    'method' => 'GET',
+    'headers' => $headers,
+  );
+  $p2b_result = drupal_http_request(
+    $service_settings['service_url'] . '/available_tickets',
+    $options
+  );
 
-  if ($place2book_id) {
-    $service_settings = variable_get('ding_place2book', []);
-
-    $api_key = place2book_get_api_key($library_nid);
-    if ($api_key == NULL) {
-      return $data;
-    }
-
-    $options = [
-      'method' => 'GET',
-      'headers' => [
-        'X-PLACE2BOOK-API-TOKEN' => $api_key,
-        'X-PLACE2BOOK-EVENT-ID' => $place2book_id,
-      ],
-    ];
-    $p2b_result = drupal_http_request($service_settings['service_url'] . '/available_tickets', $options);
-
-    // We must have a sales-status header.
-    if (isset($p2b_result->headers['sales-status'])) {
-
-      // Check if the event is closed for admissions.
-      if ($p2b_result->headers['sales-status'] == 'closed') {
-        $data['url'] = $p2b_result->headers['location'];
-      }
-      // Check if sales period is in the future and ticket sale has not started
-      // yet.
-      elseif ($p2b_result->headers['sales-status'] == 'upcoming') {
-        $data['url'] = $p2b_result->headers['location'];
-      }
-      else {
-        /*
-         * Check if we have no tickets left.
-         *
-         * Number from Available-Tickets header is a string and must be tested
-         * as such also, Available-Tickets header can have a negative value,
-         * which we also interpret as "no ticket left".
-         */
-        if ($p2b_result->headers['available-tickets'] == "0" || (int) $p2b_result->headers['available-tickets'] < 0) {
-          $data['url'] = $p2b_result->headers['location'];
-        }
-        else {
-          /*
-           * Check to see if we should present an link for ordering a ticket.
-           *
-           * Number from Available-Tickets header is a string and must be
-           * typecast as integer.
-           * Available-Tickets header can also be the string "Ubegraenset antal"
-           * (unlimited), so we check for existence of "antal" in the string.
-           *
-           * "Begræset antal" we would still get the same result even though
-           * the meaning is much different.
-           */
-          if ($p2b_result->headers['sales-status'] == 'open' && ((int) $p2b_result->headers['available-tickets'] > 0 || strpos($p2b_result->headers['available-tickets'], 'antal') > 0)) {
-            $data['url'] = $p2b_result->headers['location'];
-          }
-        }
-      }
-    }
-  }
-
-  // Save URL to the cache.
-  cache_set($place2book_id . '_' . $library_nid, $data['url'], 'cache_place2book', CACHE_PERMANENT);
-
-  return $data;
+  return $p2b_result->headers['location'];
 }

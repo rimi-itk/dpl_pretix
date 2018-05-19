@@ -77,7 +77,7 @@ function ding_pretix_field_formatter_info() {
 function ding_pretix_node_insert($node) {
   // We only handles event nodes.
   if ($node->type === 'ding_event') {
-    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+    module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
     $service_settings = variable_get('ding_pretix', []);
 
     if ($node->pretix['maintain_copy'] === 1) {
@@ -127,7 +127,7 @@ function ding_pretix_node_insert($node) {
  */
 function ding_pretix_node_update($node) {
   if ($node->type == 'ding_event') {
-    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+    module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
     $service_settings = variable_get('ding_pretix', []);
@@ -203,7 +203,7 @@ function ding_pretix_node_update($node) {
 function ding_pretix_node_delete($node) {
   // We only handle event nodes.
   if ($node->type == 'ding_event') {
-    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+    module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
     $service_settings = variable_get('ding_pretix', []);
     $pretix_info = _ding_pretix_get_pretix_node_info($node->nid);
 
@@ -240,7 +240,7 @@ function ding_pretix_entity_load($entities, $type) {
     $key = array_pop($keys);
 
     if ($entities[$key]->type === 'ding_event') {
-      module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+      module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
       $service_settings = variable_get('ding_pretix', []);
       $pretix_info = _ding_pretix_get_pretix_node_info($entities[$key]->nid);
@@ -259,7 +259,7 @@ function ding_pretix_entity_load($entities, $type) {
  * Implements hook_form_FORM_ID_alter().
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id) {
-  module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+  module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
   $nid = $form['nid']['#value'] ?? $form['nid']['#value'];
   $pretix_node_info = _ding_pretix_get_pretix_node_info($nid);
   $pretix_node_defaults = _ding_pretix_get_pretix_node_info_defaults($nid);
@@ -369,7 +369,7 @@ function ding_pretix_node_validate($node, $form, &$form_state) {
                             Please either deselect "maintain copy" or leave "Book ticket" empty.');
     }
     else {
-      module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+      module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
       $pretix_shop_url = ding_pretix_get_shop_url($node->nid);
 
       // For existing events, if pretix is used we disallow manual change.
@@ -388,7 +388,7 @@ function ding_pretix_node_validate($node, $form, &$form_state) {
  */
 function ding_pretix_node_presave($node) {
   if ($node->type === 'ding_event') {
-    module_load_include('inc', 'ding_pretix', 'ding_pretix.api_module');
+    module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
     $pretix_shop_url = ding_pretix_get_shop_url($node->nid);
     $wrapper = entity_metadata_wrapper('node', $node);
 
