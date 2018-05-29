@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="loop">
+  <description>PHP CodeSniffer configuration</description>
+
+  <file>ding_pretix.api_module.inc</file>
+  <file>ding_pretix.drush.inc</file>
+  <file>ding_pretix.info</file>
+  <file>ding_pretix.install</file>
+  <file>ding_pretix.module</file>
+  <file>includes/</file>
+
+  <!-- Show progress -->
+  <arg value="p"/>
+
+  <rule ref="Drupal"/>
+  <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+</ruleset>
