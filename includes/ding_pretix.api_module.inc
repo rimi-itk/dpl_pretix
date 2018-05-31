@@ -172,10 +172,13 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
  */
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity) {
   if ($quota && $pretix_capacity !== $quota->size) {
+    $pretix_capacity = (int) $pretix_capacity;
+    $pretix_capacity = $pretix_capacity === 0 ? null : $pretix_capacity;
+    
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['size' => (int) $pretix_capacity]),
+      'data' => json_encode(['size' => $pretix_capacity]),
     ];
     $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/' . $quota->id . '/';
     $result = _ding_pretix_http_request($quota_endpoint, $options);
