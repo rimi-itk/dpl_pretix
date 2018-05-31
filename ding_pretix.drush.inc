@@ -123,7 +123,6 @@ function ding_pretix_batch_migrate_place2book_nodes(ArrayObject &$context) {
             'nid' => $nid,
             'capacity' => (int) $place2book_info->capacity,
             'maintain_copy' => 0,
-            'ticket_type' => $place2book_info->ticket_type,
           ];
 
           db_merge('ding_pretix')
@@ -174,7 +173,7 @@ function ding_pretix_batch_migrate_place2book_nodes_finished($success, $results,
  *   The ticket URL if ticket is found.
  */
 function ding_pretix_migrate_get_place2book_url($place2book_id, $library_id) {
-  $service_settings = variable_get('ding_place2book', array());
+  $service_settings = variable_get('ding_place2book', []);
   $api_key = place2book_get_api_key($library_id);
   if ($api_key == NULL) {
     return '';
@@ -185,14 +184,14 @@ function ding_pretix_migrate_get_place2book_url($place2book_id, $library_id) {
     return $cache->data;
   };
 
-  $headers = array(
+  $headers = [
     'X-PLACE2BOOK-API-TOKEN' => $api_key,
     'X-PLACE2BOOK-EVENT-ID' => $place2book_id,
-  );
-  $options = array(
+  ];
+  $options = [
     'method' => 'GET',
     'headers' => $headers,
-  );
+  ];
   $p2b_result = drupal_http_request(
     $service_settings['service_url'] . '/available_tickets',
     $options
