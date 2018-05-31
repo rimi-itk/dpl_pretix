@@ -57,12 +57,6 @@ function ding_pretix_schema() {
           'not null' => TRUE,
           'default' => 1,
         ],
-        'ticket_type' => [
-          'description' => 'Ticket type',
-          'type' => 'varchar',
-          'length' => 255,
-          'not null' => TRUE,
-        ],
         'psp_element' => [
           'description' => 'PSP element for accounting',
           'type' => 'varchar',
@@ -132,4 +126,11 @@ function ding_pretix_update_7102() {
     'default' => NULL,
   ];
   db_add_field('ding_pretix', 'ticket_form', $spec);
+}
+
+/**
+ * Drop ticket type field from {ding_pretix} table.
+ */
+function ding_pretix_update_7103() {
+  db_drop_field('ding_pretix', 'ticket_type');
 }

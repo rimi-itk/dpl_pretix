@@ -172,10 +172,13 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
  */
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity) {
   if ($quota && $pretix_capacity !== $quota->size) {
+    $pretix_capacity = (int) $pretix_capacity;
+    $pretix_capacity = $pretix_capacity === 0 ? NULL : $pretix_capacity;
+
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['size' => (int) $pretix_capacity]),
+      'data' => json_encode(['size' => $pretix_capacity]),
     ];
     $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/' . $quota->id . '/';
     $result = _ding_pretix_http_request($quota_endpoint, $options);
@@ -185,15 +188,15 @@ function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug,
 }
 
 /**
- * Get the given quota from pretix.
+ * Get the shared quota for a list of items from pretix.
  *
- * @param $item
+ * @param $items
  * @param $service_settings
  * @param $pretix_slug
  *
  * @return null
  */
-function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
+function _ding_pretix_get_quota($items, $service_settings, $pretix_slug) {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings),
@@ -201,11 +204,18 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
   $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/';
   $result = _ding_pretix_http_request($quota_endpoint, $options);
 
+  $item_ids = [];
+  foreach ($items as $item) {
+    $item_ids[] = $item->id;
+  }
+
   if (200 === (int) $result->code) {
     $data = json_decode($result->data);
     foreach ($data->results as $result) {
-      if (in_array($item->id, $result->items)) {
+      // We want the quota that is shared by all the items.
+      if (array_intersect($item_ids, $result->items) == $item_ids) {
         $quota = $result;
+        break;
       }
     }
   }
@@ -214,14 +224,14 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
 }
 
 /**
- * Get the given item from pretix.
+ * Get all admission items for a given event from pretix.
  *
  * @param $service_settings
  * @param $pretix_slug
  *
- * @return null
+ * @return array
  */
-function _ding_pretix_get_item($service_settings, $pretix_slug) {
+function _ding_pretix_get_admission_items($service_settings, $pretix_slug) {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings),
@@ -229,17 +239,17 @@ function _ding_pretix_get_item($service_settings, $pretix_slug) {
   $item_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/';
   $result = _ding_pretix_http_request($item_endpoint, $options);
 
+  $items = [];
   if (200 === (int) $result->code) {
     $data = json_decode($result->data);
     foreach ($data->results as $result) {
       if ($result->admission) {
-        $item = $result;
-        break;
+        $items[] = $result;
       }
     }
   }
 
-  return $item ?? NULL;
+  return $items;
 }
 
 /**
@@ -260,7 +270,7 @@ function _ding_pretix_update_item($node, $item, $service_settings, $pretix_slug)
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['default_price' => (int) $price, 'name' => ['da' => $node->pretix['ticket_type']]]),
+      'data' => json_encode(['default_price' => (int) $price]),
     ];
     $endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/' . $item->id . '/';
     $result = _ding_pretix_http_request($endpoint, $options);
@@ -368,8 +378,6 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
     'date_from' => date_format($start_date, 'c'),
     'date_to' => date_format($end_date, 'c'),
     'is_public' => $node->status,
-    'presale_start' => date_format(date_sub(clone $start_date, new DateInterval('P30D')), 'c'),
-    'presale_end' => date_format($start_date, 'c'),
     'location' => ['da' => $place],
     'has_subevents' => FALSE,
   ];
@@ -486,7 +494,6 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = NULL) {
     'pretix_slug' => $slug,
     'capacity' => (int) $node->pretix['capacity'],
     'maintain_copy' => $node->pretix['maintain_copy'],
-    'ticket_type' => $node->pretix['ticket_type'],
     'psp_element' => $node->pretix['psp_element'],
     'ticket_form' => $node->pretix['ticket_form'],
   ];
@@ -516,7 +523,6 @@ function _ding_pretix_update_pretix_node_info($node) {
       'nid' => $nid,
       'capacity' => (int) $node->pretix['capacity'],
       'maintain_copy' => $node->pretix['maintain_copy'],
-      'ticket_type' => $node->pretix['ticket_type'],
       'psp_element' => $node->pretix['psp_element'],
       'ticket_form' => $node->pretix['ticket_form'],
     ];
@@ -578,7 +584,6 @@ function _ding_pretix_get_pretix_node_info_defaults($nid) {
 
   $pretix_defaults = [
     'capacity' => (int) $settings['capacity'],
-    'ticket_type' => $settings['ticket_type'],
     'maintain_copy' => $maintain_copy,
     'default_ticket_form' => $settings['default_ticket_form'],
   ];
