@@ -188,15 +188,15 @@ function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug,
 }
 
 /**
- * Get the given quota from pretix.
+ * Get the shared quota for a list of items from pretix.
  *
- * @param $item
+ * @param $items
  * @param $service_settings
  * @param $pretix_slug
  *
  * @return null
  */
-function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
+function _ding_pretix_get_quota($items, $service_settings, $pretix_slug) {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings),
@@ -204,11 +204,18 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
   $quota_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'quotas/';
   $result = _ding_pretix_http_request($quota_endpoint, $options);
 
+  $item_ids = [];
+  foreach ($items as $item) {
+    $item_ids[] = $item->id;
+  }
+
   if (200 === (int) $result->code) {
     $data = json_decode($result->data);
     foreach ($data->results as $result) {
-      if (in_array($item->id, $result->items)) {
+      // We want the quota that is shared by all the items.
+      if (array_intersect($item_ids, $result->items) == $item_ids) {
         $quota = $result;
+        break;
       }
     }
   }
@@ -217,14 +224,14 @@ function _ding_pretix_get_quota($item, $service_settings, $pretix_slug) {
 }
 
 /**
- * Get the given item from pretix.
+ * Get all admission items for a given event from pretix.
  *
  * @param $service_settings
  * @param $pretix_slug
  *
- * @return null
+ * @return array
  */
-function _ding_pretix_get_item($service_settings, $pretix_slug) {
+function _ding_pretix_get_admission_items($service_settings, $pretix_slug) {
   $options = [
     'method' => 'GET',
     'headers' => _ding_pretix_built_request_headers($service_settings),
@@ -232,17 +239,17 @@ function _ding_pretix_get_item($service_settings, $pretix_slug) {
   $item_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/';
   $result = _ding_pretix_http_request($item_endpoint, $options);
 
+  $items = [];
   if (200 === (int) $result->code) {
     $data = json_decode($result->data);
     foreach ($data->results as $result) {
       if ($result->admission) {
-        $item = $result;
-        break;
+        $items[] = $result;
       }
     }
   }
 
-  return $item ?? NULL;
+  return $items;
 }
 
 /**
