@@ -260,7 +260,7 @@ function _ding_pretix_update_item($node, $item, $service_settings, $pretix_slug)
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
-      'data' => json_encode(['default_price' => (int) $price, 'name' => ['da' => $node->pretix['ticket_type']]]),
+      'data' => json_encode(['default_price' => (int) $price]),
     ];
     $endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'items/' . $item->id . '/';
     $result = _ding_pretix_http_request($endpoint, $options);
@@ -486,7 +486,6 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = NULL) {
     'pretix_slug' => $slug,
     'capacity' => (int) $node->pretix['capacity'],
     'maintain_copy' => $node->pretix['maintain_copy'],
-    'ticket_type' => $node->pretix['ticket_type'],
     'psp_element' => $node->pretix['psp_element'],
     'ticket_form' => $node->pretix['ticket_form'],
   ];
@@ -516,7 +515,6 @@ function _ding_pretix_update_pretix_node_info($node) {
       'nid' => $nid,
       'capacity' => (int) $node->pretix['capacity'],
       'maintain_copy' => $node->pretix['maintain_copy'],
-      'ticket_type' => $node->pretix['ticket_type'],
       'psp_element' => $node->pretix['psp_element'],
       'ticket_form' => $node->pretix['ticket_form'],
     ];
@@ -578,7 +576,6 @@ function _ding_pretix_get_pretix_node_info_defaults($nid) {
 
   $pretix_defaults = [
     'capacity' => (int) $settings['capacity'],
-    'ticket_type' => $settings['ticket_type'],
     'maintain_copy' => $maintain_copy,
     'default_ticket_form' => $settings['default_ticket_form'],
   ];

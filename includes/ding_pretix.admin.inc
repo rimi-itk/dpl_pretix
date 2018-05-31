@@ -196,15 +196,6 @@ function ding_pretix_admin_settings_form($form, &$form_state) {
     '#description' => t('The default capacity for new events. Set to 0 for unlimited capacity.'),
   ];
 
-  $form['ding_pretix_event_nodes']['ticket_type'] = [
-    '#type' => 'textfield',
-    '#title' => t('Ticket type'),
-    '#default_value' => array_key_exists('ticket_type', $defaults) ? $defaults['ticket_type'] : 'Adgang',
-    '#size' => 30,
-    '#maxlength' => 255,
-    '#description' => t('The default ticket type for new events.'),
-  ];
-
   $form['ding_pretix_event_nodes']['defaults'] = [
     '#type' => 'checkboxes',
     '#title' => t('Maintain copy in Pretix'),

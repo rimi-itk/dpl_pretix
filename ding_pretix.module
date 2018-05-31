@@ -294,16 +294,8 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#size' => 5,
     '#maxlength' => 5,
     '#default_value' => $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'],
-    '#description' => t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.'),
-  ];
-
-  $form['pretix']['ticket_type'] = [
-    '#type' => 'textfield',
-    '#title' => t('Ticket type'),
-    '#size' => 30,
-    '#maxlength' => 255,
-    '#default_value' => $pretix_node_info['ticket_type'] ?? $pretix_node_defaults['ticket_type'],
-    '#description' => t('E. g. Adult, Child or Standard. Adgang is the default ticket type.') . ' ' . $pretix_info,
+    '#description' => $description,
+    '#disabled' => $disabled,
   ];
 
   $ding_pretix_psp_elements = variable_get('ding_pretix_psp_elements', []);

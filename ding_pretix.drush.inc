@@ -123,7 +123,6 @@ function ding_pretix_batch_migrate_place2book_nodes(ArrayObject &$context) {
             'nid' => $nid,
             'capacity' => (int) $place2book_info->capacity,
             'maintain_copy' => 0,
-            'ticket_type' => $place2book_info->ticket_type,
           ];
 
           db_merge('ding_pretix')
