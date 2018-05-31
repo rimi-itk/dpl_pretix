@@ -268,7 +268,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   }
   else {
     $pretix_link = t('None');
-    $pretix_info = t('If more ticket types/prices on this event is needed, edit the corresponding event on Pretix after this event has been created.');
+    $pretix_info = t('If more ticket types/prices on this event are needed, edit the corresponding event in Pretix after the event has been created.');
   }
 
   $form['field_ding_event_price']['und'][0]['value']['#description'] = $pretix_info;
@@ -334,7 +334,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 
   $form['pretix']['maintain_copy'] = [
     '#type' => 'checkbox',
-    '#title' => t('Maintain copy on Pretix'),
+    '#title' => t('Maintain copy in Pretix'),
     '#default_value' => $pretix_node_info['maintain_copy'] ?? (bool) $pretix_node_defaults['maintain_copy'],
     '#description' => t('When set, a corresponding event is created and updated on the Pretix ticket booking service.'),
   ];
