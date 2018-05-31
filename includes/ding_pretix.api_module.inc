@@ -368,8 +368,6 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
     'date_from' => date_format($start_date, 'c'),
     'date_to' => date_format($end_date, 'c'),
     'is_public' => $node->status,
-    'presale_start' => date_format(date_sub(clone $start_date, new DateInterval('P30D')), 'c'),
-    'presale_end' => date_format($start_date, 'c'),
     'location' => ['da' => $place],
     'has_subevents' => FALSE,
   ];
