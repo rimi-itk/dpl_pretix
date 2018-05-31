@@ -2,7 +2,6 @@
 <ruleset name="loop">
   <description>PHP CodeSniffer configuration</description>
 
-  <file>ding_pretix.api_module.inc</file>
   <file>ding_pretix.drush.inc</file>
   <file>ding_pretix.info</file>
   <file>ding_pretix.install</file>

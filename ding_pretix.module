@@ -282,19 +282,21 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#tree' => TRUE,
   ];
 
-  // We don't allow updates to price after the event is created in pretix - must be updated in there.
-  if($pretix_node_info['pretix_slug']) {
-    $form['field_ding_event_price']['#disabled'] = true;
+  // We don't allow updates to price after the event is created in pretix -
+  // must be updated in there.
+  if ($pretix_node_info['pretix_slug']) {
+    $form['field_ding_event_price']['#disabled'] = TRUE;
   }
 
   // We don't allow manual change of the ticket link if pretix is used.
-  if($pretix_node_info['pretix_slug']) {
-    $form['field_ding_event_ticket_link']['#disabled'] = true;
+  if ($pretix_node_info['pretix_slug']) {
+    $form['field_ding_event_ticket_link']['#disabled'] = TRUE;
     $form['field_ding_event_ticket_link']['und'][0]['#description'] = t('This field is managed by pretix for this event.');
   }
 
-  // We don't allow updates to capacity after the event is created in pretix - must be updated in there.
-  $disabled = empty($pretix_node_info['pretix_slug']) ? false : true;
+  // We don't allow updates to capacity after the event is created in pretix -
+  // must be updated in there.
+  $disabled = empty($pretix_node_info['pretix_slug']) ? FALSE : TRUE;
   $description = $disabled ? t('Please update capacity in pretix if needed.') : t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
 
   $form['pretix']['capacity'] = [

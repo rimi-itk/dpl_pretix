@@ -173,8 +173,8 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity) {
   if ($quota && $pretix_capacity !== $quota->size) {
     $pretix_capacity = (int) $pretix_capacity;
-    $pretix_capacity = $pretix_capacity === 0 ? null : $pretix_capacity;
-    
+    $pretix_capacity = $pretix_capacity === 0 ? NULL : $pretix_capacity;
+
     $options = [
       'method' => 'PATCH',
       'headers' => _ding_pretix_built_request_headers($service_settings),
