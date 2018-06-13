@@ -224,6 +224,30 @@ function _ding_pretix_get_quota($items, $service_settings, $pretix_slug) {
 }
 
 /**
+ * Check if there are orders for the given event in Pretix.
+ *
+ * @param $service_settings
+ * @param $pretix_slug
+ *
+ * @return mixed
+ */
+function _ding_pretix_has_orders($service_settings, $pretix_slug) {
+  $options = [
+    'method' => 'GET',
+    'headers' => _ding_pretix_built_request_headers($service_settings),
+  ];
+  $order_endpoint = _ding_pretix_get_event_endpoint($service_settings, $pretix_slug) . 'orders/';
+  $result = _ding_pretix_http_request($order_endpoint, $options);
+
+  if (200 === (int) $result->code) {
+    $data = json_decode($result->data);
+    $has_orders = $data->count > 0;
+  }
+
+  return $has_orders ?? NULL;
+}
+
+/**
  * Get all admission items for a given event from pretix.
  *
  * @param $service_settings
