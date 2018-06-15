@@ -695,7 +695,7 @@ function _ding_pretix_get_pretix_node_info_defaults($nid) {
 
   // If this is a new node we use the defaults. If it's an existing node we
   // don't automatically add it to Pretix.
-  $maintain_copy = ($nid === NULL) ? $settings['defaults']['maintain_copy'] : FALSE;
+  $maintain_copy = ($nid !== NULL) ? $settings['defaults']['maintain_copy'] : FALSE;
 
   $pretix_defaults = [
     'capacity' => (int) $settings['capacity'],
