@@ -261,7 +261,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   // Service settings.
   $service_settings = variable_get('ding_pretix', []);
 
-  // If we are cloning we need to find and set the pretix settings from the event being cloned from
+  // If we are cloning we need to find and set the pretix settings from the event being cloned from.
   if (isset($form['clone_from_original_nid'])) {
     $original_pretix_node_info = _ding_pretix_get_pretix_node_info($form['clone_from_original_nid']['#value']);
     $capacity = $original_pretix_node_info['capacity'];
@@ -339,7 +339,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 
     // PSP is a code for accounting. If an event has orders, we don't allow this to be
     // changed, as this would invalidate the accounts.
-    if($pretix_node_info['pretix_slug']) {
+    if ($pretix_node_info['pretix_slug']) {
       $disabled = _ding_pretix_has_orders($service_settings, $pretix_node_info['pretix_slug']);
     }
     else {
@@ -443,7 +443,7 @@ function ding_pretix_clone_node_alter(&$node, $context) {
     module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
     $service_settings = variable_get('ding_pretix', []);
 
-    $node_settings = $node->clone_from_original_nid ? _ding_pretix_get_pretix_node_info($node->clone_from_original_nid) : null;
+    $node_settings = $node->clone_from_original_nid ? _ding_pretix_get_pretix_node_info($node->clone_from_original_nid) : NULL;
 
     $node->pretix = [
       'nid' => $node->nid,
@@ -453,7 +453,7 @@ function ding_pretix_clone_node_alter(&$node, $context) {
       'ticket_form' => $node_settings['ticket_form'],
     ];
 
-    if($node_settings['maintain_copy']) {
+    if ($node_settings['maintain_copy']) {
       $node->field_ding_event_ticket_link = [];
     }
   }
