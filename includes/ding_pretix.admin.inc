@@ -6,7 +6,17 @@
  */
 
 /**
- * The main settings form.
+ * Administrative settings form.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @return array
+ *   Form structure prepared for admin settings.
+ *
+ * @ingroup forms
  */
 function ding_pretix_admin_settings_form($form, &$form_state) {
   global $user;
@@ -224,6 +234,14 @@ function ding_pretix_admin_settings_form($form, &$form_state) {
  * Callback for both ajax-enabled buttons.
  *
  * Selects and returns the fieldset with the PSP elements in it.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @return array
+ *   Fieldset of PSP elements.
  */
 function ding_pretix_admin_settings_form_psp_callback($form, $form_state) {
   return $form['ding_pretix_psp_elements']['list'];
@@ -233,6 +251,11 @@ function ding_pretix_admin_settings_form_psp_callback($form, $form_state) {
  * Submit handler for the "add-one-more" button.
  *
  * Increments the max counter and causes a rebuild.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
  */
 function ding_pretix_admin_settings_form_add_psp_element($form, &$form_state) {
   $form_state['values']['ding_pretix_psp_elements']['list'][] = ['psp_name' => '', 'psp_value' => ''];
@@ -244,6 +267,11 @@ function ding_pretix_admin_settings_form_add_psp_element($form, &$form_state) {
  * Submit handler for the "remove one" button.
  *
  * Decrements the max counter and causes a form rebuild.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
  */
 function ding_pretix_admin_settings_form_remove_psp_element($form, &$form_state) {
   array_pop($form_state['values']['ding_pretix_psp_elements']['list']);

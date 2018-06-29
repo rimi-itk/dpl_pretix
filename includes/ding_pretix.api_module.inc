@@ -8,7 +8,7 @@
 /**
  * Get the shop url for a given event.
  *
- * @param int $nid
+ * @param string $nid
  *   The event (node) id.
  *
  * @return string|null
@@ -43,6 +43,22 @@ function ding_pretix_get_shop_url($nid) {
  *   - template_event_slug: A string containing the pretix slug of the specific event.
  *
  * @return object
+ *   An object that can have one or more of the following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  *
  * @throws Exception
  */
@@ -78,6 +94,22 @@ function _ding_pretix_create_event($node, $service_settings) {
  *   The unique slug of the pretix event.
  *
  * @return object
+ *   An object that can have one or more of the following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  *
  * @throws Exception
  */
@@ -109,6 +141,22 @@ function _ding_pretix_update_event($node, $service_settings, $pretix_slug) {
  *   The unique slug of the pretix event.
  *
  * @return object
+ *   An object that can have one or more of the following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  */
 function _ding_pretix_delete_event($service_settings, $pretix_slug) {
   $options = [
@@ -135,6 +183,22 @@ function _ding_pretix_delete_event($service_settings, $pretix_slug) {
  *   The unique slug of the pretix event.
  *
  * @return object
+ *   An object that can have one or more of the following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  */
 function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug) {
   $options = [
@@ -151,8 +215,8 @@ function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug) {
 /**
  * Enable or disable the 'PDF ticket plugin' in pretix.
  *
- * @param $data
- * @param $use_pdf_tickets
+ * @param string $data
+ * @param bool $use_pdf_tickets
  * @param array $service_settings
  *   An array that has the following elements:
  *   - service_url: A string containing the fully qualified URI for the pretix service.
@@ -163,6 +227,23 @@ function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug) {
  *   The unique slug of the pretix event.
  *
  * @return null|object
+ *   Null if no changes are needed, else an object that can have one or more of the
+ *   following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  */
 function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settings, $pretix_slug) {
   $pdf_plugin_name = 'pretix.plugins.ticketoutputpdf';
@@ -206,6 +287,23 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
  * @param $pretix_capacity
  *
  * @return null|object
+ *   Null if no changes are needed, else an object that can have one or more of the
+ *   following components:
+ *   - request: A string containing the request body that was sent.
+ *   - code: An integer containing the response status code, or the error code
+ *     if an error occurred.
+ *   - protocol: The response protocol (e.g. HTTP/1.1 or HTTP/1.0).
+ *   - status_message: The status message from the response, if a response was
+ *     received.
+ *   - redirect_code: If redirected, an integer containing the initial response
+ *     status code.
+ *   - redirect_url: If redirected, a string containing the URL of the redirect
+ *     target.
+ *   - error: If an error occurred, the error message. Otherwise not set.
+ *   - headers: An array containing the response headers as name/value pairs.
+ *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
+ *     easy access the array keys are returned in lower case.
+ *   - data: A string containing the response body that was received.
  */
 function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug, $pretix_capacity) {
   if ($quota && $pretix_capacity !== $quota->size) {
@@ -227,7 +325,7 @@ function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug,
 /**
  * Get the shared quota for a list of items from pretix.
  *
- * @param $items
+ * @param array $items
  * @param array $service_settings
  *   An array that has the following elements:
  *   - service_url: A string containing the fully qualified URI for the pretix service.
@@ -237,7 +335,8 @@ function _ding_pretix_update_quota_size($quota, $service_settings, $pretix_slug,
  * @param string $pretix_slug
  *   The unique slug of the pretix event.
  *
- * @return null
+ * @return null|int
+ *   Return the quota if found null otherwise.
  */
 function _ding_pretix_get_quota($items, $service_settings, $pretix_slug) {
   $options = [
@@ -311,6 +410,7 @@ function _ding_pretix_has_orders($service_settings, $pretix_slug) {
  *   The unique slug of the pretix event.
  *
  * @return array
+ *   An array of pretix items.
  */
 function _ding_pretix_get_admission_items($service_settings, $pretix_slug) {
   $options = [
@@ -337,8 +437,9 @@ function _ding_pretix_get_admission_items($service_settings, $pretix_slug) {
  * Update the given item in pretix.
  *
  * @param stdClass $node
- *    The ding_event node to create a pretix item for
+ *    The ding_event node to create a pretix item for.
  * @param $item
+ *    The item object.
  * @param array $service_settings
  *   An array that has the following elements:
  *   - service_url: A string containing the fully qualified URI for the pretix service.
@@ -464,9 +565,10 @@ function _ding_pretix_built_request_headers($service_settings) {
  *
  * @param stdClass $node
  *    The ding_event node to create a pretix request body for
- * @param $request_type
+ * @param string $request_type
  *
  * @return array
+ *    An array containing the pretix body fields.
  *
  * @throws Exception
  */
@@ -510,7 +612,7 @@ function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
  * used. Otherwise the address field on the attached library is used.
  *
  * @param stdClass $node
- *    The ding_event node to get a place for
+ *    The ding_event node to get a place for.
  *
  * @return field|bool
  */
@@ -550,7 +652,7 @@ function _ding_pretix_get_place($node) {
 /**
  * Get a formatted string from the address field.
  *
- * @param $field_address
+ * @param array $field_address
  *
  * @return string
  */
@@ -591,8 +693,10 @@ function _ding_pretix_get_library_nid($node) {
  *
  * @param stdClass $node
  *   The ding_event node to pretix info for.
- * @param $organizer
- * @param $data
+ * @param string $organizer
+ *   The organizer slug.
+ * @param string $data
+ *   A pretix event json string.
  *
  * @return array
  *
@@ -627,6 +731,7 @@ function _ding_pretix_insert_pretix_node_info($node, $organizer, $data = NULL) {
  *   The ding_event node to update pretix info for.
  *
  * @return mixed
+ *   An associative array with the updated values, or FALSE if there is no node with that nid.
  *
  * @throws InvalidMergeQueryException
  */
@@ -655,8 +760,10 @@ function _ding_pretix_update_pretix_node_info($node) {
  * Get the saved pretix values for the given node.
  *
  * @param string $nid
+ *    The event (node) id.
  *
  * @return mixed
+ *    An associative array, or FALSE if there is no node with that nid.
  */
 function _ding_pretix_get_pretix_node_info($nid) {
   $pretix_info = db_select('ding_pretix', 'p')
@@ -672,8 +779,10 @@ function _ding_pretix_get_pretix_node_info($nid) {
  * Remove saved pretix values for the node.
  *
  * @param string $nid
+ *    The event (node) id.
  *
  * @return int
+ *    The number of rows affected by the delete query
  */
 function _ding_pretix_delete_pretix_node_info($nid) {
   $pretix_info = db_delete('ding_pretix')
