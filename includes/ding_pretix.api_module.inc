@@ -687,15 +687,20 @@ function _ding_pretix_delete_pretix_node_info($nid) {
  * Get the default values for pretix settings.
  *
  * @param string $nid
+ *    The event (node) id.
  *
  * @return array
+ *    An array that has the following fields
+ *    - capacity: The default capacity for events.
+ *    - maintain_copy: If a copy should be maintain in pretix by default.
+ *    - default_ticket_form: The default form of tickets, e.g. 'pdf', 'email'.
  */
 function _ding_pretix_get_pretix_node_info_defaults($nid) {
   $settings = variable_get('ding_pretix_event_nodes', []);
 
   // If this is a new node we use the defaults. If it's an existing node we
   // don't automatically add it to Pretix.
-  $maintain_copy = ($nid !== NULL) ? $settings['defaults']['maintain_copy'] : FALSE;
+  $maintain_copy = $nid ? FALSE : $settings['defaults']['maintain_copy'];
 
   $pretix_defaults = [
     'capacity' => (int) $settings['capacity'],
