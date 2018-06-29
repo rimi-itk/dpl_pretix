@@ -59,8 +59,6 @@ function ding_pretix_get_shop_url($nid) {
  *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
  *     easy access the array keys are returned in lower case.
  *   - data: A string containing the response body that was received.
- *
- * @throws Exception
  */
 function _ding_pretix_create_event($node, $service_settings) {
   $headers = _ding_pretix_built_request_headers($service_settings);
@@ -110,8 +108,6 @@ function _ding_pretix_create_event($node, $service_settings) {
  *     HTTP header names are case-insensitive (RFC 2616, section 4.2), so for
  *     easy access the array keys are returned in lower case.
  *   - data: A string containing the response body that was received.
- *
- * @throws Exception
  */
 function _ding_pretix_update_event($node, $service_settings, $pretix_slug) {
   $headers = _ding_pretix_built_request_headers($service_settings);
@@ -216,7 +212,9 @@ function _ding_pretix_update_live($is_live, $service_settings, $pretix_slug) {
  * Enable or disable the 'PDF ticket plugin' in pretix.
  *
  * @param string $data
+ *   A pretix event json string.
  * @param bool $use_pdf_tickets
+ *   True if pdf tickets should be used.
  * @param array $service_settings
  *   An array that has the following elements:
  *   - service_url: A string containing the fully qualified URI for the pretix service.
@@ -275,7 +273,8 @@ function _ding_pretix_update_pdf_plugin($data, $use_pdf_tickets, $service_settin
 /**
  * Update the size of the given quota.
  *
- * @param $quota
+ * @param stdClass $quota
+ *   A pretix quota object.
  * @param array $service_settings
  *   An array that has the following elements:
  *   - service_url: A string containing the fully qualified URI for the pretix service.
@@ -569,8 +568,6 @@ function _ding_pretix_built_request_headers($service_settings) {
  *
  * @return array
  *    An array containing the pretix body fields.
- *
- * @throws Exception
  */
 function _ding_pretix_built_request_body($node, $request_type = 'UPDATE') {
   $wrapper = entity_metadata_wrapper('node', $node);

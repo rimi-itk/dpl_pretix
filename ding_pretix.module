@@ -18,13 +18,7 @@ function ding_pretix_permission() {
 }
 
 /**
- * Define pretix permissions in code.
- *
- * @param string $role
- *   The role for which the permissions are being requested.
- *
- * @return array
- *   An array defining all the permissions for the site.
+ * Implements hook_secure_permissions().
  */
 function ding_pretix_secure_permissions($role) {
   $permissions = [
@@ -73,11 +67,6 @@ function ding_pretix_field_formatter_info() {
 
 /**
  * Implements hook_node_insert().
- *
- * @param $node
- *   The node that is being created.
- *
- * @throws Exception if one of the INSERTs failed
  */
 function ding_pretix_node_insert($node) {
   // We only handles event nodes.
@@ -131,11 +120,6 @@ function ding_pretix_node_insert($node) {
 
 /**
  * Implements hook_node_update().
- *
- * @param $node
- *   The node that is being updated.
- *
- * @throws Exception if one of the UPDATEs failed
  */
 function ding_pretix_node_update($node) {
   if ($node->type == 'ding_event') {
@@ -203,9 +187,6 @@ function ding_pretix_node_update($node) {
 
 /**
  * Implements hook_node_delete().
- *
- * @param $node
- *   The node that is being deleted.
  */
 function ding_pretix_node_delete($node) {
   // We only handle event nodes.
@@ -240,11 +221,6 @@ function ding_pretix_node_delete($node) {
 
 /**
  * Implements hook_entity_load().
- *
- * @param $entities
- *   The entities keyed by entity ID.
- * @param $type
- *   The type of entities being loaded (i.e. node, user, comment).
  */
 function ding_pretix_entity_load($entities, $type) {
   if ($type === 'node' && count($entities) === 1) {
@@ -271,16 +247,6 @@ function ding_pretix_entity_load($entities, $type) {
  * Implements hook_form_FORM_ID_alter().
  *
  * Add pretix section to the node edit form.
- *
- * @param $form
- *   Nested array of form elements that comprise the form.
- * @param $form_state
- *   A keyed array containing the current state of the form. The arguments
- *   that drupal_get_form() was originally called with are available in the
- *   array $form_state['build_info']['args'].
- * @param $form_id
- *   String representing the name of the form itself. Typically this is the
- *   name of the function that generated the form.
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id) {
   module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
@@ -333,8 +299,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#tree' => TRUE,
   ];
 
-  // We don't allow updates to price after the event is created in pretix -
-  // must be updated in pretix.
+  // We don't allow updates to price after the event is created in pretix, must be updated in pretix.
   if ($pretix_node_info['maintain_copy']) {
     $form['field_ding_event_price']['#disabled'] = TRUE;
   }
@@ -345,8 +310,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     $form['field_ding_event_ticket_link']['und'][0]['#description'] = t('This field is managed by pretix for this event.');
   }
 
-  // We don't allow updates to capacity after the event is created in pretix -
-  // must be updated in pretix.
+  // We don't allow updates to capacity after the event is created in pretix, must be updated in pretix.
   $disabled = empty($pretix_node_info['pretix_slug']) ? FALSE : TRUE;
   $description = $disabled ? t('Please update capacity in pretix if needed.') : t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
 
@@ -420,13 +384,6 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
  *
  * Validate if ticket url has been set or changed. If pretix is selected for the node this field is determined by
  * pretix and should not be altered manually.
- *
- * @param $node
- *   The node being validated.
- * @param $form
- *   The form being used to edit the node.
- * @param $form_state
- *   The form state array.
  */
 function ding_pretix_node_validate($node, $form, &$form_state) {
   if ($node->type === 'ding_event' && $form_state['values']['pretix']['maintain_copy'] === 1 && !empty($form_state['values']['field_ding_event_ticket_link']['und'][0]['url'])) {
@@ -452,9 +409,6 @@ function ding_pretix_node_validate($node, $form, &$form_state) {
  * Implements hook_node_presave().
  *
  * Update the 'field_ding_event_ticket_link' on save.
- *
- * @param $node
- *   The node that is being inserted or updated.
  */
 function ding_pretix_node_presave($node) {
   if ($node->type === 'ding_event') {
@@ -479,14 +433,6 @@ function ding_pretix_node_presave($node) {
  * Implements hook_clone_node_alter().
  *
  * Ensure that pretix node info is set correctly when nodes are cloned.
- *
- * @param $node
- *   Reference to the fully loaded node object being saved (the clone) that
- *   can be altered as needed.
- * @param array $context
- *   An array of context describing the clone operation. The keys are:
- *   - 'method' : Can be either 'prepopulate' or 'save-edit'.
- *   - 'original_node' : The original fully loaded node object being cloned.
  */
 function ding_pretix_clone_node_alter(&$node, $context) {
   // We only handles event nodes.
