@@ -173,8 +173,7 @@ function ding_pretix_node_update($node) {
         // Best we can do is to take the event offline.
         $result = _ding_pretix_update_live(FALSE, $service_settings, $pretix_info['pretix_slug']);
         if (200 === (int) $result->code) {
-          $pretix_info = _ding_pretix_update_pretix_node_info($node);
-
+          _ding_pretix_update_pretix_node_info($node);
           drupal_set_message(t('The event already exists in Pretix. It has been taken offline.'));
         }
         else {
@@ -230,14 +229,17 @@ function ding_pretix_entity_load($entities, $type) {
     if ($entities[$key]->type === 'ding_event') {
       module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
+      $wrapper = entity_metadata_wrapper('node', $entities[$key]);
       $service_settings = variable_get('ding_pretix', []);
-      $pretix_info = _ding_pretix_get_pretix_node_info($entities[$key]->nid);
+      $pretix_info = _ding_pretix_get_pretix_node_info($wrapper->getIdentifier());
 
       if ($pretix_info['maintain_copy']) {
         $url = _ding_pretix_get_event_shop_url($service_settings, $pretix_info['pretix_slug']);
-
-        $entities[$key]->field_ding_event_ticket_link['und'] = [];
-        $entities[$key]->field_ding_event_ticket_link['und'][] = ['url' => $url];
+        $wrapper->field_ding_event_ticket_link->set([
+          'title' => 'Pretix link',
+          'url' => $url,
+          'attributes' => [],
+        ]);
       }
     }
   }
