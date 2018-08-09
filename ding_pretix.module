@@ -219,17 +219,17 @@ function ding_pretix_node_delete($node) {
 }
 
 /**
- * Implements hook_entity_load().
+ * Implements hook_entitycache_ENTITY_TYPE_load().
+ *
+ * Using entity cache load to add the ticket information.
  */
-function ding_pretix_entity_load($entities, $type) {
-  if ($type === 'node' && count($entities) === 1) {
-    $keys = array_keys($entities);
-    $key = array_pop($keys);
-
-    if ($entities[$key]->type === 'ding_event') {
+function ding_pretix_entitycache_node_load($entities) {
+  foreach ($entities as $key => $entity) {
+    if ($entity->type === 'ding_event') {
+      // Uses require once behind the scene.
       module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
-      $wrapper = entity_metadata_wrapper('node', $entities[$key]);
+      $wrapper = entity_metadata_wrapper('node', $entity);
       $service_settings = variable_get('ding_pretix', []);
       $pretix_info = _ding_pretix_get_pretix_node_info($wrapper->getIdentifier());
 
