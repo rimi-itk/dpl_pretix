@@ -18,13 +18,7 @@ function ding_pretix_permission() {
 }
 
 /**
- * Define pretix permissions in code.
- *
- * @param string $role
- *   The role for which the permissions are being requested.
- *
- * @return array
- *   An array defining all the permissions for the site.
+ * Implements hook_secure_permissions().
  */
 function ding_pretix_secure_permissions($role) {
   $permissions = [
@@ -179,8 +173,7 @@ function ding_pretix_node_update($node) {
         // Best we can do is to take the event offline.
         $result = _ding_pretix_update_live(FALSE, $service_settings, $pretix_info['pretix_slug']);
         if (200 === (int) $result->code) {
-          $pretix_info = _ding_pretix_update_pretix_node_info($node);
-
+          _ding_pretix_update_pretix_node_info($node);
           drupal_set_message(t('The event already exists in Pretix. It has been taken offline.'));
         }
         else {
@@ -226,24 +219,27 @@ function ding_pretix_node_delete($node) {
 }
 
 /**
- * Implements hook_entity_load().
+ * Implements hook_entitycache_ENTITY_TYPE_load().
+ *
+ * Using entity cache load to add the ticket information.
  */
-function ding_pretix_entity_load($entities, $type) {
-  if ($type === 'node' && count($entities) === 1) {
-    $keys = array_keys($entities);
-    $key = array_pop($keys);
-
-    if ($entities[$key]->type === 'ding_event') {
+function ding_pretix_entitycache_node_load($entities) {
+  foreach ($entities as $key => $entity) {
+    if ($entity->type === 'ding_event') {
+      // Uses require once behind the scene.
       module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
+      $wrapper = entity_metadata_wrapper('node', $entity);
       $service_settings = variable_get('ding_pretix', []);
-      $pretix_info = _ding_pretix_get_pretix_node_info($entities[$key]->nid);
+      $pretix_info = _ding_pretix_get_pretix_node_info($wrapper->getIdentifier());
 
       if ($pretix_info['maintain_copy']) {
         $url = _ding_pretix_get_event_shop_url($service_settings, $pretix_info['pretix_slug']);
-
-        $entities[$key]->field_ding_event_ticket_link['und'] = [];
-        $entities[$key]->field_ding_event_ticket_link['und'][] = ['url' => $url];
+        $wrapper->field_ding_event_ticket_link->set([
+          'title' => 'Pretix link',
+          'url' => $url,
+          'attributes' => [],
+        ]);
       }
     }
   }
@@ -251,6 +247,8 @@ function ding_pretix_entity_load($entities, $type) {
 
 /**
  * Implements hook_form_FORM_ID_alter().
+ *
+ * Add pretix section to the node edit form.
  */
 function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form_id) {
   module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
@@ -261,13 +259,34 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   // Service settings.
   $service_settings = variable_get('ding_pretix', []);
 
+  // If we are cloning we need to find and set the pretix settings from the event being cloned from.
+  if (isset($form['clone_from_original_nid'])) {
+    $original_pretix_node_info = _ding_pretix_get_pretix_node_info($form['clone_from_original_nid']['#value']);
+    $capacity = $original_pretix_node_info['capacity'];
+    $maintain_copy = $original_pretix_node_info['maintain_copy'];
+    $psp_element = $original_pretix_node_info['psp_element'];
+    $ticket_form = $original_pretix_node_info['ticket_form'];
+  }
+  else {
+    $capacity = $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'];
+    $maintain_copy = $pretix_node_info['maintain_copy'] ?? (bool) $pretix_node_defaults['maintain_copy'];
+    $psp_element = $pretix_node_info['psp_element'] ?? $pretix_node_defaults['psp_element'];
+    $ticket_form = $pretix_node_info['ticket_form'] ?? $pretix_node_defaults['default_ticket_form'];
+  }
+
   if ($pretix_node_info['pretix_slug']) {
     $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_slug']);
     $pretix_link = l($pretix_url, ['absolute' => TRUE]);
-    $pretix_info = t('Please update price in pretix if needed, go to <a href="@pretix-url">the Pretix event</a>. (Note: You may need to log on)', ['@pretix-url' => $pretix_url]);
   }
   else {
     $pretix_link = t('None');
+  }
+
+  if ($pretix_node_info['maintain_copy']) {
+    $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_slug']);
+    $pretix_info = t('Please update price in pretix if needed, go to <a href="@pretix-url">the Pretix event</a>. (Note: You may need to log on)', ['@pretix-url' => $pretix_url]);
+  }
+  else {
     $pretix_info = t('If more ticket types/prices on this event are needed, edit the corresponding event in Pretix after the event has been created.');
   }
 
@@ -282,20 +301,18 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#tree' => TRUE,
   ];
 
-  // We don't allow updates to price after the event is created in pretix -
-  // must be updated in there.
-  if ($pretix_node_info['pretix_slug']) {
+  // We don't allow updates to price after the event is created in pretix, must be updated in pretix.
+  if ($pretix_node_info['maintain_copy']) {
     $form['field_ding_event_price']['#disabled'] = TRUE;
   }
 
   // We don't allow manual change of the ticket link if pretix is used.
-  if ($pretix_node_info['pretix_slug']) {
+  if ($pretix_node_info['maintain_copy']) {
     $form['field_ding_event_ticket_link']['#disabled'] = TRUE;
     $form['field_ding_event_ticket_link']['und'][0]['#description'] = t('This field is managed by pretix for this event.');
   }
 
-  // We don't allow updates to capacity after the event is created in pretix -
-  // must be updated in there.
+  // We don't allow updates to capacity after the event is created in pretix, must be updated in pretix.
   $disabled = empty($pretix_node_info['pretix_slug']) ? FALSE : TRUE;
   $description = $disabled ? t('Please update capacity in pretix if needed.') : t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
 
@@ -304,7 +321,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
     '#title' => t('Event capacity'),
     '#size' => 5,
     '#maxlength' => 5,
-    '#default_value' => $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'],
+    '#default_value' => $capacity,
     '#description' => $description,
     '#disabled' => $disabled,
   ];
@@ -316,16 +333,21 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       $options[$element['psp_value']] = $element['psp_name'];
     }
 
-    // PSP is a code for accounting. Once set, we don't allow this to be
-    // changed, as this would invalidate the accounts.
-    $disabled = empty($pretix_node_info['psp_element']) ? FALSE : TRUE;
-    $description = $disabled ? t('For accounting reasons the PSP element cannot be changed.') : t('Select the PSP element the ticket sales should be registered under.');
+    // PSP is a code for accounting. If an event has orders, we don't allow this to be
+    // changed, as this would invalidate the accounting.
+    if ($pretix_node_info['pretix_slug']) {
+      $disabled = _ding_pretix_has_orders($service_settings, $pretix_node_info['pretix_slug']);
+    }
+    else {
+      $disabled = false;
+    }
+    $description = $disabled ? t('Event has active orders - For accounting reasons the PSP element can no longer be changed.') : t('Select the PSP element the ticket sales should be registered under.');
 
     $form['pretix']['psp_element'] = [
       '#type' => 'select',
       '#title' => t('PSP Element'),
       '#options' => $options,
-      '#default_value' => $pretix_node_info['psp_element'] ?? $pretix_node_defaults['psp_element'],
+      '#default_value' => $psp_element,
       '#required' => FALSE,
       '#description' => $description,
       '#disabled' => $disabled,
@@ -335,7 +357,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
   $form['pretix']['maintain_copy'] = [
     '#type' => 'checkbox',
     '#title' => t('Maintain copy in Pretix'),
-    '#default_value' => $pretix_node_info['maintain_copy'] ?? (bool) $pretix_node_defaults['maintain_copy'],
+    '#default_value' => $maintain_copy,
     '#description' => t('When set, a corresponding event is created and updated on the Pretix ticket booking service.'),
   ];
 
@@ -346,7 +368,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       'pdf_ticket' => t('PDF Tickets'),
       'email_ticket' => t('Email Tickets'),
     ],
-    '#default_value' => $pretix_node_info['ticket_form'] ?? $pretix_node_defaults['default_ticket_form'],
+    '#default_value' => $ticket_form,
     '#description' => t('Use PDF or Email tickets for the event?'),
   ];
 
@@ -362,7 +384,8 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 /**
  * Implements hook_node_validate().
  *
- * Validate if ticket url has been set or changed.
+ * Validate if ticket url has been set or changed. If pretix is selected for the node this field is determined by
+ * pretix and should not be altered manually.
  */
 function ding_pretix_node_validate($node, $form, &$form_state) {
   if ($node->type === 'ding_event' && $form_state['values']['pretix']['maintain_copy'] === 1 && !empty($form_state['values']['field_ding_event_ticket_link']['und'][0]['url'])) {
@@ -404,6 +427,32 @@ function ding_pretix_node_presave($node) {
     elseif ($pretix_shop_url === $field_ding_event_ticket_link['url']) {
       // Clear the pretix shop url if we do not use pretix.
       $wrapper->field_ding_event_ticket_link->set(['url' => '']);
+    }
+  }
+}
+
+/**
+ * Implements hook_clone_node_alter().
+ *
+ * Ensure that pretix node info is set correctly when nodes are cloned.
+ */
+function ding_pretix_clone_node_alter(&$node, $context) {
+  // We only handles event nodes.
+  if ($node->type === 'ding_event') {
+    module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
+
+    $node_settings = $node->clone_from_original_nid ? _ding_pretix_get_pretix_node_info($node->clone_from_original_nid) : NULL;
+
+    $node->pretix = [
+      'nid' => $node->nid,
+      'capacity' => (int) $node_settings['capacity'],
+      'maintain_copy' => $node_settings['maintain_copy'],
+      'psp_element' => $node_settings['psp_element'],
+      'ticket_form' => $node_settings['ticket_form'],
+    ];
+
+    if ($node_settings['maintain_copy']) {
+      $node->field_ding_event_ticket_link = [];
     }
   }
 }
