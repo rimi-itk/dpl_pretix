@@ -757,19 +757,25 @@ function _ding_pretix_update_pretix_node_info($node) {
  * Get the saved pretix values for the given node.
  *
  * @param string $nid
- *    The event (node) id.
+ *   The event (node) id.
+ * @param bool $reset
+ *   If TRUE statix
  *
  * @return mixed
- *    An associative array, or FALSE if there is no node with that nid.
+ *   An associative array, or FALSE if there is no node with that nid.
  */
-function _ding_pretix_get_pretix_node_info($nid) {
-  $pretix_info = db_select('ding_pretix', 'p')
-    ->fields('p')
-    ->condition('nid', $nid, '=')
-    ->execute()
-    ->fetchAssoc();
+function _ding_pretix_get_pretix_node_info($nid, $reset = FALSE) {
+  $pretix_info = &drupal_static(__FUNCTION__, []);
 
-  return $pretix_info;
+  if (!isset($pretix_info[$nid]) || $reset) {
+    $pretix_info[$nid] = db_select('ding_pretix', 'p')
+      ->fields('p')
+      ->condition('nid', $nid, '=')
+      ->execute()
+      ->fetchAssoc();
+  }
+
+  return $pretix_info[$nid];
 }
 
 /**
