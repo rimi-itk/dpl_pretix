@@ -221,7 +221,9 @@ function ding_pretix_node_delete($node) {
 /**
  * Implements hook_entitycache_ENTITY_TYPE_load().
  *
- * Using entity cache load to add the ticket information.
+ * Using entity cache load to add the ticket information. Hook_entity_load seams
+ * to be called after the entity cache have been set. So this ensures that the
+ * link is always inserted into the field.
  */
 function ding_pretix_entitycache_node_load($entities) {
   foreach ($entities as $key => $entity) {
@@ -230,6 +232,33 @@ function ding_pretix_entitycache_node_load($entities) {
       module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
 
       $wrapper = entity_metadata_wrapper('node', $entity);
+      $service_settings = variable_get('ding_pretix', []);
+      $pretix_info = _ding_pretix_get_pretix_node_info($wrapper->getIdentifier());
+
+      if ($pretix_info['maintain_copy']) {
+        $url = _ding_pretix_get_event_shop_url($service_settings, $pretix_info['pretix_slug']);
+        $wrapper->field_ding_event_ticket_link->set([
+          'title' => 'Pretix link',
+          'url' => $url,
+          'attributes' => [],
+        ]);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_load().
+ */
+function ding_pretix_entity_load($entities, $type) {
+  if ($type === 'node' && count($entities) === 1) {
+    $keys = array_keys($entities);
+    $key = array_pop($keys);
+
+    if ($entities[$key]->type === 'ding_event') {
+      module_load_include('inc', 'ding_pretix', 'includes/ding_pretix.api_module');
+
+      $wrapper = entity_metadata_wrapper('node', $entities[$key]);
       $service_settings = variable_get('ding_pretix', []);
       $pretix_info = _ding_pretix_get_pretix_node_info($wrapper->getIdentifier());
 
