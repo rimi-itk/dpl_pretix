@@ -485,3 +485,24 @@ function ding_pretix_clone_node_alter(&$node, $context) {
     }
   }
 }
+
+/**
+ * Implements hook_node_load().
+ */
+function ding_pretix_node_load($nodes, $types) {
+  if (in_array('ding_event', $types)) {
+    $result = db_query('SELECT * FROM {ding_pretix} WHERE nid IN (:nids)', [
+      ':nids' => array_keys($nodes),
+    ]);
+
+    foreach ($result as $record) {
+      $nodes[$record->nid]->pretix = [
+        'nid' => (int) $record->nid,
+        'capacity' => (int) $record->capacity,
+        'maintain_copy' => (int) $record->maintain_copy,
+        'psp_element' => $record->psp_element,
+        'ticket_form' => $record->ticket_form,
+      ];
+    }
+  }
+}
