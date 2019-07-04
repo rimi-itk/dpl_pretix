@@ -223,6 +223,7 @@ function ding_pretix_admin_settings_form($form, &$form_state) {
       'pdf_ticket' => t('PDF Tickets'),
       'email_ticket' => t('Email Tickets'),
     ],
+    '#required' => TRUE,
     '#default_value' => array_key_exists('default_ticket_form', $defaults) ? $defaults['default_ticket_form'] : [],
     '#description' => t('Should new events use PDF or Email tickets by default?'),
   ];
