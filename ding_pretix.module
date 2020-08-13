@@ -397,6 +397,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       'pdf_ticket' => t('PDF Tickets'),
       'email_ticket' => t('Email Tickets'),
     ],
+    '#required' => TRUE,
     '#default_value' => $ticket_form,
     '#description' => t('Use PDF or Email tickets for the event?'),
   ];
