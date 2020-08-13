@@ -305,7 +305,7 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
 
   if ($pretix_node_info['pretix_slug']) {
     $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_slug']);
-    $pretix_link = l($pretix_url, ['absolute' => TRUE]);
+    $pretix_link = l($pretix_url, $pretix_url);
   }
   else {
     $pretix_link = t('None');
