@@ -102,14 +102,14 @@ function ding_pretix_node_insert($node) {
           return isset($result->error);
         });
         if (!empty($errors)) {
-          drupal_set_message(t('There was a problem configuring the event in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
+          drupal_set_message(t('There was a problem configuring the event (' . $node->title . ') in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
         }
         else {
-          drupal_set_message(t('The event was successfully created in Pretix.'));
+          drupal_set_message(t('The event (' . $node->title . ') was successfully created in Pretix.'));
         }
       }
       else {
-        drupal_set_message(t('The event could not be created in Pretix. Contact an administrator.'), 'error');
+        drupal_set_message(t('The event (' . $node->title . ') could not be created in Pretix. Contact an administrator.'), 'error');
       }
     }
     else {
@@ -156,14 +156,14 @@ function ding_pretix_node_update($node) {
             return isset($result->error);
           });
           if (!empty($errors)) {
-            drupal_set_message(t('There was a problem configuring the updated event in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
+            drupal_set_message(t('There was a problem configuring the updated event (' . $node->title .  ') in Pretix. Please verify in Pretix that all settings for the event are correct.'), 'error');
           }
           else {
-            drupal_set_message(t('The event was successfully updated in Pretix.'));
+            drupal_set_message(t('The event (' . $node->title . ') was successfully updated in Pretix.'));
           }
         }
         else {
-          drupal_set_message(t('The event could not be updated in Pretix. Contact an administrator.'), 'error');
+          drupal_set_message(t('The event (' . $node->title . ') could not be updated in Pretix. Contact an administrator.'), 'error');
         }
 
       }
@@ -174,10 +174,10 @@ function ding_pretix_node_update($node) {
         $result = _ding_pretix_update_live(FALSE, $service_settings, $pretix_info['pretix_slug']);
         if (200 === (int) $result->code) {
           _ding_pretix_update_pretix_node_info($node);
-          drupal_set_message(t('The event already exists in Pretix. It has been taken offline.'));
+          drupal_set_message(t('The event (' . $node->title .  ') already exists in Pretix. It has been taken offline.'));
         }
         else {
-          drupal_set_message(t('The event could not be updated in Pretix. Contact an administrator.'), 'error');
+          drupal_set_message(t('The event (' . $node->title .  ') could not be updated in Pretix. Contact an administrator.'), 'error');
         }
       }
     }
@@ -200,16 +200,16 @@ function ding_pretix_node_delete($node) {
       if (204 === (int) $result->code) {
         _ding_pretix_delete_pretix_node_info($node->nid);
 
-        drupal_set_message(t('The event was successfully deleted from Pretix.'));
+        drupal_set_message(t('The event (' . $node->title . ') was successfully deleted from Pretix.'));
       }
       else {
         $live_result = _ding_pretix_update_live(FALSE, $service_settings, $pretix_info['pretix_slug']);
 
         if (200 === (int) $live_result->code) {
-          drupal_set_message(t('The event could not be deleted in Pretix - most likely because there are already orders. It has been taken offline instead.'), 'warning');
+          drupal_set_message(t('The event (' . $node->title . ') could not be deleted in Pretix - most likely because there are already orders. It has been taken offline instead.'), 'warning');
         }
         else {
-          drupal_set_message(t('The event could not be deleted in Pretix. Contact an administrator.'), 'error');
+          drupal_set_message(t('The event (' . $node->title . ') could not be deleted in Pretix. Contact an administrator.'), 'error');
         }
 
         _ding_pretix_delete_pretix_node_info($node->nid);
