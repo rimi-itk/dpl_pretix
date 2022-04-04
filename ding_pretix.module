@@ -377,7 +377,8 @@ function ding_pretix_form_ding_event_node_form_alter(&$form, &$form_state, $form
       '#title' => t('PSP Element'),
       '#options' => $options,
       '#default_value' => $psp_element,
-      '#required' => FALSE,
+      '#required' => TRUE,
+      '#empty_option' => t('Select PSP Element'),
       '#description' => $description,
       '#disabled' => $disabled,
     ];
