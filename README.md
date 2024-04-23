@@ -1,16 +1,23 @@
-# Pretix Module
-Ding module for integration with the Pretix ticketing platform.
+# DPL pretix
+
+DPL CMS module for integration with the Pretix ticketing platform.
 
 ## Installation
-Enable the module and configure endpoint and default settings at "Indstillinger > Ding > Pretix Settings".
-You will need access to and API keys for a running Pretix installation. Either self-hosted or at pretix.eu.
+
+Enable the module and go to `/admin/config/dpl_pretix` to configure the module.
 
 ## Usage
-The module will add a 'pretix' section on all events.
+
+The module will add a "pretix" section on all events.
 
 ## Coding standards
 
+``` shell
+task dev:coding-standards:check
 ```
-composer install
-vendor/bin/phpcs
+
+## Code analysis
+
+``` shell
+task dev:code-analysis
 ```

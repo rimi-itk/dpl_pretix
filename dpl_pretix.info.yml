@@ -1,0 +1,11 @@
+name: DPL pretix
+description: Event handling in pretix for DPL
+package: Custom
+
+type: module
+core_version_requirement: ^10
+
+dependencies:
+  - dpl_event:dpl_event
+
+configure: dpl_pretix.settings_form

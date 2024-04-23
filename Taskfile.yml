@@ -1,0 +1,52 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  dev:coding-standards:markdown:apply:
+    desc: Apply Markdown coding standards
+    cmds:
+      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md' --fix
+
+  dev:coding-standards:markdown:check:
+    desc: Apply and check Markdown coding standards
+    cmds:
+      - task: dev:coding-standards:markdown:apply
+      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md'
+
+  dev:coding-standards:php:apply:
+    desc: Apply PHP coding standards
+    cmds:
+      - task: dev:php
+        vars:
+          ARGS: vendor/bin/phpcbf
+
+  dev:coding-standards:php:check:
+    desc: Apply and check PHP coding standards
+    cmds:
+      - task: dev:coding-standards:php:apply
+      - task: dev:php
+        vars:
+          ARGS: vendor/bin/phpcs
+
+  dev:coding-standards:check:
+    desc: Apply and check coding standards
+    cmds:
+      - task dev:coding-standards:markdown:apply
+      - task dev:coding-standards:markdown:check
+      - task dev:coding-standards:php:apply
+      - task dev:coding-standards:php:check
+
+  dev:code-analysis:
+    desc: Analyse code
+    cmds:
+      - task: dev:php
+        vars:
+          ARGS: scripts/code-analysis
+
+  dev:php:
+    internal: true
+    desc: Run php command
+    cmds:
+      - docker run --rm --interactive --tty --volume ${PWD}:/app itkdev/php8.1-fpm:latest composer install
+      - docker run --rm --interactive --tty --volume ${PWD}:/app itkdev/php8.1-fpm:latest {{.ARGS}}

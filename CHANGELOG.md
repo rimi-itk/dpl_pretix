@@ -1,14 +1,10 @@
-# Ding Pretix Changelog
+# Changelog
 
-### 1.0.2
-* EBILL-93: Fixed clone node bug.
-* EBILL-93: Changed behavior so that PSP element can now be changed as long as event doesn't have orders.
+All notable changes to this project will be documented in this file.
 
-### 1.0.1
-* EBILL-92: Change pre-sale to start immediately.
-* EBILL-92: Fixed bug where unlimited participant was set to 0 in pretix. 
-* EBILL-92: Removed "ticket type" field. 
-* EBILL-92: Changed behavior of updates so that "price" and "capacity" are no longer updated in pretix.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### 1.0.0
-* First Release
+## [Unreleased]
+
+[Unreleased]: https://github.com/rimi-itk/ding_pretix

@@ -1,0 +1,16 @@
+pretix:
+  url: https://pretix.eu/
+  organizer_slug: ~
+  api_key: ~
+  template_event_slug: ~
+
+libraries: {}
+#   -
+#     organizer_slug: ~
+#     api_key: ~
+
+psp_elements:
+  pretix_psp_meta_key: ~
+
+event_nodes:
+  capacity: ~

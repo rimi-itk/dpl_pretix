@@ -1,0 +1,7 @@
+dpl_pretix.settings_form:
+  path: '/admin/config/dpl_pretix'
+  defaults:
+    _title: 'Pretix settings'
+    _form: '\Drupal\dpl_pretix\Form\SettingsForm'
+  requirements:
+    _permission: 'administer pretix settings'

@@ -2,11 +2,8 @@
 <ruleset name="loop">
   <description>PHP CodeSniffer configuration</description>
 
-  <file>ding_pretix.drush.inc</file>
-  <file>ding_pretix.info</file>
-  <file>ding_pretix.install</file>
-  <file>ding_pretix.module</file>
-  <file>includes/</file>
+  <file>.</file>
+  <exclude-pattern>vendor/</exclude-pattern>
 
   <!-- Show progress -->
   <arg value="p"/>
