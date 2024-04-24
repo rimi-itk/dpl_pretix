@@ -3,10 +3,13 @@
 namespace Drupal\dpl_pretix\Form;
 
 use Drupal\Core\Config\Config;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\node\NodeStorageInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Module settings form.
@@ -15,6 +18,23 @@ final class SettingsForm extends ConfigFormBase {
   use StringTranslationTrait;
 
   private const CONFIG_NAME = 'dpl_pretix.settings';
+
+  public function __construct(
+    ConfigFactoryInterface $configFactory,
+    private readonly NodeStorageInterface $nodeStorage,
+  ) {
+    parent::__construct($configFactory);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('entity_type.manager')->getStorage('node'),
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -107,6 +127,47 @@ final class SettingsForm extends ConfigFormBase {
       '#description' => $this->t('Optional. If you have several organizers at Pretix, each library can have their own slug/API key. In that case, the base slug/API key will be overridden by the provided key when sending data on events related to this library.'),
       '#open' => TRUE,
     ];
+
+    $libraries = $this->loadLibraries();
+    $defaults = $config->get('libraries');
+    foreach ($libraries as $library) {
+      $form['libraries'][$library->id()] = [
+        '#type' => 'fieldset',
+        '#title' => $library->getTitle(),
+        '#collapsible' => TRUE,
+        '#collapsed' => FALSE,
+
+        'organizer_slug' => [
+          '#type' => 'textfield',
+          '#title' => $this->t('Organizer slug'),
+          '#default_value' => $defaults[$library->id()]['organizer_slug'] ?? NULL,
+          '#description' => $this->t('The slug of the Pretix organizer to map to.'),
+        ],
+
+        'api_key' => [
+          '#type' => 'textfield',
+          '#title' => t('API key'),
+          '#default_value' => $defaults[$library->id()]['api_key'] ?? NULL,
+          '#description' => t('The API key of the Organizer Team'),
+        ],
+      ];
+    }
+  }
+
+  /**
+   * Load libraries.
+   *
+   * @return \Drupal\node\Entity\Node[]|array
+   *   The libraries.
+   */
+  private function loadLibraries(): array {
+    $ids = $this->nodeStorage
+      ->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('type', 'branch')
+      ->execute();
+
+    return $this->nodeStorage->loadMultiple($ids);
   }
 
   /**
@@ -185,17 +246,9 @@ final class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Callback for both ajax-enabled buttons.
+   * Callback for PSP element AJAX buttons.
    *
    * Selects and returns the fieldset with the PSP elements in it.
-   *
-   * @param array $form
-   *   Form structure.
-   * @param array $form_state
-   *   Form state values.
-   *
-   * @return array
-   *   Fieldset of PSP elements.
    */
   public function formPspAjaxCallback(array $form, FormStateInterface $formState) {
     return $form['psp_elements']['list'];
@@ -203,13 +256,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "add-one-more" button.
-   *
-   * Increments the max counter and causes a rebuild.
-   *
-   * @param array $form
-   *   Form structure.
-   * @param array $form_state
-   *   Form state values.
    */
   public function formPspAddElement(array $form, FormStateInterface $formState) {
     $key = ['psp_elements', 'list'];
@@ -226,14 +272,7 @@ final class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Submit handler for the "remove one" button.
-   *
-   * Decrements the max counter and causes a form rebuild.
-   *
-   * @param array $form
-   *   Form structure.
-   * @param array $form_state
-   *   Form state values.
+   * Submit handler for the "Remove PSP elements" button.
    */
   public function formPspRemoveElement(array $form, FormStateInterface $formState) {
     $key = ['psp_elements', 'list'];
