@@ -303,6 +303,28 @@ final class SettingsForm extends ConfigFormBase {
         '#maxlength' => 5,
         '#description' => $this->t('The default capacity for new events. Set to 0 for unlimited capacity.'),
       ],
+
+      'maintain_copy_in_pretix' => [
+        '#type' => 'checkboxes',
+        '#title' => $this->t('Maintain copy in Pretix'),
+        '#options' => [
+          'maintain_copy' => $this->t('Maintain copy'),
+        ],
+        '#default_value' => $config->get('event_nodes.maintain_copy_in_pretix') ?? [],
+        '#description' => $this->t('Should new events be saved and updated to Pretix by default?'),
+      ],
+
+      'default_ticket_form' => [
+        '#type' => 'radios',
+        '#title' => $this->t('Use PDF or Email tickets'),
+        '#options' => [
+          'pdf_ticket' => $this->t('PDF Tickets'),
+          'email_ticket' => $this->t('Email Tickets'),
+        ],
+        '#required' => TRUE,
+        '#default_value' => $config->get('event_nodes.default_ticket_form') ?? [],
+        '#description' => t('Should new events use PDF or Email tickets by default?'),
+      ],
     ];
   }
 
