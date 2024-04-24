@@ -38,7 +38,7 @@ final class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Form constructor.
     $form = parent::buildForm($form, $form_state);
-    // Default settings.
+
     $config = $this->getConfig();
 
     $form['#tree'] = TRUE;
@@ -55,7 +55,6 @@ final class SettingsForm extends ConfigFormBase {
    * Build form.
    */
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
-    // Default settings.
     $form['pretix'] = [
       '#type' => 'details',
       '#title' => $this->t('Pretix'),
@@ -127,7 +126,124 @@ final class SettingsForm extends ConfigFormBase {
         '#maxlength' => 50,
         '#description' => $this->t('The name of the organizer metadata property for the PSP element in Pretix (case sensitive).'),
       ],
+
+      'list' => [
+        '#prefix' => '<div id="dpl-pretix-psp-elements-list">',
+        '#suffix' => '</div>',
+      ],
+
+      'add_element' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Add PSP element'),
+        '#submit' => ['::formPspAddElement'],
+        '#ajax' => [
+          'callback' => [$this, 'formPspAjaxCallback'],
+          'wrapper' => 'dpl-pretix-psp-elements-list',
+        ],
+      ],
+
+      'remove_element' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Remove PSP element'),
+        '#submit' => ['::formPspRemoveElement'],
+        '#ajax' => [
+          'callback' => [$this, 'formPspAjaxCallback'],
+          'wrapper' => 'dpl-pretix-psp-elements-list',
+        ],
+      ],
     ];
+
+    // Get PSPs previously saved to a variable (first load), else use formstate
+    // data (ajax calls).
+    $pspElements = $formState->getValue(['psp_elements', 'list']);
+    if (empty($pspElements)) {
+      $pspElements = $config->get('psp_elements.list');
+    }
+
+    if (is_array($pspElements)) {
+      foreach ($pspElements as $key => $value) {
+        $form['psp_elements']['list'][$key] = [
+          '#type' => 'fieldset',
+          '#title' => $key ? $this->t('PSP element') : $this->t('PSP element (default)'),
+
+          'name' => [
+            '#type' => 'textfield',
+            '#title' => $this->t('Name'),
+            '#default_value' => $value['name'] ?? NULL,
+          ],
+
+          'value' => [
+            '#type' => 'textfield',
+            '#title' => $this->t('Value'),
+            '#size' => 50,
+            '#maxlength' => 50,
+            '#default_value' => $value['value'] ?? NULL,
+          ],
+        ];
+      }
+    }
+  }
+
+  /**
+   * Callback for both ajax-enabled buttons.
+   *
+   * Selects and returns the fieldset with the PSP elements in it.
+   *
+   * @param array $form
+   *   Form structure.
+   * @param array $form_state
+   *   Form state values.
+   *
+   * @return array
+   *   Fieldset of PSP elements.
+   */
+  public function formPspAjaxCallback(array $form, FormStateInterface $formState) {
+    return $form['psp_elements']['list'];
+  }
+
+  /**
+   * Submit handler for the "add-one-more" button.
+   *
+   * Increments the max counter and causes a rebuild.
+   *
+   * @param array $form
+   *   Form structure.
+   * @param array $form_state
+   *   Form state values.
+   */
+  public function formPspAddElement(array $form, FormStateInterface $formState) {
+    $key = ['psp_elements', 'list'];
+    $list = $formState->getValue($key);
+    if (!is_array($list)) {
+      $list = [];
+    }
+    $list[] = [
+      'name' => '',
+      'value' => '',
+    ];
+    $formState->setValue($key, $list);
+    $formState->setRebuild();
+  }
+
+  /**
+   * Submit handler for the "remove one" button.
+   *
+   * Decrements the max counter and causes a form rebuild.
+   *
+   * @param array $form
+   *   Form structure.
+   * @param array $form_state
+   *   Form state values.
+   */
+  public function formPspRemoveElement(array $form, FormStateInterface $formState) {
+    $key = ['psp_elements', 'list'];
+    $list = $formState->getValue($key);
+    if (!is_array($list)) {
+      $list = [];
+    }
+    array_pop($list);
+    $formState->setValue($key, $list);
+    $formState->setRebuild();
   }
 
   /**
