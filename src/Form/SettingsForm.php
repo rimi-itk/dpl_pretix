@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 final class SettingsForm extends ConfigFormBase {
   use StringTranslationTrait;
 
-  private const CONFIG_NAME = 'dpl_pretix.settings';
+  public const CONFIG_NAME = 'dpl_pretix.settings';
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
@@ -77,7 +77,7 @@ final class SettingsForm extends ConfigFormBase {
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
     $form['pretix'] = [
       '#type' => 'details',
-      '#title' => $this->t('Pretix'),
+      '#title' => $this->t('pretix'),
       '#open' => empty($config->get('pretix.url'))
       || empty($config->get('pretix.organizer_slug'))
       || empty($config->get('pretix.api_key'))
@@ -88,7 +88,7 @@ final class SettingsForm extends ConfigFormBase {
         '#title' => t('URL'),
         '#default_value' => $config->get('pretix.url'),
         '#required' => TRUE,
-        '#description' => t('Enter a valid Pretix service endpoint without path info, such as https://www.pretix.eu/'),
+        '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
       ],
 
       'organizer_slug' => [
@@ -96,7 +96,7 @@ final class SettingsForm extends ConfigFormBase {
         '#title' => $this->t('Organizer slug'),
         '#default_value' => $config->get('pretix.organizer_slug'),
         '#required' => TRUE,
-        '#description' => $this->t('This is the default organizer slug used when connecting to Pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
+        '#description' => $this->t('This is the default organizer slug used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
 
       'api_key' => [
@@ -104,7 +104,7 @@ final class SettingsForm extends ConfigFormBase {
         '#title' => $this->t('The API key of the Organizer Team'),
         '#default_value' => $config->get('pretix.api_key'),
         '#required' => TRUE,
-        '#description' => $this->t('This is the default API key used when connecting to Pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
+        '#description' => $this->t('This is the default API key used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
 
       'template_event_slug' => [
@@ -124,7 +124,7 @@ final class SettingsForm extends ConfigFormBase {
     $form['libraries'] = [
       '#type' => 'details',
       '#title' => $this->t('Individual library slug/API keys'),
-      '#description' => $this->t('Optional. If you have several organizers at Pretix, each library can have their own slug/API key. In that case, the base slug/API key will be overridden by the provided key when sending data on events related to this library.'),
+      '#description' => $this->t('Optional. If you have several organizers at pretix, each library can have their own slug/API key. In that case, the base slug/API key will be overridden by the provided key when sending data on events related to this library.'),
       '#open' => TRUE,
     ];
 
@@ -141,7 +141,7 @@ final class SettingsForm extends ConfigFormBase {
           '#type' => 'textfield',
           '#title' => $this->t('Organizer slug'),
           '#default_value' => $defaults[$library->id()]['organizer_slug'] ?? NULL,
-          '#description' => $this->t('The slug of the Pretix organizer to map to.'),
+          '#description' => $this->t('The slug of the pretix organizer to map to.'),
         ],
 
         'api_key' => [
@@ -181,11 +181,11 @@ final class SettingsForm extends ConfigFormBase {
 
       'pretix_psp_meta_key' => [
         '#type' => 'textfield',
-        '#title' => $this->t('Pretix PSP property name'),
+        '#title' => $this->t('pretix PSP property name'),
         '#default_value' => $config->get('psp_elements.pretix_psp_meta_key'),
         '#size' => 50,
         '#maxlength' => 50,
-        '#description' => $this->t('The name of the organizer metadata property for the PSP element in Pretix (case sensitive).'),
+        '#description' => $this->t('The name of the organizer metadata property for the PSP element in pretix (case sensitive).'),
       ],
 
       'list' => [
@@ -291,7 +291,7 @@ final class SettingsForm extends ConfigFormBase {
   private function buildFormEventNodes(array &$form, FormStateInterface $formState, Config $config): void {
     $form['event_nodes'] = [
       '#type' => 'details',
-      '#title' => $this->t('Pretix event node defaults'),
+      '#title' => $this->t('pretix event node defaults'),
       '#open' => TRUE,
 
       'capacity' => [
@@ -306,12 +306,12 @@ final class SettingsForm extends ConfigFormBase {
 
       'maintain_copy_in_pretix' => [
         '#type' => 'checkboxes',
-        '#title' => $this->t('Maintain copy in Pretix'),
+        '#title' => $this->t('Maintain copy in pretix'),
         '#options' => [
           'maintain_copy' => $this->t('Maintain copy'),
         ],
         '#default_value' => $config->get('event_nodes.maintain_copy_in_pretix') ?? [],
-        '#description' => $this->t('Should new events be saved and updated to Pretix by default?'),
+        '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
       ],
 
       'default_ticket_form' => [

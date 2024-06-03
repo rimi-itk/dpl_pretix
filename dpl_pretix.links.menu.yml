@@ -1,0 +1,5 @@
+dpl_pretix.settings_form:
+  title: "pretix settings"
+  route_name: dpl_pretix.settings
+  description: "Change pretix settings"
+  parent: system.admin_config_services

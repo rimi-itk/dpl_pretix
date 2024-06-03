@@ -7,4 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/rimi-itk/ding_pretix
+[Unreleased]: https://github.com/rimi-itk/dpl_pretix

@@ -1,0 +1,4 @@
+services:
+  Drupal\dpl_pretix\EventHelper:
+    arguments:
+      - '@config.factory'

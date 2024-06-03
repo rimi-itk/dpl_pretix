@@ -1,6 +1,6 @@
 # DPL pretix
 
-DPL CMS module for integration with the Pretix ticketing platform.
+DPL CMS module for integration with the [pretix](https://pretix.eu/about/en/) ticketing platform.
 
 ## Installation
 

@@ -1,0 +1,42 @@
+<?php
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\dpl_pretix\EventHelper;
+use Drupal\node\Entity\Node;
+
+/**
+ * Implements hook_form_alter().
+ */
+function dpl_pretix_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  _dpl_pretix_event_helper()->formAlter($form, $form_state, $form_id);
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function dpl_pretix_entity_insert(EntityInterface $entity) {
+  _dpl_pretix_event_helper()->entityInsert($entity);
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function dpl_pretix_entity_update(EntityInterface $entity) {
+  _dpl_pretix_event_helper()->entityUpdate($entity);
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function dpl_pretix_entity_presave(EntityInterface $entity): void {
+//  \Drupal::messenger()->addMessage(sprintf('%s: %s', __METHOD__, $entity::class));
+}
+
+function _dpl_pretix_event_helper(): EventHelper {
+  return \Drupal::service(EventHelper::class);
+}
+
+// Local Variables:
+// mode: php
+// End:
