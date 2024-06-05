@@ -2,3 +2,8 @@ services:
   Drupal\dpl_pretix\EventHelper:
     arguments:
       - '@config.factory'
+
+  Drupal\dpl_pretix\PretixHelper:
+    arguments:
+      - '@config.factory'
+

@@ -1,0 +1,7 @@
+parameters:
+  paths:
+    - src
+    - tests
+  level: 0
+  customRulesetUsed: true
+  reportUnmatchedIgnoredErrors: false

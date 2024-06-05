@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+    phpfpm:
+        image: itkdev/php7.2-fpm:latest
+        environment:
+            PRETIX_URL: http://pretix
+            PRETIX_ORGANIZER: pretix-api-client
+            PRETIX_API_TOKEN: v84pb9f19gv5gkn2d8vbxoih6egx2v00hpbcwzwzqoqqixt22locej5rffmou78e
+        volumes:
+            - .:/app:cached,rw
+
+    pretix:
+        image: pretix/standalone:stable
+        depends_on:
+            - pretix_database
+            - pretix_redis
+        ports:
+            - '80'
+        volumes:
+            - ${PWD}/.docker/pretix/etc/pretix.cfg:/etc/pretix/pretix.cfg
+
+    pretix_database:
+        image: mariadb:10.3
+        ports:
+            - '3306'
+        volumes:
+            - .docker/pretix/dumps:/docker-entrypoint-initdb.d
+        environment:
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_USER: pretix
+            MYSQL_PASSWORD: pretix
+            MYSQL_DATABASE: pretix
+
+    pretix_redis:
+        image: redis:latest
+        ports:
+            - '6379'

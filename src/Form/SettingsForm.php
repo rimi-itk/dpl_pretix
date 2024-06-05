@@ -8,6 +8,7 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\dpl_pretix\PretixHelper;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -19,9 +20,17 @@ final class SettingsForm extends ConfigFormBase {
 
   public const CONFIG_NAME = 'dpl_pretix.settings';
 
+  private const SECTION_PRETIX = 'pretix';
+  private const SECTION_LIBRARIES = 'libraries';
+  private const SECTION_PSP_ELEMENTS = 'psp_elements';
+  private const SECTION_EVENT_NODES = 'event_nodes';
+
+  private const ACTION_PING_API = 'action_ping_api';
+
   public function __construct(
     ConfigFactoryInterface $configFactory,
     private readonly NodeStorageInterface $nodeStorage,
+    private readonly PretixHelper $helper,
   ) {
     parent::__construct($configFactory);
   }
@@ -33,6 +42,7 @@ final class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('entity_type.manager')->getStorage('node'),
+      $container->get(PretixHelper::class),
     );
   }
 
@@ -68,6 +78,20 @@ final class SettingsForm extends ConfigFormBase {
     $this->buildFormPspElements($form, $form_state, $config);
     $this->buildFormEventNodes($form, $form_state, $config);
 
+    $form['actions']['ping_api'] = [
+      '#type' => 'container',
+
+      self::ACTION_PING_API => [
+        '#type' => 'submit',
+        '#name' => self::ACTION_PING_API,
+        '#value' => $this->t('Ping API'),
+      ],
+
+      'message' => [
+        '#markup' => $this->t('Note: Pinging the API will use saved config.'),
+      ],
+    ];
+
     return $form;
   }
 
@@ -75,18 +99,21 @@ final class SettingsForm extends ConfigFormBase {
    * Build form.
    */
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
-    $form['pretix'] = [
+    $section = self::SECTION_PRETIX;
+    $defaults = $config->get($section);
+
+    $form[$section] = [
       '#type' => 'details',
       '#title' => $this->t('pretix'),
-      '#open' => empty($config->get('pretix.url'))
-      || empty($config->get('pretix.organizer_slug'))
-      || empty($config->get('pretix.api_key'))
-      || empty($config->get('pretix.template_event_slug')),
+      '#open' => empty($defaults['url'])
+        || empty($defaults['organizer_slug'])
+        || empty($defaults['api_key'])
+        || empty($defaults['template_event_slug']),
 
       'url' => [
         '#type' => 'url',
         '#title' => t('URL'),
-        '#default_value' => $config->get('pretix.url'),
+        '#default_value' => $defaults['url'] ?? NULL,
         '#required' => TRUE,
         '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
       ],
@@ -94,7 +121,7 @@ final class SettingsForm extends ConfigFormBase {
       'organizer_slug' => [
         '#type' => 'textfield',
         '#title' => $this->t('Organizer slug'),
-        '#default_value' => $config->get('pretix.organizer_slug'),
+        '#default_value' => $defaults['organizer_slug'] ?? NULL,
         '#required' => TRUE,
         '#description' => $this->t('This is the default organizer slug used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
@@ -102,7 +129,7 @@ final class SettingsForm extends ConfigFormBase {
       'api_key' => [
         '#type' => 'textfield',
         '#title' => $this->t('The API key of the Organizer Team'),
-        '#default_value' => $config->get('pretix.api_key'),
+        '#default_value' => $defaults['api_key'] ?? NULL,
         '#required' => TRUE,
         '#description' => $this->t('This is the default API key used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
@@ -110,7 +137,7 @@ final class SettingsForm extends ConfigFormBase {
       'template_event_slug' => [
         '#type' => 'textfield',
         '#title' => $this->t('The slug of the default event template'),
-        '#default_value' => $config->get('pretix.template_event_slug'),
+        '#default_value' => $defaults['template_event_slug'] ?? NULL,
         '#required' => TRUE,
         '#description' => $this->t('This is the slug of the default event template. When events are created their setting etc. are copied from this event.'),
       ],
@@ -121,7 +148,10 @@ final class SettingsForm extends ConfigFormBase {
    * Build form.
    */
   private function buildFormLibraries(array &$form, FormStateInterface $formState, Config $config): void {
-    $form['libraries'] = [
+    $section = self::SECTION_LIBRARIES;
+    $defaults = $config->get($section);
+
+    $form[$section] = [
       '#type' => 'details',
       '#title' => $this->t('Individual library slug/API keys'),
       '#description' => $this->t('Optional. If you have several organizers at pretix, each library can have their own slug/API key. In that case, the base slug/API key will be overridden by the provided key when sending data on events related to this library.'),
@@ -129,9 +159,8 @@ final class SettingsForm extends ConfigFormBase {
     ];
 
     $libraries = $this->loadLibraries();
-    $defaults = $config->get('libraries');
     foreach ($libraries as $library) {
-      $form['libraries'][$library->id()] = [
+      $form[$section][$library->id()] = [
         '#type' => 'fieldset',
         '#title' => $library->getTitle(),
         '#collapsible' => TRUE,
@@ -174,7 +203,10 @@ final class SettingsForm extends ConfigFormBase {
    * Build form.
    */
   private function buildFormPspElements(array &$form, FormStateInterface $formState, Config $config): void {
-    $form['psp_elements'] = [
+    $section = self::SECTION_PSP_ELEMENTS;
+    $defaults = $config->get($section);
+
+    $form[$section] = [
       '#type' => 'details',
       '#title' => $this->t('PSP elements'),
       '#open' => TRUE,
@@ -182,7 +214,7 @@ final class SettingsForm extends ConfigFormBase {
       'pretix_psp_meta_key' => [
         '#type' => 'textfield',
         '#title' => $this->t('pretix PSP property name'),
-        '#default_value' => $config->get('psp_elements.pretix_psp_meta_key'),
+        '#default_value' => $defaults['pretix_psp_meta_key'] ?? NULL,
         '#size' => 50,
         '#maxlength' => 50,
         '#description' => $this->t('The name of the organizer metadata property for the PSP element in pretix (case sensitive).'),
@@ -216,14 +248,14 @@ final class SettingsForm extends ConfigFormBase {
 
     // Get PSPs previously saved to a variable (first load), else use formstate
     // data (ajax calls).
-    $pspElements = $formState->getValue(['psp_elements', 'list']);
+    $pspElements = $formState->getValue([$section, 'list']);
     if (empty($pspElements)) {
-      $pspElements = $config->get('psp_elements.list');
+      $pspElements = $defaults['list'] ?? NULL;
     }
 
     if (is_array($pspElements)) {
       foreach ($pspElements as $key => $value) {
-        $form['psp_elements']['list'][$key] = [
+        $form[$section]['list'][$key] = [
           '#type' => 'fieldset',
           '#title' => $key ? $this->t('PSP element') : $this->t('PSP element (default)'),
 
@@ -251,14 +283,14 @@ final class SettingsForm extends ConfigFormBase {
    * Selects and returns the fieldset with the PSP elements in it.
    */
   public function formPspAjaxCallback(array $form, FormStateInterface $formState) {
-    return $form['psp_elements']['list'];
+    return $form[self::SECTION_PSP_ELEMENTS]['list'];
   }
 
   /**
    * Submit handler for the "add-one-more" button.
    */
   public function formPspAddElement(array $form, FormStateInterface $formState) {
-    $key = ['psp_elements', 'list'];
+    $key = [self::SECTION_PSP_ELEMENTS, 'list'];
     $list = $formState->getValue($key);
     if (!is_array($list)) {
       $list = [];
@@ -275,7 +307,7 @@ final class SettingsForm extends ConfigFormBase {
    * Submit handler for the "Remove PSP elements" button.
    */
   public function formPspRemoveElement(array $form, FormStateInterface $formState) {
-    $key = ['psp_elements', 'list'];
+    $key = [self::SECTION_PSP_ELEMENTS, 'list'];
     $list = $formState->getValue($key);
     if (!is_array($list)) {
       $list = [];
@@ -289,7 +321,10 @@ final class SettingsForm extends ConfigFormBase {
    * Build form.
    */
   private function buildFormEventNodes(array &$form, FormStateInterface $formState, Config $config): void {
-    $form['event_nodes'] = [
+    $section = self::SECTION_EVENT_NODES;
+    $defaults = $config->get($section);
+
+    $form[$section] = [
       '#type' => 'details',
       '#title' => $this->t('pretix event node defaults'),
       '#open' => TRUE,
@@ -298,19 +333,17 @@ final class SettingsForm extends ConfigFormBase {
         '#type' => 'number',
         '#min' => 0,
         '#title' => $this->t('Capacity'),
-        '#default_value' => $config->get('event_nodes.capacity') ?? 0,
+        '#default_value' => $defaults['capacity'] ?? 0,
         '#size' => 5,
         '#maxlength' => 5,
         '#description' => $this->t('The default capacity for new events. Set to 0 for unlimited capacity.'),
       ],
 
       'maintain_copy_in_pretix' => [
-        '#type' => 'checkboxes',
+        '#type' => 'checkbox',
         '#title' => $this->t('Maintain copy in pretix'),
-        '#options' => [
-          'maintain_copy' => $this->t('Maintain copy'),
-        ],
-        '#default_value' => $config->get('event_nodes.maintain_copy_in_pretix') ?? [],
+        '#default_value' => $defaults['maintain_copy_in_pretix'] ?? FALSE,
+        '#return_value' => TRUE,
         '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
       ],
 
@@ -322,7 +355,7 @@ final class SettingsForm extends ConfigFormBase {
           'email_ticket' => $this->t('Email Tickets'),
         ],
         '#required' => TRUE,
-        '#default_value' => $config->get('event_nodes.default_ticket_form') ?? [],
+        '#default_value' => $defaults['default_ticket_form'] ?? [],
         '#description' => t('Should new events use PDF or Email tickets by default?'),
       ],
     ];
@@ -330,12 +363,41 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
+   *
+   * @phpstan-param array<string, mixed> $form
    */
-  public function submitForm(array &$form, FormStateInterface $formState): void {
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
+      return;
+    }
+
+    parent::validateForm($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
+      try {
+        $this->helper->pingApi();
+        $this->messenger()->addStatus($this->t('Pinged API successfully.'));
+      }
+      catch (\Throwable $t) {
+        $this->messenger()->addError($this->t('Pinging API failed: @message', ['@message' => $t->getMessage()]));
+      }
+      return;
+    }
+
     $config = $this->getConfig();
 
-    foreach (['pretix', 'libraries', 'psp_elements', 'event_nodes'] as $section) {
-      $values = $formState->getValue($section);
+    foreach ([
+      self::SECTION_PRETIX,
+      self::SECTION_LIBRARIES,
+      self::SECTION_PSP_ELEMENTS,
+      self::SECTION_EVENT_NODES,
+    ] as $section) {
+      $values = $form_state->getValue($section);
       if (is_array($values)) {
         foreach ($values as $key => $value) {
           $config->set($section . '.' . $key, $value);
@@ -345,7 +407,7 @@ final class SettingsForm extends ConfigFormBase {
 
     $config->save();
 
-    parent::submitForm($form, $formState);
+    parent::submitForm($form, $form_state);
   }
 
   /**

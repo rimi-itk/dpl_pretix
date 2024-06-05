@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -o errexit -o errtrace -o noclobber -o nounset -o pipefail
+IFS=$'\n\t'
+
+dir=$(cd $(dirname "${BASH_SOURCE[0]}")/../ && pwd)
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+cd $dir
+
+echo "${bold}Resetting pretix database${normal}"
+gunzip < .docker/pretix/dumps/pretix_2020-02-20.sql.gz | mysql  --host=0.0.0.0 --port=$(docker-compose port pretix_database 3306 | cut -d: -f2) --user=pretix --password=pretix pretix
+
+echo "${bold}Running tests${normal}"
+docker-compose exec phpfpm composer test "$@"
