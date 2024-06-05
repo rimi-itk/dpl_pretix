@@ -1,2 +1,6 @@
 composer.lock
 vendor
+
+# Release
+dpl_pretix-*.tar.gz
+checksum.txt

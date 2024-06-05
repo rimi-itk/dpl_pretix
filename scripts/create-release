@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -o errexit -o errtrace -o noclobber -o nounset -o pipefail
+IFS=$'\n\t'
+
+script_dir=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+project_dir=$(cd $(dirname "$script_dir") && pwd)
+bold=$(tput -Txterm-256color bold)
+normal=$(tput -Txterm-256color sgr0)
+
+tag=${1:-}
+if [ -z "$tag" ]; then
+  (>&2 echo "Usage: $0 tag")
+  exit
+fi
+
+cd "$project_dir"
+
+set -x
+
+module_name=dpl_pretix
+name="${module_name}-${tag}.tar.gz"
+
+function _composer() {
+  COMPOSER=composer-release.json composer "$@"
+}
+
+_composer config version "${tag}"
+_composer update
+
+rm -f "$name"
+# It seems that --files-from and --transform don't work together.
+# git ls-files | tar --create --file "$name" --exclude-from="$script_dir/build-exclude.txt" --transform "s/^\./${module_name}/" --files-from=- --show-transformed-names --verbose
+mkdir -p "$module_name"
+git ls-files | tar --create --exclude-from="$script_dir/build-exclude.txt" --files-from=- | tar --extract -C "$module_name"
+tar --create --file "$name" "$module_name"
+sha256sum "$name" >| checksum.txt
+rm -fr "$module_name"
+
+git checkout composer-release.*

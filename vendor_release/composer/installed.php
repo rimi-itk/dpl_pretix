@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'itk-dev/dpl_pretix',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => 'ba282e15d4099acc646c3d9740ae7c9a13de94a6',
+        'pretty_version' => 'dev-test',
+        'version' => 'dev-test',
+        'reference' => null,
         'type' => 'drupal-module',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -56,9 +56,9 @@
             'dev_requirement' => false,
         ),
         'itk-dev/dpl_pretix' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => 'ba282e15d4099acc646c3d9740ae7c9a13de94a6',
+            'pretty_version' => 'dev-test',
+            'version' => 'dev-test',
+            'reference' => null,
             'type' => 'drupal-module',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
