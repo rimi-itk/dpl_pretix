@@ -4,6 +4,7 @@
 
   <file>.</file>
   <exclude-pattern>vendor/</exclude-pattern>
+  <exclude-pattern>vendor_release/</exclude-pattern>
 
   <!-- Show progress -->
   <arg value="p"/>

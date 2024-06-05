@@ -4,14 +4,15 @@ require_once __DIR__.'/vendor_release/autoload.php';
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\dpl_pretix\EventHelper;
+use Drupal\dpl_pretix\EntityHelper;
+use Drupal\dpl_pretix\FormHelper;
 use Drupal\node\Entity\Node;
 
 /**
  * Implements hook_form_alter().
  */
 function dpl_pretix_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
-  _dpl_pretix_event_helper()->formAlter($form, $form_state, $form_id);
+  _dpl_pretix_form_helper()->formAlter($form, $form_state, $form_id);
 }
 
 /**
@@ -29,14 +30,38 @@ function dpl_pretix_entity_update(EntityInterface $entity) {
 }
 
 /**
+ * Implements hook_entitycache_ENTITY_TYPE_load().
+ *
+ * Using entity cache load to add the ticket information. Hook_entity_load seams
+ * to be called after the entity cache have been set. So this ensures that the
+ * link is always inserted into the field.
+ */
+// @todo How do we handle this in Drupal 10?
+function dpl_pretix_entitycache_node_load($entities)
+{
+  _dpl_pretix_event_helper()->entityCacheNodeLoad($entities);
+}
+
+/**
+ * Implements hook_entity_load().
+ */
+function dpl_pretix_entity_load($entities, $type) {
+  _dpl_pretix_event_helper()->entityLoad($entities, $type);
+}
+
+/**
  * Implements hook_entity_presave().
  */
 function dpl_pretix_entity_presave(EntityInterface $entity): void {
 //  \Drupal::messenger()->addMessage(sprintf('%s: %s', __METHOD__, $entity::class));
 }
 
-function _dpl_pretix_event_helper(): EventHelper {
-  return \Drupal::service(EventHelper::class);
+function _dpl_pretix_form_helper(): FormHelper {
+  return \Drupal::service(FormHelper::class);
+}
+
+function _dpl_pretix_event_helper(): EntityHelper {
+  return \Drupal::service(EntityHelper::class);
 }
 
 // Local Variables:

@@ -6,13 +6,13 @@ tasks:
   dev:coding-standards:markdown:apply:
     desc: Apply Markdown coding standards
     cmds:
-      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md' --fix
+      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ --ignore vendor_release '**/*.md' --fix
 
   dev:coding-standards:markdown:check:
     desc: Apply and check Markdown coding standards
     cmds:
       - task: dev:coding-standards:markdown:apply
-      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md'
+      - docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ --ignore vendor_release '**/*.md'
 
   dev:coding-standards:php:apply:
     desc: Apply PHP coding standards

@@ -1,9 +1,26 @@
 services:
-  Drupal\dpl_pretix\EventHelper:
-    arguments:
-      - '@config.factory'
+  Drupal\dpl_pretix\Settings:
+    autowire: true
+#    arguments:
+#      - '@config.factory'
+
+  Drupal\dpl_pretix\EntityHelper:
+    autowire: true
+#    arguments:
+#      - '@Drupal\dpl_pretix\Settings'
 
   Drupal\dpl_pretix\PretixHelper:
-    arguments:
-      - '@config.factory'
+    autowire: true
+#    arguments:
+#      - '@Drupal\dpl_pretix\Settings'
+
+  Drupal\dpl_pretix\FormHelper:
+    autowire: true
+#    arguments:
+#      - '@Drupal\dpl_pretix\Settings'
+#      - '@Drupal\dpl_pretix\EntityHelper'
+#      - '@Drupal\dpl_pretix\PretixHelper'
+#      - '@current_user'
+
+
 

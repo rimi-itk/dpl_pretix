@@ -20,10 +20,10 @@ final class SettingsForm extends ConfigFormBase {
 
   public const CONFIG_NAME = 'dpl_pretix.settings';
 
-  private const SECTION_PRETIX = 'pretix';
-  private const SECTION_LIBRARIES = 'libraries';
-  private const SECTION_PSP_ELEMENTS = 'psp_elements';
-  private const SECTION_EVENT_NODES = 'event_nodes';
+  public const SECTION_PRETIX = 'pretix';
+  public const SECTION_LIBRARIES = 'libraries';
+  public const SECTION_PSP_ELEMENTS = 'psp_elements';
+  public const SECTION_EVENT_NODES = 'event_nodes';
 
   private const ACTION_PING_API = 'action_ping_api';
 
@@ -106,9 +106,9 @@ final class SettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => $this->t('pretix'),
       '#open' => empty($defaults['url'])
-        || empty($defaults['organizer_slug'])
-        || empty($defaults['api_key'])
-        || empty($defaults['template_event_slug']),
+      || empty($defaults['organizer_slug'])
+      || empty($defaults['api_key'])
+      || empty($defaults['template_event_slug']),
 
       'url' => [
         '#type' => 'url',
@@ -190,6 +190,43 @@ final class SettingsForm extends ConfigFormBase {
    *   The libraries.
    */
   private function loadLibraries(): array {
+    // @todo Uncaught
+    /*
+    An AJAX HTTP error occurred.
+    HTTP Result Code: 500
+    Debugging information follows.
+    Path: /admin/config/dpl_pretix?ajax_form=1
+    StatusText: Internal Server Error
+    ResponseText: The website encountered an unexpected error. Please try again later.Error: Typed property Drupal\\dpl_pretix\\Form\\SettingsForm::$nodeStorage must not be accessed before initialization in Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;loadLibraries() (line 193 of sites/default/files/modules_local/dpl_pretix/src/Form/SettingsForm.php). Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildFormLibraries() (Line: 77)
+    Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildForm()
+    call_user_func_array() (Line: 536)
+    Drupal\\Core\\Form\\FormBuilder-&gt;retrieveForm() (Line: 375)
+    Drupal\\Core\\Form\\FormBuilder-&gt;rebuildForm() (Line: 633)
+    Drupal\\Core\\Form\\FormBuilder-&gt;processForm() (Line: 325)
+    Drupal\\Core\\Form\\FormBuilder-&gt;buildForm() (Line: 73)
+    Drupal\\Core\\Controller\\FormController-&gt;getContentResult()
+    call_user_func_array() (Line: 123)
+    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;Drupal\\Core\\EventSubscriber\\{closure}() (Line: 592)
+    Drupal\\Core\\Render\\Renderer-&gt;executeInRenderContext() (Line: 124)
+    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;wrapControllerExecutionInRenderContext() (Line: 97)
+    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;Drupal\\Core\\EventSubscriber\\{closure}() (Line: 181)
+    Symfony\\Component\\HttpKernel\\HttpKernel-&gt;handleRaw() (Line: 76)
+    Symfony\\Component\\HttpKernel\\HttpKernel-&gt;handle() (Line: 58)
+    Drupal\\Core\\StackMiddleware\\Session-&gt;handle() (Line: 48)
+    Drupal\\Core\\StackMiddleware\\KernelPreHandle-&gt;handle() (Line: 4n8)
+    Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware-&gt;handle() (Line: 51)
+    Drupal\\Core\\StackMiddleware\
+    egotiationMiddleware-&gt;handle() (Line: 51)
+    Drupal\\Core\\StackMiddleware\\StackedHttpKernel-&gt;handle() (Line: 704)
+    Drupal\\Core\\DrupalKernel-&gt;handle() (Line: 19)
+
+    @see https://www.drupal.org/project/views_bulk_operations/issues/3351434
+     */
+
+    if (!isset($this->nodeStorage)) {
+      $this->nodeStorage = \Drupal::service('entity_type.manager')->getStorage('node');
+    }
+
     $ids = $this->nodeStorage
       ->getQuery()
       ->accessCheck(FALSE)
