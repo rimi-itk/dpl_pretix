@@ -1,0 +1,84 @@
+<?php
+
+/**
+ * @file
+ * Installation file for dpl_pretix module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function dpl_pretix_schema(): array {
+  return [
+    'dpl_pretix' => [
+      'description' => 'Table to hold information about pretix events.',
+      'fields' => [
+        'entity_type' => [
+          'description' => 'The entity type',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => TRUE,
+        ],
+        'entity_id' => [
+          'description' => 'The entity id',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => TRUE,
+        ],
+        'capacity' => [
+          'description' => 'The maximum capacity on the pretix event. 0 is interpreted as unlimited capacity on the event (default)',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'default' => 0,
+        ],
+        'maintain_copy' => [
+          'description' => 'Event is created and updated in pretix',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'default' => 1,
+        ],
+        'psp_element' => [
+          'description' => 'PSP element for accounting',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => FALSE,
+          'default' => NULL,
+        ],
+        'ticket_type' => [
+          'description' => 'Ticket type',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => FALSE,
+          'default' => NULL,
+        ],
+        'pretix_url' => [
+          'description' => 'The pretix base URL',
+          'type' => 'varchar',
+          'length' => 200,
+          'not null' => FALSE,
+          'default' => NULL,
+        ],
+        'pretix_organizer' => [
+          'description' => 'The pretix organizer short form',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => FALSE,
+          'default' => NULL,
+        ],
+        'pretix_event' => [
+          'description' => 'The unique pretix event short form',
+          'type' => 'varchar',
+          'length' => 50,
+          'not null' => FALSE,
+          'default' => NULL,
+        ],
+      ],
+      'primary key' => [
+        'entity_type',
+        'entity_id',
+      ],
+    ],
+  ];
+}

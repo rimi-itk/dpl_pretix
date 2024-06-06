@@ -20,8 +20,7 @@ class FormHelper {
 
   public function __construct(
     private readonly Settings $settings,
-    private readonly EntityHelper $eventHelper,
-    private readonly PretixHelper $pretixHelper,
+    private readonly EventHelper $eventHelper,
     private readonly AccountInterface $currentUser,
   ) {
   }
@@ -43,37 +42,37 @@ class FormHelper {
     FormStateInterface $formState,
     EventInterface $entity,
   ): void {
-    $pretix_node_info = $this->eventHelper->getEntityInfo($entity);
-    $pretix_node_defaults = $this->eventHelper->getEntityDefaults($entity);
+    $pretix_node_info = $this->eventHelper->getEventInfo($entity);
+    $pretix_node_defaults = $this->eventHelper->getEventDefaults($entity);
 
     // @todo
     // If we are cloning we need to find and set the pretix settings from the event being cloned from.
     if (isset($form['clone_from_original_nid'])) {
-      $original_pretix_node_info = $this->eventHelper->getEntityInfo($form['clone_from_original_nid']['#value']);
+      $original_pretix_node_info = $this->eventHelper->getEventInfo($form['clone_from_original_nid']['#value']);
       $capacity = $original_pretix_node_info['capacity'];
       $maintain_copy = $original_pretix_node_info['maintain_copy'];
       $psp_element = $original_pretix_node_info['psp_element'];
-      $ticket_form = $original_pretix_node_info['ticket_form'];
+      $ticket_type = $original_pretix_node_info['ticket_type'];
     }
     else {
       $capacity = $pretix_node_info['capacity'] ?? $pretix_node_defaults['capacity'] ?? 0;
       $maintain_copy = (bool) ($pretix_node_info['maintain_copy'] ?? $pretix_node_defaults['maintain_copy'] ?? FALSE);
       $psp_element = $pretix_node_info['psp_element'] ?? $pretix_node_defaults['psp_element'] ?? NULL;
-      $ticket_form = $pretix_node_info['ticket_form'] ?? $pretix_node_defaults['default_ticket_form'] ?? NULL;
+      $ticket_type = $pretix_node_info['ticket_type'] ?? $pretix_node_defaults['ticket_type'] ?? NULL;
     }
 
     // If ($pretix_node_info['maintain_copy']) {
-    //      $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_slug']);
+    //      $pretix_url = _ding_pretix_get_event_admin_url($service_settings, $pretix_node_info['pretix_event']);
     //      $pretix_info = t('Please update price in pretix if needed, go to <a href="@pretix-url">the pretix event</a>. (Note: You may need to log on)', ['@pretix-url' => $pretix_url]);
     //    }
     //    else {
     //      $pretix_info = t('If more ticket types/prices on this event are needed, edit the corresponding event in pretix after the event has been created.');
     //    }
     //    $form['field_ding_event_price']['und'][0]['value']['#description'] = $pretix_info;.
-    $pretixEventId = $pretix_node_info['pretix_slug'] ?? NULL;
+    $pretixEventId = $pretix_node_info['pretix_event'] ?? NULL;
 
     $form[self::FORM_KEY] = [
-      '#weight' => -100,
+      '#weight' => $this->settings->getEventForm()['weight'] ?? 9999,
       '#type' => 'details',
       '#title' => $this->t('pretix'),
       // '#group' => 'additional_settings',
@@ -91,6 +90,7 @@ class FormHelper {
         $element = &$form['field_event_link'];
         $element['#disabled'] = TRUE;
         $element['widget'][0]['#description'] = $this->t('This field is managed by pretix for this event.');
+        unset($element);
       }
     }
 
@@ -119,7 +119,7 @@ class FormHelper {
 
       // PSP is a code for accounting. If an event has orders, we don't allow this to be
       // changed, as this would invalidate the accounting.
-      $disabled = isset($pretixEventId) && $this->pretixHelper->hasOrders($pretixEventId);
+      $disabled = isset($pretixEventId) && $this->eventHelper->hasOrders($pretixEventId);
       $description = $disabled
         ? $this->t('Event has active orders - For accounting reasons the PSP element can no longer be changed.')
         : $this->t('Select the PSP element the ticket sales should be registered under.');
@@ -143,7 +143,7 @@ class FormHelper {
       '#description' => t('When set, a corresponding event is created and updated on the pretix ticket booking service.'),
     ];
 
-    $form[self::FORM_KEY]['ticket_form'] = [
+    $form[self::FORM_KEY]['ticket_type'] = [
       '#type' => 'radios',
       '#title' => t('Use PDF or Email tickets'),
       '#options' => [
@@ -151,13 +151,13 @@ class FormHelper {
         'email_ticket' => t('Email Tickets'),
       ],
       '#required' => TRUE,
-      '#default_value' => $ticket_form,
+      '#default_value' => $ticket_type,
       '#description' => t('Use PDF or Email tickets for the event?'),
     ];
 
     if (!$entity->isNew()) {
       if ($pretixEventId) {
-        $pretix_url = $this->pretixHelper->getEventAdminUrl($pretixEventId);
+        $pretix_url = $this->eventHelper->getEventAdminUrl($pretixEventId);
         $pretix_link = Link::fromTextAndUrl($pretix_url, Url::fromUri($pretix_url))->toString();
       }
       else {
@@ -205,7 +205,7 @@ class FormHelper {
   public function submitHandler(array $form, FormStateInterface $formState) {
     if ($event = $this->getEventEntity($formState)) {
       // We're lucky, and even new events have already been saved when our submit handler is run.
-      $this->eventHelper->handleEvent($event);
+      $this->eventHelper->handleEvent($event, $formState->getValue(self::FORM_KEY));
     }
   }
 

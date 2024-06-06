@@ -42,6 +42,13 @@ class Settings {
   /**
    *
    */
+  public function getEventForm(?string $key = NULL): array|string|null {
+    return $this->getValue(SettingsForm::SECTION_EVENT_FORM, $key);
+  }
+
+  /**
+   *
+   */
   private function getValue(string $section, ?string $key = NULL) {
     $values = $this->config->get($section);
 

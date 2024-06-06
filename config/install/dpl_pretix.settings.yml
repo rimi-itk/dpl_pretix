@@ -1,16 +1,24 @@
 pretix:
   url: https://pretix.eu/
-  organizer_slug: ~
-  api_key: ~
-  template_event_slug: ~
+  # Organizer short form
+  organizer: ~
+  # Team API token
+  api_token: ~
+  # Template event short form
+  template_event: ~
 
 libraries: {}
 #   -
-#     organizer_slug: ~
-#     api_key: ~
+#     organizer: ~
+#     api_token: ~
 
 psp_elements:
   pretix_psp_meta_key: ~
 
 event_nodes:
   capacity: ~
+  maintain_copy: true
+  ticket_type: ~
+
+event_form:
+  weight: 9999

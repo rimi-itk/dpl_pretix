@@ -50,3 +50,9 @@ tasks:
     cmds:
       - docker run --rm --interactive --tty --volume ${PWD}:/app itkdev/php8.1-fpm:latest composer install
       - docker run --rm --interactive --tty --volume ${PWD}:/app itkdev/php8.1-fpm:latest {{.ARGS}}
+
+  build:pretix-api-client:
+    desc: Build customized version of https://github.com/itk-dev/pretix-api-client-php/
+    cmds:
+      # - curl --silent --location https://github.com/itk-dev/pretix-api-client-php/archive/refs/tags/1.2.0.tar.gz > /tmp/pretix-api-client-php.tar.gz
+      - tar tvf /tmp/pretix-api-client-php.tar.gz --strip-components=2 pretix-api-client-php-1.2.0/src --directory=src/Pretix

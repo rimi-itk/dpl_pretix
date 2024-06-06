@@ -10,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
+use Drupal\dpl_pretix\EventHelper;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -26,13 +27,14 @@ final class SettingsForm extends ConfigFormBase {
   public const SECTION_LIBRARIES = 'libraries';
   public const SECTION_PSP_ELEMENTS = 'psp_elements';
   public const SECTION_EVENT_NODES = 'event_nodes';
+  public const SECTION_EVENT_FORM = 'event_form';
 
   private const ACTION_PING_API = 'action_ping_api';
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
     private readonly NodeStorageInterface $nodeStorage,
-    private readonly PretixHelper $helper,
+    private readonly EventHelper $eventHelper,
   ) {
     parent::__construct($configFactory);
   }
@@ -44,7 +46,7 @@ final class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('entity_type.manager')->getStorage('node'),
-      $container->get(PretixHelper::class),
+      $container->get(EventHelper::class),
     );
   }
 
@@ -79,6 +81,7 @@ final class SettingsForm extends ConfigFormBase {
     $this->buildFormLibraries($form, $form_state, $config);
     $this->buildFormPspElements($form, $form_state, $config);
     $this->buildFormEventNodes($form, $form_state, $config);
+    $this->buildFormEventForm($form, $form_state, $config);
 
     $form['debug'] = [
       '#type' => 'container',
@@ -113,9 +116,9 @@ final class SettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => $this->t('pretix'),
       '#open' => empty($defaults['url'])
-      || empty($defaults['organizer_slug'])
-      || empty($defaults['api_key'])
-      || empty($defaults['template_event_slug']),
+      || empty($defaults['organizer'])
+      || empty($defaults['api_token'])
+      || empty($defaults['template_event']),
 
       'url' => [
         '#type' => 'url',
@@ -125,28 +128,28 @@ final class SettingsForm extends ConfigFormBase {
         '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
       ],
 
-      'organizer_slug' => [
+      'organizer' => [
         '#type' => 'textfield',
-        '#title' => $this->t('Organizer slug'),
-        '#default_value' => $defaults['organizer_slug'] ?? NULL,
+        '#title' => $this->t('Organizer'),
+        '#default_value' => $defaults['organizer'] ?? NULL,
         '#required' => TRUE,
-        '#description' => $this->t('This is the default organizer slug used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
+        '#description' => $this->t('This is the default organizer short form used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
 
-      'api_key' => [
+      'api_token' => [
         '#type' => 'textfield',
-        '#title' => $this->t('The API key of the Organizer Team'),
-        '#default_value' => $defaults['api_key'] ?? NULL,
+        '#title' => $this->t('The API token of the Organizer Team'),
+        '#default_value' => $defaults['api_token'] ?? NULL,
         '#required' => TRUE,
-        '#description' => $this->t('This is the default API key used when connecting to pretix. If you provide slug/API key for a specific library (below), events related to that library will use that key instead of the default key.'),
+        '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
 
-      'template_event_slug' => [
+      'template_event' => [
         '#type' => 'textfield',
-        '#title' => $this->t('The slug of the default event template'),
-        '#default_value' => $defaults['template_event_slug'] ?? NULL,
+        '#title' => $this->t('The short form of the default event template'),
+        '#default_value' => $defaults['template_event'] ?? NULL,
         '#required' => TRUE,
-        '#description' => $this->t('This is the slug of the default event template. When events are created their setting etc. are copied from this event.'),
+        '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
       ],
     ];
   }
@@ -160,8 +163,8 @@ final class SettingsForm extends ConfigFormBase {
 
     $form[$section] = [
       '#type' => 'details',
-      '#title' => $this->t('Individual library slug/API keys'),
-      '#description' => $this->t('Optional. If you have several organizers at pretix, each library can have their own slug/API key. In that case, the base slug/API key will be overridden by the provided key when sending data on events related to this library.'),
+      '#title' => $this->t('Individual library short form/API tokens'),
+      '#description' => $this->t('Optional. If you have several organizers at pretix, each library can have their own short form/API token. In that case, the base short form/API token will be overridden by the provided key when sending data on events related to this library.'),
       '#open' => TRUE,
     ];
 
@@ -173,18 +176,18 @@ final class SettingsForm extends ConfigFormBase {
         '#collapsible' => TRUE,
         '#collapsed' => FALSE,
 
-        'organizer_slug' => [
+        'organizer' => [
           '#type' => 'textfield',
-          '#title' => $this->t('Organizer slug'),
-          '#default_value' => $defaults[$library->id()]['organizer_slug'] ?? NULL,
-          '#description' => $this->t('The slug of the pretix organizer to map to.'),
+          '#title' => $this->t('Organizer'),
+          '#default_value' => $defaults[$library->id()]['organizer'] ?? NULL,
+          '#description' => $this->t('The short form of the pretix organizer to map to.'),
         ],
 
-        'api_key' => [
+        'api_token' => [
           '#type' => 'textfield',
-          '#title' => t('API key'),
-          '#default_value' => $defaults[$library->id()]['api_key'] ?? NULL,
-          '#description' => t('The API key of the Organizer Team'),
+          '#title' => t('API token'),
+          '#default_value' => $defaults[$library->id()]['api_token'] ?? NULL,
+          '#description' => t('The API token of the organizer team'),
         ],
       ];
     }
@@ -383,15 +386,15 @@ final class SettingsForm extends ConfigFormBase {
         '#description' => $this->t('The default capacity for new events. Set to 0 for unlimited capacity.'),
       ],
 
-      'maintain_copy_in_pretix' => [
+      'maintain_copy' => [
         '#type' => 'checkbox',
         '#title' => $this->t('Maintain copy in pretix'),
-        '#default_value' => $defaults['maintain_copy_in_pretix'] ?? FALSE,
+        '#default_value' => $defaults['maintain_copy'] ?? FALSE,
         '#return_value' => TRUE,
         '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
       ],
 
-      'default_ticket_form' => [
+      'ticket_type' => [
         '#type' => 'radios',
         '#title' => $this->t('Use PDF or Email tickets'),
         '#options' => [
@@ -399,8 +402,31 @@ final class SettingsForm extends ConfigFormBase {
           'email_ticket' => $this->t('Email Tickets'),
         ],
         '#required' => TRUE,
-        '#default_value' => $defaults['default_ticket_form'] ?? [],
+        '#default_value' => $defaults['ticket_type'] ?? [],
         '#description' => t('Should new events use PDF or Email tickets by default?'),
+      ],
+    ];
+  }
+
+  /**
+   * Build form.
+   */
+  private function buildFormEventForm(array &$form, FormStateInterface $formState, Config $config): void {
+    $section = self::SECTION_EVENT_FORM;
+    $defaults = $config->get($section);
+
+    $form[$section] = [
+      '#type' => 'details',
+      '#title' => $this->t('event form'),
+      '#open' => TRUE,
+
+      'weight' => [
+        '#type' => 'number',
+        '#title' => $this->t('Weight'),
+        '#default_value' => $defaults['weight'] ?? 9999,
+        '#size' => 5,
+        '#maxlength' => 5,
+        '#description' => $this->t('The weight if the pretix section on event form.'),
       ],
     ];
   }
@@ -424,7 +450,7 @@ final class SettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
       try {
-        $this->helper->pingApi();
+        $this->eventHelper->pingApi();
         $this->messenger()->addStatus($this->t('Pinged API successfully.'));
       }
       catch (\Throwable $t) {
@@ -440,6 +466,7 @@ final class SettingsForm extends ConfigFormBase {
       self::SECTION_LIBRARIES,
       self::SECTION_PSP_ELEMENTS,
       self::SECTION_EVENT_NODES,
+      self::SECTION_EVENT_FORM,
     ] as $section) {
       $values = $form_state->getValue($section);
       if (is_array($values)) {
