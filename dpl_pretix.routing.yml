@@ -5,3 +5,14 @@ dpl_pretix.settings:
     _form: '\Drupal\dpl_pretix\Form\SettingsForm'
   requirements:
     _permission: 'administer pretix settings'
+
+dpl_pretix.settings_debug:
+  path: '/admin/config/dpl_pretix/debug/{action}'
+  defaults:
+    _title: 'pretix debug'
+    _controller: '\Drupal\dpl_pretix\Controller\DebugController::main'
+    action: ~
+  options:
+    no_cache: true
+  requirements:
+    _permission: 'administer pretix settings'

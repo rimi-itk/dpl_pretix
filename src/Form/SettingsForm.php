@@ -7,7 +7,9 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Url;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -77,6 +79,11 @@ final class SettingsForm extends ConfigFormBase {
     $this->buildFormLibraries($form, $form_state, $config);
     $this->buildFormPspElements($form, $form_state, $config);
     $this->buildFormEventNodes($form, $form_state, $config);
+
+    $form['debug'] = [
+      '#type' => 'container',
+      'debug' => Link::fromTextAndUrl($this->t('Debug pretix'), Url::fromRoute('dpl_pretix.settings_debug'))->toRenderable(),
+    ];
 
     $form['actions']['ping_api'] = [
       '#type' => 'container',

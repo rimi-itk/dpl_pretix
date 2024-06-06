@@ -8,13 +8,15 @@ use Drupal\Core\Link;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
-use Drupal\recurring_events\Entity\EventSeries;
+use Drupal\recurring_events\EventInterface;
 
 /**
  *
  */
 class FormHelper {
   use StringTranslationTrait;
+
+  private const FORM_KEY = 'dpl_pretix';
 
   public function __construct(
     private readonly Settings $settings,
@@ -28,20 +30,9 @@ class FormHelper {
    *
    */
   public function formAlter(array &$form, FormStateInterface $formState, string $formId): void {
-    $formObject = $formState->getFormObject();
-    if ($formObject instanceof EntityForm) {
-      $entity = $formObject->getEntity();
-      if ($entity instanceof EventSeries) {
-        $this->formAlterEventSeries($form, $formState, $entity);
-      }
-      // \Drupal::messenger()->addMessage(sprintf('entity: %s', $entity::class));
-      //       header('content-type: text/plain'); echo var_export($entity::class, true); die(__FILE__.':'.__LINE__.':'.__METHOD__);
+    if ($event = $this->getEventEntity($formState)) {
+      $this->formAlterEventSeries($form, $formState, $event);
     }
-    // eventseries_default_add_form
-    // eventseries_default_edit_form
-    // eventinstance_default_edit_form
-    // header('content-type: text/plain'); var_dump($form_id); die(__FILE__.':'.__LINE__.':'.__METHOD__);
-    //    \Drupal::messenger()->addMessage(sprintf('%s; formId: %s', __METHOD__, $formId));.
   }
 
   /**
@@ -50,10 +41,8 @@ class FormHelper {
   private function formAlterEventSeries(
     array &$form,
     FormStateInterface $formState,
-    EventSeries $entity,
+    EventInterface $entity,
   ): void {
-    $maintain_copy = (bool) $this->settings->getEventNodes('maintain_copy_in_pretix');
-
     $pretix_node_info = $this->eventHelper->getEntityInfo($entity);
     $pretix_node_defaults = $this->eventHelper->getEntityDefaults($entity);
 
@@ -83,7 +72,7 @@ class FormHelper {
     //    $form['field_ding_event_price']['und'][0]['value']['#description'] = $pretix_info;.
     $pretixEventId = $pretix_node_info['pretix_slug'] ?? NULL;
 
-    $form['dpl_pretix'] = [
+    $form[self::FORM_KEY] = [
       '#weight' => -100,
       '#type' => 'details',
       '#title' => $this->t('pretix'),
@@ -109,7 +98,7 @@ class FormHelper {
     $disabled = isset($pretixEventId);
     $description = $disabled ? t('Please update capacity in pretix if needed.') : t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
 
-    $form['dpl_pretix']['capacity'] = [
+    $form[self::FORM_KEY]['capacity'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Event capacity'),
       '#size' => 5,
@@ -135,7 +124,7 @@ class FormHelper {
         ? $this->t('Event has active orders - For accounting reasons the PSP element can no longer be changed.')
         : $this->t('Select the PSP element the ticket sales should be registered under.');
 
-      $form['dpl_pretix']['psp_element'] = [
+      $form[self::FORM_KEY]['psp_element'] = [
         '#type' => 'select',
         '#title' => $this->t('PSP Element'),
         '#options' => $options,
@@ -147,50 +136,93 @@ class FormHelper {
       ];
     }
 
-    $form['dpl_pretix']['maintain_copy'] = [
+    $form[self::FORM_KEY]['maintain_copy'] = [
       '#type' => 'checkbox',
       '#title' => t('Maintain copy in pretix'),
       '#default_value' => $maintain_copy,
       '#description' => t('When set, a corresponding event is created and updated on the pretix ticket booking service.'),
     ];
 
-    // $form['dpl_pretix']['ticket_form'] = [
-    //      '#type' => 'radios',
-    //      '#title' => t('Use PDF or Email tickets'),
-    //      '#options' => [
-    //        'pdf_ticket' => t('PDF Tickets'),
-    //        'email_ticket' => t('Email Tickets'),
-    //      ],
-    //      '#required' => TRUE,
-    //      '#default_value' => $ticket_form,
-    //      '#description' => t('Use PDF or Email tickets for the event?'),
-    //    ];
-    if ($pretixEventId) {
-      $pretix_url = $this->pretixHelper->getEventAdminUrl($pretixEventId);
-      $pretix_link = Link::fromTextAndUrl($pretix_url, Url::fromUri($pretix_url))->toString();
-    }
-    else {
-      $pretix_link = $this->t('None');
-    }
-
-    $form['dpl_pretix']['pretix_slug'] = [
-      '#type' => 'item',
-      '#title' => $this->t('pretix event'),
-      '#markup' => $pretix_link,
-      '#description' => $this->t('A link to the corresponding event on the pretix ticket booking service.'),
+    $form[self::FORM_KEY]['ticket_form'] = [
+      '#type' => 'radios',
+      '#title' => t('Use PDF or Email tickets'),
+      '#options' => [
+        'pdf_ticket' => t('PDF Tickets'),
+        'email_ticket' => t('Email Tickets'),
+      ],
+      '#required' => TRUE,
+      '#default_value' => $ticket_form,
+      '#description' => t('Use PDF or Email tickets for the event?'),
     ];
 
+    if (!$entity->isNew()) {
+      if ($pretixEventId) {
+        $pretix_url = $this->pretixHelper->getEventAdminUrl($pretixEventId);
+        $pretix_link = Link::fromTextAndUrl($pretix_url, Url::fromUri($pretix_url))->toString();
+      }
+      else {
+        $pretix_link = $this->t('None');
+      }
+
+      $form[self::FORM_KEY]['pretix_url'] = [
+        '#type' => 'item',
+        '#title' => $this->t('pretix event'),
+        '#markup' => $pretix_link,
+        '#description' => $this->t('A link to the corresponding event on the pretix ticket booking service.'),
+      ];
+    }
+
+    // Make it easy for administrators to edit pretix settings.
     if ($this->currentUser->hasPermission('administer pretix settings')) {
-      $form['dpl_pretix']['pretix_settings'] = [
+      $form[self::FORM_KEY]['pretix_settings'] = [
         '#type' => 'container',
 
         'link' => [
           '#type' => 'link',
-          '#title' => $this->t('pretix settings'),
+          '#title' => $this->t('Edit pretix settings'),
           '#url' => Url::fromRoute('dpl_pretix.settings'),
         ],
       ];
     }
+
+    $form['#validate'][] = [$this, 'validateForm'];
+
+    if (isset($form['actions']['submit']['#submit'])) {
+      $form['actions']['submit']['#submit'][] = [$this, 'submitHandler'];
+    }
+  }
+
+  /**
+   *
+   */
+  public function validateForm(array $form, FormStateInterface $formState) {
+    // @todo add validation?
+  }
+
+  /**
+   *
+   */
+  public function submitHandler(array $form, FormStateInterface $formState) {
+    if ($event = $this->getEventEntity($formState)) {
+      // We're lucky, and even new events have already been saved when our submit handler is run.
+      $this->eventHelper->handleEvent($event);
+    }
+  }
+
+  /**
+   *
+   */
+  private function getEventEntity(FormStateInterface $formState): EventInterface|null {
+
+    $formObject = $formState->getFormObject();
+    if ($formObject instanceof EntityForm) {
+      $entity = $formObject->getEntity();
+      if ($entity instanceof EventInterface) {
+        return $entity;
+      }
+    }
+
+    return NULL;
   }
 
 }

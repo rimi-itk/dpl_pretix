@@ -273,6 +273,13 @@ class EntityHelper {
   }
 
   /**
+   *
+   */
+  public function handleEvent(EventInterface $event) {
+
+  }
+
+  /**
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity) {

@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__.'/vendor_release/autoload.php';
+//require_once __DIR__.'/vendor_release/autoload.php';
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
