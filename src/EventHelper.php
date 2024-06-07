@@ -3,100 +3,139 @@
 namespace Drupal\dpl_pretix;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-use Drupal\dpl_pretix\Pretix\PretixApiClient;
+use Drupal\dpl_pretix\Entity\EventData;
+use Drupal\dpl_pretix\Pretix\ApiClient\Client as PretixApiClient;
+use Drupal\dpl_pretix\Pretix\ApiClient\Collections\EntityCollectionInterface;
+use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\recurring_events\EventInterface;
 
 /**
- *
+ * Event helper.
  */
 class EventHelper {
   use StringTranslationTrait;
+  use DependencySerializationTrait;
 
   private const TABLE_NAME = 'dpl_pretix';
+  private const INSERT = 'insert';
+  private const UPDATE = 'update';
+  private const DELETE = 'delete';
 
+
+  /**
+   * The pretix API client.
+   */
   private PretixApiClient $pretixApiClient;
 
   public function __construct(
     private readonly Settings $settings,
-    private readonly Connection $database
+    private readonly Connection $database,
   ) {
   }
 
   /**
-   *
+   * Implements hook_entity_insert().
    */
-  public function handleEvent(EventInterface $event, array $data): int {
-    return $this->saveEventData($event, $data);
+  public function entityInsert(EntityInterface $entity) {
+    if ($entity instanceof EventInterface) {
+      $this->syncronizeEvent($entity, self::INSERT);
+    }
   }
 
   /**
-   *
+   * Implements hook_entity_update().
    */
-  public function getEventInfo(EventInterface|int $event): ?array {
-return $this->loadEventData($event);
+  public function entityUpdate(EntityInterface $entity) {
+    if ($entity instanceof EventInterface) {
+      $this->syncronizeEvent($entity, self::UPDATE);
+    }
   }
 
   /**
-   *
+   * Implements hook_entity_delete().
    */
-  public function getEventDefaults(EventInterface $entity): ?array {
-
-    return [];
+  public function entityDelete(EntityInterface $entity) {
+    if ($entity instanceof EventInterface) {
+      $this->syncronizeEvent($entity, self::DELETE);
+    }
   }
 
-  public function getEventAdminUrl(string $event): ?string
-  {
+  /**
+   * Syncronize event in pretix.
+   */
+  private function syncronizeEvent(EventInterface $event, string $action): void {
+    if ($event instanceof EventSeries) {
+      $data = $this->loadEventData($event);
+      if (!empty($data)) {
+        // @todo syncronize event
+      }
+    }
+  }
+
+  /**
+   * Set event data.
+   */
+  public function setEventData(EventInterface $event, EventData $data): void {
+    $this->saveEventData($event, $data);
+    $this->syncronizeEvent($event, $event->isNew() ? self::INSERT : self::UPDATE);
+  }
+
+  /**
+   * Get event data.
+   */
+  public function getEventData(EventInterface $event, bool $withDefaults = FALSE): ?EventData {
+    $info = $this->loadEventData($event);
+
+    if (NULL !== $info && $withDefaults) {
+      $defaults = $this->settings->getEventNodes();
+
+      // Set default value on null values.
+      foreach ($defaults as $name => $default) {
+        if (property_exists($info, $name)) {
+          $info->$name ??= $default;
+          ;
+        }
+      }
+    }
+
+    return $info;
+  }
+
+  /**
+   * Get pretix admin event URL.
+   */
+  public function getEventAdminUrl(string $event): ?string {
     return $this->pretixClient()->getEventAdminUrl($event);
   }
 
-    /**
-   *
+  /**
+   * Decide if event has orders in pretix.
    */
   public function hasOrders(string $event) {
     return count($this->getOrders($event)) > 0;
   }
 
-  public function getOrders(string $event): array {
+  /**
+   * Get event orders form pretix.
+   */
+  public function getOrders(string $event): EntityCollectionInterface {
     return [];
   }
 
-  public function getEvents(array $query): array {
+  /**
+   * Get events from pretix.
+   */
+  public function getEvents(array $query): EntityCollectionInterface {
     return $this->pretix()->getEvents($query);
   }
 
-  public function loadEventData(EventInterface|int $event = null, string $entityType = null): ?array
-  {
-    $type = $event instanceof EventInterface ? $event->getEntityTypeId() : $entityType;
-    $id = $event instanceof EventInterface ? $event->id() : $event;
-    if (null !== $event && null === $type) {
-      throw new \InvalidArgumentException('Missing event type');
-    }
-
-    $query = $this->database
-      ->select(self::TABLE_NAME, 't')
-      ->fields('t');
-    if (null !== $event) {
-      $query
-        ->condition('t.entity_type', $type)
-        ->condition('t.entity_id', $id);
-    }
-
-    $result = $query
-      ->execute()
-      ->fetchAll();
-
-    $result = array_map(
-      static fn(object $row) => (array)$row,
-      $result
-    );
-
-      return null === $event ? $result : (reset($result) ?: null);
-  }
-
-  public function saveEventData(EventInterface $event, array $data): int
-  {
+  /**
+   * Save event data in database.
+   */
+  private function saveEventData(EventInterface $event, EventData $data): int {
     $values = [
       // 'pretix_url',
       // 'pretix_organizer',
@@ -117,11 +156,49 @@ return $this->loadEventData($event);
       ->execute();
   }
 
-  public function pingApi()
-  {
+  /**
+   * Load event data.
+   *
+   * @param \Drupal\recurring_events\EventInterface|int|null $event
+   *   The event. If null, data for all events will be returned.
+   * @param string|null $entityType
+   *   The entity type. Required if $event is not an entity.
+   *
+   * @throws \Exception
+   */
+  public function loadEventData(EventInterface|int $event = NULL, string $entityType = NULL): array|EventData|null {
+    $type = $event instanceof EventInterface ? $event->getEntityTypeId() : $entityType;
+    $id = $event instanceof EventInterface ? $event->id() : $event;
+    if (NULL !== $event && NULL === $type) {
+      throw new \InvalidArgumentException('Missing event type');
+    }
+
+    $query = $this->database
+      ->select(self::TABLE_NAME, 't')
+      ->fields('t');
+    if (NULL !== $event) {
+      $query
+        ->condition('t.entity_type', $type)
+        ->condition('t.entity_id', $id);
+    }
+
+    $result = $query
+      ->execute()
+      ->fetchAll(\PDO::FETCH_CLASS, EventData::class);
+
+    return NULL === $event ? $result : (reset($result) ?: NULL);
+  }
+
+  /**
+   * Ping pretix API.
+   */
+  public function pingApi() {
     return $this->getEvents([]);
   }
 
+  /**
+   * Get pretix API client.
+   */
   private function pretix(): PretixApiClient {
     if (!isset($this->pretixApiClient)) {
       $this->pretixApiClient = new PretixApiClient($this->settings->getPretix());
@@ -129,4 +206,5 @@ return $this->loadEventData($event);
 
     return $this->pretixApiClient;
   }
+
 }

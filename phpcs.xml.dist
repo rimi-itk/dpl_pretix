@@ -5,6 +5,7 @@
   <file>.</file>
   <exclude-pattern>vendor/</exclude-pattern>
   <exclude-pattern>vendor_release/</exclude-pattern>
+  <exclude-pattern>src/Pretix/ApiClient/</exclude-pattern>
 
   <!-- Show progress -->
   <arg value="p"/>

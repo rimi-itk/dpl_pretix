@@ -54,8 +54,11 @@ tasks:
   build:pretix-api-client:
     desc: Build customized version of https://github.com/itk-dev/pretix-api-client-php/
     cmds:
-      # - curl --silent --location https://github.com/itk-dev/pretix-api-client-php/archive/refs/tags/1.2.0.tar.gz > /tmp/pretix-api-client-php.tar.gz
+      - curl --silent --location https://github.com/itk-dev/pretix-api-client-php/archive/refs/tags/1.2.0.tar.gz > /tmp/pretix-api-client-php.tar.gz
       # Extract src folder from archive into src/Pretix
-      - tar xvf /tmp/pretix-api-client-php.tar.gz --directory=src/Pretix --strip-components=2 pretix-api-client-php-1.2.0/src
+      - mkdir -p src/Pretix/ApiClient
+      - tar xvf /tmp/pretix-api-client-php.tar.gz --directory=src/Pretix/ApiClient --strip-components=2 pretix-api-client-php-1.2.0/src
       # Change namespace
-      - find src/Pretix -name '*.php' | xargs sed -i'' 's@ItkDev\\Pretix\\Api@Drupal\\dpl_pretix\\Pretix@'
+      - find src/Pretix/ApiClient -name '*.php' | xargs sed -i'' 's@ItkDev\\Pretix\\Api@Drupal\\dpl_pretix\\Pretix\\ApiClient@'
+      # Remove use of https://symfony.com/doc/current/components/options_resolver.html
+      - patch --strip=1 < src/Pretix/ApiClient/patches/pretix-api-client.patch

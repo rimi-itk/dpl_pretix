@@ -11,7 +11,6 @@ use Drupal\Core\Link;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\EventHelper;
-use Drupal\dpl_pretix\PretixHelper;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -202,37 +201,15 @@ final class SettingsForm extends ConfigFormBase {
   private function loadLibraries(): array {
     // @todo Uncaught
     /*
-    An AJAX HTTP error occurred.
-    HTTP Result Code: 500
-    Debugging information follows.
-    Path: /admin/config/dpl_pretix?ajax_form=1
-    StatusText: Internal Server Error
-    ResponseText: The website encountered an unexpected error. Please try again later.Error: Typed property Drupal\\dpl_pretix\\Form\\SettingsForm::$nodeStorage must not be accessed before initialization in Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;loadLibraries() (line 193 of sites/default/files/modules_local/dpl_pretix/src/Form/SettingsForm.php). Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildFormLibraries() (Line: 77)
-    Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildForm()
-    call_user_func_array() (Line: 536)
-    Drupal\\Core\\Form\\FormBuilder-&gt;retrieveForm() (Line: 375)
-    Drupal\\Core\\Form\\FormBuilder-&gt;rebuildForm() (Line: 633)
-    Drupal\\Core\\Form\\FormBuilder-&gt;processForm() (Line: 325)
-    Drupal\\Core\\Form\\FormBuilder-&gt;buildForm() (Line: 73)
-    Drupal\\Core\\Controller\\FormController-&gt;getContentResult()
-    call_user_func_array() (Line: 123)
-    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;Drupal\\Core\\EventSubscriber\\{closure}() (Line: 592)
-    Drupal\\Core\\Render\\Renderer-&gt;executeInRenderContext() (Line: 124)
-    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;wrapControllerExecutionInRenderContext() (Line: 97)
-    Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber-&gt;Drupal\\Core\\EventSubscriber\\{closure}() (Line: 181)
-    Symfony\\Component\\HttpKernel\\HttpKernel-&gt;handleRaw() (Line: 76)
-    Symfony\\Component\\HttpKernel\\HttpKernel-&gt;handle() (Line: 58)
-    Drupal\\Core\\StackMiddleware\\Session-&gt;handle() (Line: 48)
-    Drupal\\Core\\StackMiddleware\\KernelPreHandle-&gt;handle() (Line: 4n8)
-    Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware-&gt;handle() (Line: 51)
-    Drupal\\Core\\StackMiddleware\
-    egotiationMiddleware-&gt;handle() (Line: 51)
-    Drupal\\Core\\StackMiddleware\\StackedHttpKernel-&gt;handle() (Line: 704)
-    Drupal\\Core\\DrupalKernel-&gt;handle() (Line: 19)
-
-    @see https://www.drupal.org/project/views_bulk_operations/issues/3351434
+     * Typed property Drupal\\dpl_pretix\\Form\\SettingsForm::$nodeStorage must
+     * not be accessed before initialization in
+     * Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;loadLibraries() (line 193 of
+     * sites/default/files/modules_local/dpl_pretix/src/Form/SettingsForm.php).
+     * Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildFormLibraries() (Line:
+     * 77)
+     *
+     * @see https://www.drupal.org/project/views_bulk_operations/issues/3351434
      */
-
     if (!isset($this->nodeStorage)) {
       $this->nodeStorage = \Drupal::service('entity_type.manager')->getStorage('node');
     }

@@ -1,0 +1,28 @@
+diff --git a/src/Pretix/ApiClient/Client.php b/src/Pretix/ApiClient/Client.php
+index 5173077..9fa07e9 100644
+--- a/src/Pretix/ApiClient/Client.php
++++ b/src/Pretix/ApiClient/Client.php
+@@ -22,7 +22,6 @@ use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent;
+ use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Webhook;
+ use Drupal\dpl_pretix\Pretix\ApiClient\Exception\ClientException;
+ use Drupal\dpl_pretix\Pretix\ApiClient\Exception\InvalidArgumentException;
+-use Symfony\Component\OptionsResolver\OptionsResolver;
+ 
+ /**
+  * Pretix client.
+@@ -67,14 +66,7 @@ class Client
+      */
+     public function __construct(array $options)
+     {
+-        $resolver = new OptionsResolver();
+-        $resolver
+-            ->setDefaults([
+-                'url' => 'https://pretix.eu',
+-            ])
+-            ->setRequired(['url', 'organizer', 'api_token']);
+-
+-        $this->options = $resolver->resolve($options);
++        $this->options = $options;
+         $this->url = trim($this->options['url'], '/');
+         $this->organizer = $this->options['organizer'];
+         $this->apiToken = $this->options['api_token'];

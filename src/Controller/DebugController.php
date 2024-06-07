@@ -2,38 +2,42 @@
 
 namespace Drupal\dpl_pretix\Controller;
 
-use Doctrine\Common\Collections\ArrayCollection;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Link;
 use Drupal\Core\Url;
+use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\dpl_pretix\EventHelper;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use function Safe\ksort;
+use function Safe\preg_match;
 use function Safe\preg_replace;
 use function Safe\sprintf;
 use function Safe\substr;
-use function Safe\preg_match;
 
 /**
- *
+ * Pretix debug controller.
  */
 class DebugController extends ControllerBase {
+
   public function __construct(
     private readonly EventHelper $eventHelper,
-  )
-  {
+    private readonly LoggerInterface $logger,
+  ) {
   }
 
-  public static function create(ContainerInterface $container)
-  {
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
     return new static(
-      $container->get(EventHelper::class)
+      $container->get(EventHelper::class),
+      $container->get('logger.channel.dpl_pretix'),
     );
   }
 
   /**
-   *
+   * Main action.
    */
   public function main(Request $request, ?string $action): array {
     $build = [];
@@ -64,10 +68,16 @@ class DebugController extends ControllerBase {
               '#type' => 'container',
               'content' => is_scalar($response) ? ['#markup' => $response] : $response,
             ];
-          } else {
+          }
+          else {
             throw new \RuntimeException(sprintf('Invalid action: %s', $action));
           }
-        } catch (\Throwable $exception) {
+        }
+        catch (\Throwable $exception) {
+          $this->logger->error('Error running action: @message', [
+            '@message' => $exception->getMessage(),
+            '@exception' => $exception,
+          ]);
           $build['message'] = [
             '#theme' => 'status_messages',
             '#message_list' => [
@@ -86,7 +96,8 @@ class DebugController extends ControllerBase {
   /**
    * Get actions.
    *
-   * An "action" is a function whose name starts with "action" follow by an uppercase letter, e.g. actionShowStuff.
+   * An "action" is a function whose name starts with "action" follow by an
+   * uppercase letter, e.g. actionShowStuff.
    */
   private function getActions(?string $action): array {
     $actions = array_filter(
@@ -97,7 +108,8 @@ class DebugController extends ControllerBase {
     $actions = array_combine(
     // Remove "action" prefix.
       array_map(static fn ($action) => (substr($action, 6)), $actions),
-      // Remove "action" prefix and convert CamelCase to space separated and upcase first letter.
+      // Remove "action" prefix and convert CamelCase to space separated and
+      // upcase first letter.
       array_map(static fn ($action) => ucfirst(strtolower(trim(preg_replace('/[A-Z]/', ' \0', (substr($action, 6)))))), $actions),
     );
     ksort($actions);
@@ -111,7 +123,7 @@ class DebugController extends ControllerBase {
   }
 
   /**
-   *
+   * Events action.
    */
   private function actionEvents(Request $request): array|string {
     $events = $this->eventHelper->loadEventData();
@@ -120,38 +132,31 @@ class DebugController extends ControllerBase {
       '#theme' => 'table',
       '#empty' => 'No events found.',
       '#caption' => 'Events',
-      '#header' => empty($events) ? [] : array_keys(reset($events)),
+      '#header' => empty($events) ? [] : array_keys((array) reset($events)),
       '#rows' => array_map(
-        static fn (array $data) => $data          +          [
+        static fn (EventData $data) => (array) $data + [
             [
               'data' => [
-              '#type' => 'dropbutton',
-              '#links' => [
-                'edit' => [
-                  'title' => 'edit',
-                  'url' => Url::fromRoute('entity.'.$data['entity_type'].'.edit_form', [$data['entity_type'] => $data['entity_id']]),
+                '#type' => 'dropbutton',
+                '#links' => [
+                  'edit' => [
+                    'title' => 'edit',
+                    'url' => Url::fromRoute('entity.' . $data->entityType . '.edit_form', [$data->entityType => $data->entityId]),
+                  ],
+                  'show' => [
+                    'title' => 'show',
+                    'url' => Url::fromRoute('entity.' . $data->entityType . '.canonical', [$data->entityType => $data->entityId]),
+                  ],
                 ],
-                'show' => [
-                  'title' => 'show',
-                  'url' => Url::fromRoute('entity.'.$data['entity_type'].'.canonical', [$data['entity_type'] => $data['entity_id']]),
-                ],
               ],
-              ],
-              ],
-          ],
+            ],
+        ],
 
         $events
       ),
     ];
 
     return $build;
-  }
-
-  /**
-   *
-   */
-  private function actionsTest(Request $request): array {
-    throw new \RuntimeException(sprintf('%s not implemented', __FUNCTION__));
   }
 
 }
