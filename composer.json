@@ -3,8 +3,7 @@
     "type": "drupal-module",
     "require": {
         "php": "^8.1",
-        "drupal/core-recommended": "^10",
-        "itk-dev/pretix-api-client-php": "^1.2"
+        "drupal/core-recommended": "^10"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",

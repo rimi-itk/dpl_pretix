@@ -9,22 +9,22 @@ final class EventData {
   /**
    * The entity type.
    */
-  public readonly string $entityType;
+  public string $entityType;
 
   /**
    * The entity id.
    */
-  public readonly string $entityId;
+  public string $entityId;
 
   /**
    * The capacity.
    */
-  public int $capacity;
+  public int $capacity = 0;
 
   /**
    * The maintain copy.
    */
-  public bool $maintainCopy;
+  public bool $maintainCopy = false;
 
   /**
    * The PSP element.

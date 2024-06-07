@@ -52,7 +52,7 @@ class Settings {
   /**
    * Get config value.
    */
-  private function getValue(string $section, ?string $key = NULL) {
+  private function getValue(string $section, ?string $key = NULL): array|string|null {
     $values = $this->config->get($section);
 
     return NULL === $key ? $values : ($values[$key] ?? NULL);
