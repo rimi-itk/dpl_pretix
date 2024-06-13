@@ -2,7 +2,7 @@
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\dpl_pretix\EventHelper;
+use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\FormHelper;
 
 /**
@@ -15,22 +15,22 @@ function dpl_pretix_form_alter(array &$form, FormStateInterface $form_state, str
 /**
  * Implements hook_entity_insert().
  */
-function dpl_pretix_entity_insert(EntityInterface $entity) {
-  _dpl_pretix_event_helper()->entityInsert($entity);
+function dpl_pretix_entity_insert(EntityInterface $entity): void {
+  _dpl_pretix_entity_helper()->entityInsert($entity);
 }
 
 /**
  * Implements hook_entity_update().
  */
-function dpl_pretix_entity_update(EntityInterface $entity) {
-  _dpl_pretix_event_helper()->entityUpdate($entity);
+function dpl_pretix_entity_update(EntityInterface $entity): void {
+  _dpl_pretix_entity_helper()->entityUpdate($entity);
 }
 
 /**
  * Implements hook_entity_delete().
  */
-function dpl_pretix_entity_delete(EntityInterface $entity) {
-  _dpl_pretix_event_helper()->entityDelete($entity);
+function dpl_pretix_entity_delete(EntityInterface $entity): void {
+  _dpl_pretix_entity_helper()->entityDelete($entity);
 }
 
 /**
@@ -43,8 +43,8 @@ function _dpl_pretix_form_helper(): FormHelper {
 /**
  * Get event helper.
  */
-function _dpl_pretix_event_helper(): EventHelper {
-  return \Drupal::service(EventHelper::class);
+function _dpl_pretix_entity_helper(): EntityHelper {
+  return \Drupal::service(EntityHelper::class);
 }
 
 // Local Variables:

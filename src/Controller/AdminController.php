@@ -3,12 +3,15 @@
 namespace Drupal\dpl_pretix\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Link;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\Entity\EventData;
-use Drupal\dpl_pretix\EventHelper;
+use Drupal\dpl_pretix\EventDataHelper;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use function Safe\array_combine;
 use function Safe\ksort;
 use function Safe\preg_match;
 use function Safe\preg_replace;
@@ -18,10 +21,11 @@ use function Safe\substr;
 /**
  * Pretix debug controller.
  */
-class DebugController extends ControllerBase {
+final class AdminController extends ControllerBase {
+  use StringTranslationTrait;
 
   public function __construct(
-    private readonly EventHelper $eventHelper,
+    private readonly EventDataHelper $eventDataHelper,
     private readonly LoggerInterface $logger,
   ) {
   }
@@ -29,15 +33,22 @@ class DebugController extends ControllerBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): self {
+    /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
+    $eventDataHelper = $container->get(EventDataHelper::class);
+    /** @var \Psr\Log\LoggerInterface $logger */
+    $logger = $container->get('logger.channel.dpl_pretix');
+
     return new static(
-      $container->get(EventHelper::class),
-      $container->get('logger.channel.dpl_pretix'),
+      $eventDataHelper,
+      $logger,
     );
   }
 
   /**
    * Main action.
+   *
+   * @phpstan-return array<string, mixed>
    */
   public function main(Request $request, ?string $action): array {
     $build = [];
@@ -98,6 +109,9 @@ class DebugController extends ControllerBase {
    *
    * An "action" is a function whose name starts with "action" follow by an
    * uppercase letter, e.g. actionShowStuff.
+   *
+   * @return array<int, mixed>
+   *   The actions (array<string, string>) and the current action (string).
    */
   private function getActions(?string $action): array {
     $actions = array_filter(
@@ -124,34 +138,73 @@ class DebugController extends ControllerBase {
 
   /**
    * Events action.
+   *
+   * @return array<string, mixed>
+   *   The build.
    */
-  private function actionEvents(Request $request): array|string {
-    $events = $this->eventHelper->loadEventData();
+  private function actionEvents(Request $request): array {
+    $events = $this->eventDataHelper->loadEventDataList();
 
     $build = [
       '#theme' => 'table',
       '#empty' => 'No events found.',
       '#caption' => 'Events',
-      '#header' => empty($events) ? [] : array_keys((array) reset($events)),
+      '#header' => [
+        [
+          'data' => $this->t('ID'),
+    // 'field' => 'entity_id'
+        ],
+        $this->t('Title'),
+        $this->t('Capacity'),
+        $this->t('Maintain copy'),
+        $this->t('Ticket type'),
+        $this->t('PSP Element'),
+
+        $this->t('Event shop URL'),
+        $this->t('Event admin URL'),
+      ],
       '#rows' => array_map(
-        static fn (EventData $data) => (array) $data + [
-            [
-              'data' => [
-                '#type' => 'dropbutton',
-                '#links' => [
-                  'edit' => [
-                    'title' => 'edit',
-                    'url' => Url::fromRoute('entity.' . $data->entityType . '.edit_form', [$data->entityType => $data->entityId]),
-                  ],
-                  'show' => [
-                    'title' => 'show',
-                    'url' => Url::fromRoute('entity.' . $data->entityType . '.canonical', [$data->entityType => $data->entityId]),
+        function (EventData $data): array {
+          $id = $data->entityType . ':' . $data->entityId;
+          $routeParameters = [
+            'destination' => Url::fromRoute('dpl_pretix.settings_debug', ['action' => 'events'], ['fragment' => $id])->toString(TRUE)->getGeneratedUrl(),
+          ];
+
+          /** @var \Drupal\recurring_events\EventInterface $entity */
+          $entity = $this->entityTypeManager()->getStorage($data->entityType)->load($data->entityId);
+
+          $renderLink = static fn (?string $url) =>$url ? Link::fromTextAndUrl($url, Url::fromUri($url)) : NULL;
+          return [
+            'id' => $id,
+            'data' => [
+              $id,
+              $entity->toLink($entity->label())->toString(),
+              $data->capacity,
+              $data->maintainCopy ? $this->t('Yes') : $this->t('No'),
+              $data->ticketType,
+              $data->pspElement,
+              $renderLink($data->getEventShopUrl()),
+              $renderLink($data->getEventAdminUrl()),
+
+                [
+                  'data' => [
+                    '#type' => 'dropbutton',
+                    '#links' => [
+                      'edit' => [
+                        'title' => $this->t('Edit'),
+                        'url' => $entity->toUrl('edit-form', [
+                          'query' => [
+                            'destination' => Url::fromRoute('<current>')->toString(TRUE)->getGeneratedUrl(),
+                          ],
+                        ]),
+                      ],
+                    ],
                   ],
                 ],
-              ],
-            ],
-        ],
 
+            ],
+          ];
+        },
         $events
       ),
     ];

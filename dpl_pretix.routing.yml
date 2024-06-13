@@ -7,12 +7,22 @@ dpl_pretix.settings:
     _permission: 'administer pretix settings'
 
 dpl_pretix.settings_debug:
-  path: '/admin/config/dpl_pretix/debug/{action}'
+  path: '/admin/config/dpl_pretix/admin/{action}'
   defaults:
     _title: 'pretix debug'
-    _controller: '\Drupal\dpl_pretix\Controller\DebugController::main'
+    _controller: '\Drupal\dpl_pretix\Controller\AdminController::main'
     action: ~
   options:
     no_cache: true
   requirements:
     _permission: 'administer pretix settings'
+
+dpl_pretix.pretix_webhook:
+  path: '/dpl_pretix/pretix/webhook'
+  defaults:
+    _controller: '\Drupal\dpl_pretix\Controller\PretixWebhookController::main'
+    # @see https://docs.pretix.eu/en/latest/api/webhooks.html
+    _title: 'pretix webhook'
+  methods: [POST]
+  requirements:
+    _permission: 'access content'

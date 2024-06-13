@@ -7,10 +7,9 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Link;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
-use Drupal\dpl_pretix\EventHelper;
+use Drupal\dpl_pretix\EntityHelper;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -32,8 +31,8 @@ final class SettingsForm extends ConfigFormBase {
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
-    private readonly NodeStorageInterface $nodeStorage,
-    private readonly EventHelper $eventHelper,
+    private NodeStorageInterface $nodeStorage,
+    private readonly EntityHelper $eventHelper,
   ) {
     parent::__construct($configFactory);
   }
@@ -41,11 +40,14 @@ final class SettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): self {
+    /** @var \Drupal\dpl_pretix\EntityHelper $eventHelper */
+    $eventHelper = $container->get(EntityHelper::class);
+
     return new static(
       $container->get('config.factory'),
       $container->get('entity_type.manager')->getStorage('node'),
-      $container->get(EventHelper::class),
+      $eventHelper
     );
   }
 
@@ -67,6 +69,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Form constructor.
@@ -82,9 +86,14 @@ final class SettingsForm extends ConfigFormBase {
     $this->buildFormEventNodes($form, $form_state, $config);
     $this->buildFormEventForm($form, $form_state, $config);
 
-    $form['debug'] = [
+    $form['admin'] = [
       '#type' => 'container',
-      'debug' => Link::fromTextAndUrl($this->t('Debug pretix'), Url::fromRoute('dpl_pretix.settings_debug'))->toRenderable(),
+
+      'admin' => [
+        '#type' => 'link',
+        '#title' => $this->t('Admin pretix'),
+        '#url' => Url::fromRoute('dpl_pretix.settings_debug'),
+      ],
     ];
 
     $form['actions']['ping_api'] = [
@@ -106,6 +115,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_PRETIX;
@@ -117,7 +128,8 @@ final class SettingsForm extends ConfigFormBase {
       '#open' => empty($defaults['url'])
       || empty($defaults['organizer'])
       || empty($defaults['api_token'])
-      || empty($defaults['template_event']),
+      || empty($defaults['template_event'])
+      ||TRUE,
 
       'url' => [
         '#type' => 'url',
@@ -150,11 +162,45 @@ final class SettingsForm extends ConfigFormBase {
         '#required' => TRUE,
         '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
       ],
+
+      'event_slug_template' => [
+        '#type' => 'textfield',
+        '#title' => $this->t('Event slug template'),
+        '#default_value' => $defaults['event_slug_template'] ?? '{id}',
+        '#required' => TRUE,
+        '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/> <code>{id}</code>: the event (node) id'),
+      ],
+    ];
+
+    $webhookUrl = Url::fromRoute('dpl_pretix.pretix_webhook')->setAbsolute();
+    $form[$section]['pretix_webhook_info'] = [
+      '#type' => 'container',
+
+      'label' => [
+        '#type' => 'label',
+        '#title' => $this->t('pretix webhook URL'),
+      ],
+
+      'link' => [
+        '#type' => 'link',
+        '#title' => $webhookUrl->toString(TRUE)->getGeneratedUrl(),
+        '#url' => $webhookUrl,
+      ],
+
+      'description' => [
+        '#markup' => $this->t('The <a href="@pretix_webhook_url">pretix webhook URL</a> used by pretix to send notifications.', [
+          '@pretix_webhook_url' => 'https://docs.pretix.eu/en/latest/api/webhooks.html',
+        ]),
+        '#prefix' => '<div class="form-item__description">',
+        '#suffix' => '</div>',
+      ],
     ];
   }
 
   /**
    * Build form.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormLibraries(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_LIBRARIES;
@@ -225,6 +271,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormPspElements(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_PSP_ELEMENTS;
@@ -305,15 +353,22 @@ final class SettingsForm extends ConfigFormBase {
    * Callback for PSP element AJAX buttons.
    *
    * Selects and returns the fieldset with the PSP elements in it.
+   *
+   * @return array<string, mixed>
+   *   The form
+   *
+   * @phpstan-param array<string, mixed> $form
    */
-  public function formPspAjaxCallback(array $form, FormStateInterface $formState) {
+  public function formPspAjaxCallback(array $form, FormStateInterface $formState): array {
     return $form[self::SECTION_PSP_ELEMENTS]['list'];
   }
 
   /**
    * Submit handler for the "add-one-more" button.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
-  public function formPspAddElement(array $form, FormStateInterface $formState) {
+  public function formPspAddElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
     $list = $formState->getValue($key);
     if (!is_array($list)) {
@@ -329,8 +384,10 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "Remove PSP elements" button.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
-  public function formPspRemoveElement(array $form, FormStateInterface $formState) {
+  public function formPspRemoveElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
     $list = $formState->getValue($key);
     if (!is_array($list)) {
@@ -343,6 +400,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormEventNodes(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_EVENT_NODES;
@@ -387,6 +446,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormEventForm(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_EVENT_FORM;
@@ -418,11 +479,15 @@ final class SettingsForm extends ConfigFormBase {
       return;
     }
 
+    // @todo check that pretix template event exists.
+    // @todo check that pretix template event has a single subevent.
     parent::validateForm($form, $form_state);
   }
 
   /**
    * {@inheritdoc}
+   *
+   * @phpstan-param array<string, mixed> $form
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {

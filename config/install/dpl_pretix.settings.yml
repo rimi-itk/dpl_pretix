@@ -6,6 +6,7 @@ pretix:
   api_token: ~
   # Template event short form
   template_event: ~
+  event_slug_template: '{id}'
 
 libraries: {}
 #   -
