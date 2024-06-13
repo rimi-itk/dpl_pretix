@@ -8,8 +8,6 @@ services:
 
   Drupal\dpl_pretix\EventDataHelper:
     autowire: true
-    arguments:
-      $logger: '@logger.channel.dpl_pretix'
 
   Drupal\dpl_pretix\EntityHelper:
     autowire: true
@@ -18,7 +16,5 @@ services:
 
   Drupal\dpl_pretix\FormHelper:
     autowire: true
-    arguments:
-      $logger: '@logger.channel.dpl_pretix'
 
 

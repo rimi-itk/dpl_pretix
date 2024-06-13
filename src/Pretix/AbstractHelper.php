@@ -1,18 +1,18 @@
 <?php
 
-namespace Drupal\itk_pretix\Pretix;
+namespace Drupal\dpl_pretix\Pretix;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-use Drupal\itk_pretix\Exception\SynchronizeException;
-use Drupal\itk_pretix\Plugin\Field\FieldType\PretixDate;
+use Drupal\dpl_pretix\Exception\SynchronizeException;
+use Drupal\dpl_pretix\Plugin\Field\FieldType\PretixDate;
 use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
-use ItkDev\Pretix\Api\Client;
-use ItkDev\Pretix\Api\Entity\Event;
-use ItkDev\Pretix\Api\Entity\SubEvent;
+use Drupal\dpl_pretix\Pretix\ApiClient\Client;
+use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event;
+use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent;
 
 /**
  * Abstract helper.
@@ -26,7 +26,7 @@ abstract class AbstractHelper {
   /**
    * The pretix client.
    *
-   * @var \ItkDev\Pretix\Api\Client|null
+   * @var \Drupal\dpl_pretix\Pretix\ApiClient\Client|null
    */
   protected ?Client $pretixClient = NULL;
 
@@ -50,10 +50,10 @@ abstract class AbstractHelper {
   /**
    * Set pretix client.
    *
-   * @param \ItkDev\Pretix\Api\Client $pretixClient
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Client $pretixClient
    *   The client.
    *
-   * @return \Drupal\itk_pretix\Pretix\AbstractHelper
+   * @return \Drupal\dpl_pretix\Pretix\AbstractHelper
    *   The helper.
    */
   public function setPretixClient(Client $pretixClient): static {
@@ -68,7 +68,7 @@ abstract class AbstractHelper {
    * @param \Drupal\node\NodeInterface $node
    *   The node.
    *
-   * @return \ItkDev\Pretix\Api\Client
+   * @return \Drupal\dpl_pretix\Pretix\ApiClient\Client
    *   The client if any.
    */
   public function getPretixClient(NodeInterface $node): Client {
@@ -95,7 +95,7 @@ abstract class AbstractHelper {
    *   The configuration.
    */
   public function getPretixConfiguration(NodeInterface $node = NULL): array {
-    $config = $this->configFactory->get('itk_pretix.pretixconfig');
+    $config = $this->configFactory->get('dpl_pretix.pretixconfig');
 
     // @todo Handle node, e.g. to get user specific configuration.
     return $config->get();
@@ -117,7 +117,7 @@ abstract class AbstractHelper {
     $eventSlug = $this->getSlug($event);
 
     $result = $this->database
-      ->select('itk_pretix_events', 'p')
+      ->select('dpl_pretix_events', 'p')
       ->fields('p')
       ->condition('pretix_organizer_slug', $organizerSlug, '=')
       ->condition('pretix_event_slug', $eventSlug, '=')
@@ -144,7 +144,7 @@ abstract class AbstractHelper {
 
     if ($reset || !isset($info[$nid])) {
       $record = $this->database
-        ->select('itk_pretix_events', 'p')
+        ->select('dpl_pretix_events', 'p')
         ->fields('p')
         ->condition('nid', $nid, '=')
         ->execute()
@@ -168,7 +168,7 @@ abstract class AbstractHelper {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node.
-   * @param \ItkDev\Pretix\Api\Entity\Event $event
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $event
    *   The event.
    * @param array $data
    *   The data.
@@ -208,7 +208,7 @@ abstract class AbstractHelper {
     $fields['data'] = json_encode($data);
 
     $result = $this->database
-      ->merge('itk_pretix_events')
+      ->merge('dpl_pretix_events')
       ->key(['nid' => $node->id()])
       ->fields($fields)
       ->execute();
@@ -221,7 +221,7 @@ abstract class AbstractHelper {
    *
    * @param object|null $item
    *   The item collection item.
-   * @param \ItkDev\Pretix\Api\Entity\SubEvent $subEvent
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent
    *   The sub-event (id).
    * @param array $data
    *   The data.
@@ -259,7 +259,7 @@ abstract class AbstractHelper {
     $fields['data'] = json_encode($data);
 
     $this->database
-      ->merge('itk_pretix_subevents')
+      ->merge('dpl_pretix_subevents')
       ->key([
         'item_uuid' => $item->uuid,
         'pretix_subevent_id' => $subEvent->getId(),
@@ -286,7 +286,7 @@ abstract class AbstractHelper {
 
     if ($reset || !isset($info[$item->uuid])) {
       $record = $this->database
-        ->select('itk_pretix_subevents', 'p')
+        ->select('dpl_pretix_subevents', 'p')
         ->fields('p')
         ->condition('item_uuid', $item->uuid, '=')
         ->execute()
@@ -305,7 +305,7 @@ abstract class AbstractHelper {
   }
 
   /**
-   * Get keys for looking up an item in the itk_pretix_events table.
+   * Get keys for looking up an item in the dpl_pretix_events table.
    *
    * @param object $item
    *   The item_id.
@@ -382,10 +382,10 @@ abstract class AbstractHelper {
   protected function clientException(string $message, \Exception $clientException = NULL): SynchronizeException {
     // @todo Log the exception.
     if (NULL === $clientException) {
-      $this->loggerFactory->get('itk_pretix')->error($message);
+      $this->loggerFactory->get('dpl_pretix')->error($message);
     }
     else {
-      $this->loggerFactory->get('itk_pretix')->error('@message: @client_message: ', [
+      $this->loggerFactory->get('dpl_pretix')->error('@message: @client_message: ', [
         '@message' => $message,
         '@client_message' => $clientException->getMessage(),
         'client_exception' => $clientException,

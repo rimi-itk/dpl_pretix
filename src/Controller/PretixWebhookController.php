@@ -2,11 +2,9 @@
 
 namespace Drupal\dpl_pretix\Controller;
 
-use DplDev\Pretix\Api\Entity\SubEvent;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
-use Drupal\dpl_pretix\NodeHelper;
-use Drupal\dpl_pretix\Plugin\Field\FieldType\PretixDate;
+use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent;
 use Drupal\dpl_pretix\Pretix\EventHelper;
 use Drupal\dpl_pretix\Pretix\OrderHelper;
 use Symfony\Component\DependencyInjection\ContainerInterface;

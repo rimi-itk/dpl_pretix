@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\itk_pretix\Pretix;
+namespace Drupal\dpl_pretix\Pretix;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -14,7 +14,9 @@ use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event\Settings as EventSettings;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota;
 use Drupal\node\NodeInterface;
+use Safe\DateTimeImmutable;
 use Symfony\Component\HttpFoundation\Response;
+use function Safe\json_decode;
 
 /**
  * Pretix helper.
@@ -25,7 +27,7 @@ class EventHelper extends AbstractHelper {
   /**
    * The order helper.
    *
-   * @var \Drupal\itk_pretix\Pretix\OrderHelper
+   * @var \Drupal\dpl_pretix\Pretix\OrderHelper
    */
   private OrderHelper $orderHelper;
 
@@ -45,7 +47,7 @@ class EventHelper extends AbstractHelper {
    *   The config factory.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
    *   The logger factory.
-   * @param \Drupal\itk_pretix\Pretix\OrderHelper $orderHelper
+   * @param \Drupal\dpl_pretix\Pretix\OrderHelper $orderHelper
    *   The order helper.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   THe module handler interface.
@@ -64,8 +66,10 @@ class EventHelper extends AbstractHelper {
 
   /**
    * Synchronize pretix event with a node.
+   *
+   * @return array<string, mixed>
    */
-  public function syncronizePretixEvent(NodeInterface $node, array $options) {
+  public function syncronizePretixEvent(NodeInterface $node, array $options): array {
     $client = $this->getPretixClient($node);
 
     $info = $this->loadPretixEventInfo($node);
@@ -76,7 +80,7 @@ class EventHelper extends AbstractHelper {
     if (NULL === $dates || $dates->isEmpty()) {
       throw $this->clientException($this->t('No dates specified'));
     }
-    /** @var \Drupal\itk_pretix\Plugin\Field\FieldType\PretixEventSettings $settings */
+    /** @var \Drupal\dpl_pretix\Plugin\Field\FieldType\PretixEventSettings $settings */
     $settings = $options['settings'] ?? NULL;
     if (NULL === $settings) {
       throw $this->clientException($this->t('No settings specified'));
@@ -105,7 +109,7 @@ class EventHelper extends AbstractHelper {
     $context = [
       'is_new_event' => $isNewEvent,
     ];
-    $this->moduleHandler->alter('itk_pretix_event_data', $data, $node, $context);
+    $this->moduleHandler->alter('dpl_pretix_event_data', $data, $node, $context);
 
     $eventData = [];
     if ($isNewEvent) {
@@ -159,13 +163,13 @@ class EventHelper extends AbstractHelper {
   /**
    * Synchronize pretix sub-events.
    *
-   * @param \ItkDev\Pretix\Api\Entity\Event $event
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $event
    *   The event.
    * @param \Drupal\node\NodeInterface $node
    *   The node.
    * @param \Drupal\Core\Field\FieldItemListInterface $dates
    *   The dates.
-   * @param \ItkDev\Pretix\Api\Client $client
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Client $client
    *   The client.
    *
    * @return array
@@ -173,7 +177,7 @@ class EventHelper extends AbstractHelper {
    *
    * @throws \Exception
    */
-  public function synchronizePretixSubEvents(Event $event, NodeInterface $node, FieldItemListInterface $dates, Client $client) {
+  public function synchronizePretixSubEvents(Event $event, NodeInterface $node, FieldItemListInterface $dates, Client $client): array  {
     $info = [];
     $subEventIds = [];
     foreach ($dates as $date) {
@@ -212,13 +216,13 @@ class EventHelper extends AbstractHelper {
   /**
    * Synchronize pretix sub-event.
    *
-   * @param \Drupal\itk_pretix\Plugin\Field\FieldType\PretixDate $item
+   * @param \Drupal\dpl_pretix\Plugin\Field\FieldType\PretixDate $item
    *   The item.
-   * @param \ItkDev\Pretix\Api\Entity\Event $event
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $event
    *   The event.
    * @param \Drupal\node\NodeInterface $node
    *   The node.
-   * @param \ItkDev\Pretix\Api\Client $client
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Client $client
    *   The client.
    *
    * @return array
@@ -303,7 +307,7 @@ class EventHelper extends AbstractHelper {
       'event' => $event,
       'pretix_date' => $item,
     ];
-    $this->moduleHandler->alter('itk_pretix_subevent_data', $data, $node, $context);
+    $this->moduleHandler->alter('dpl_pretix_subevent_data', $data, $node, $context);
 
     // Important: meta_data value must be an object!
     $data['meta_data'] = (object) ($data['meta_data'] ?? []);
@@ -502,9 +506,9 @@ class EventHelper extends AbstractHelper {
   /**
    * Validate the the specified event is a valid template event.
    *
-   * @param \ItkDev\Pretix\Api\Entity\Event $event
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $event
    *   The event.
-   * @param \ItkDev\Pretix\Api\Client|null $client
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Client|null $client
    *   The client.
    *
    * @return null|array
@@ -565,7 +569,7 @@ class EventHelper extends AbstractHelper {
    * @param \Drupal\node\NodeInterface $node
    *   The node.
    *
-   * @return array|Exporter[]|\ItkDev\Pretix\Api\Collections\EntityCollectionInterface
+   * @return array|Exporter[]|\Drupal\dpl_pretix\Pretix\ApiClient\Collections\EntityCollectionInterface
    *   The exporters.
    */
   public function getExporters(NodeInterface $node) {
@@ -614,7 +618,7 @@ class EventHelper extends AbstractHelper {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node.
-   * @param \ItkDev\Pretix\Api\Entity\Event $event
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $event
    *   The event.
    *
    * @throws \Exception
@@ -708,12 +712,12 @@ class EventHelper extends AbstractHelper {
    * @param mixed $value
    *   Something that may be converted to a DateTime.
    *
-   * @return \DateTime|null
+   * @return \DateTimeInterface|null
    *   The date.
    *
    * @throws \Exception
    */
-  private function getDate($value) {
+  private function getDate($value): ?\DateTimeInterface {
     if (NULL === $value) {
       return NULL;
     }
@@ -727,10 +731,10 @@ class EventHelper extends AbstractHelper {
     }
 
     if (is_numeric($value)) {
-      return new \DateTime('@' . $value);
+      return new DateTimeImmutable('@' . $value);
     }
 
-    return new \DateTime($value);
+    return new DateTimeImmutable($value);
   }
 
   /**
@@ -744,7 +748,7 @@ class EventHelper extends AbstractHelper {
    *
    * @throws \Exception
    */
-  private function formatDate($date = NULL) {
+  private function formatDate($date = NULL): ?string {
     $date = $this->getDate($date);
 
     return NULL === $date ? NULL : $date->format(self::DATETIME_FORMAT);

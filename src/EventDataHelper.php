@@ -6,7 +6,6 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\recurring_events\EventInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Event data manager.
@@ -21,7 +20,6 @@ class EventDataHelper {
   public function __construct(
     private readonly Settings $settings,
     private readonly Connection $database,
-    private readonly LoggerInterface $logger,
   ) {
   }
 

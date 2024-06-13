@@ -152,7 +152,7 @@ final class AdminController extends ControllerBase {
       '#header' => [
         [
           'data' => $this->t('ID'),
-    // 'field' => 'entity_id'
+          // 'field' => 'entity_id'
         ],
         $this->t('Title'),
         $this->t('Capacity'),
@@ -165,6 +165,7 @@ final class AdminController extends ControllerBase {
       ],
       '#rows' => array_map(
         function (EventData $data): array {
+          assert(isset($data->entityType, $data->entityId));
           $id = $data->entityType . ':' . $data->entityId;
           $routeParameters = [
             'destination' => Url::fromRoute('dpl_pretix.settings_debug', ['action' => 'events'], ['fragment' => $id])->toString(TRUE)->getGeneratedUrl(),
@@ -205,7 +206,10 @@ final class AdminController extends ControllerBase {
             ],
           ];
         },
-        $events
+        array_filter(
+          $events,
+          static fn (EventData $data) => isset($data->entityType, $data->entityId)
+        )
       ),
     ];
 

@@ -15,6 +15,8 @@ use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\recurring_events\EventInterface;
 use Psr\Log\LoggerInterface;
+use Safe\DateTimeImmutable;
+use function Safe\sprintf;
 
 /**
  * Entity helper.
@@ -22,8 +24,6 @@ use Psr\Log\LoggerInterface;
 class EntityHelper {
   use StringTranslationTrait;
   use DependencySerializationTrait;
-
-  private const TABLE_NAME = 'dpl_pretix_events';
 
   public const INSERT = 'insert';
   public const UPDATE = 'update';
@@ -50,6 +50,8 @@ class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
+    $this->messenger->addWarning(__FUNCTION__);
+
     if ($entity instanceof EventSeries) {
       // @see https://drupal.stackexchange.com/a/225627
       drupal_register_shutdown_function($this->postEntityInsert(...), $entity);
@@ -60,6 +62,8 @@ class EntityHelper {
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
+    $this->messenger->addWarning(__FUNCTION__);
+
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity, self::UPDATE);
     }
@@ -69,6 +73,8 @@ class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
+    $this->messenger->addWarning(__FUNCTION__);
+
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity, self::DELETE);
     }
@@ -78,6 +84,8 @@ class EntityHelper {
    * Syncronize event in pretix.
    */
   public function synchronizeEvent(EventSeries $event, string $action): void {
+    $this->messenger->addWarning(__FUNCTION__);
+
     if ($event instanceof EventSeries) {
       try {
         $data = $this->eventDataHelper->loadEventData($event) ?? $this->eventDataHelper->createEventData($event);
@@ -86,7 +94,7 @@ class EntityHelper {
           $pretixEvent = $this->pretix()->updateEvent(
             $data->pretixEvent, [
               'name' => ['da' => $event->label()],
-              'date_from' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+              'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
             ]);
         }
         else {
@@ -94,10 +102,14 @@ class EntityHelper {
           $pretixEvent = $this->pretix()->createEvent([
             'name' => ['da' => $event->label()],
             'slug' => str_replace(['{id}'], [$event->id()], 'dpl-pretix-{id}'),
-            'date_from' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
           ]);
-          $data->pretixUrl = $this->settings->getPretix('url');
-          $data->pretixOrganizer = $this->settings->getPretix('organizer');
+          /** @var string $url */
+          $url = $this->settings->getPretix('url');
+          $data->pretixUrl = $url;
+          /** @var string $organizer */
+          $organizer = $this->settings->getPretix('organizer');
+          $data->pretixOrganizer = $organizer;
           $data->pretixEvent = $pretixEvent->getSlug();
           $this->eventDataHelper->saveEventData($event, $data);
 
@@ -122,7 +134,7 @@ class EntityHelper {
    * Get event series.
    */
   public function getEventSeries(string $id): EventSeries {
-    /** @var \Drupal\recurring_events\Entity\EventSeries $event */
+    /** @var ?\Drupal\recurring_events\Entity\EventSeries $event */
     $event = $this->entityTypeManager->getStorage('eventseries')->load($id);
 
     if (NULL === $event) {
@@ -145,7 +157,7 @@ class EntityHelper {
   /**
    * Set event data.
    */
-  public function setEventData(EventInterface $event, EventData $data): void {
+  public function setEventData(EventSeries $event, EventData $data): void {
     $this->eventDataHelper->saveEventData($event, $data);
     $this->synchronizeEvent($event, $event->isNew() ? self::INSERT : self::UPDATE);
   }
@@ -198,6 +210,8 @@ class EntityHelper {
    * @see https://drupal.stackexchange.com/a/225627
    */
   private function postEntityInsert(EntityInterface $entity): void {
+    $this->messenger->addWarning(__FUNCTION__);
+
     if ($entity instanceof EventSeries) {
       $data = $this->eventDataHelper->createEventData($entity);
       $this->eventDataHelper->saveEventData($entity, $data);

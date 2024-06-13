@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\itk_pretix\Pretix;
+namespace Drupal\dpl_pretix\Pretix;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -50,7 +50,7 @@ class OrderHelper extends AbstractHelper {
    * @param string $orderCode
    *   The order code.
    *
-   * @return \ItkDev\Pretix\Api\Entity\Order
+   * @return \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Order
    *   The order.
    */
   public function getOrder($organizer, $event, $orderCode) {
@@ -152,9 +152,11 @@ class OrderHelper extends AbstractHelper {
    * @param object $order
    *   The pretix order.
    *
+   * @return array<string, mixed>
+   *
    * @throws \Exception
    */
-  public function getOrderLines($order) {
+  public function getOrderLines($order): array {
     throw new \RuntimeException(__METHOD__ . ' not implemented');
   }
 
@@ -163,15 +165,17 @@ class OrderHelper extends AbstractHelper {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node.
+   *
+   * @return array<string, mixed>
    */
-  public function getAvailability(NodeInterface $node) {
+  public function getAvailability(NodeInterface $node): array {
     throw new \RuntimeException(__METHOD__ . ' not implemented');
   }
 
   /**
    * Get sub-event availability from pretix.
    *
-   * @param \ItkDev\Pretix\Api\Entity\SubEvent $subEvent
+   * @param SubEvent $subEvent
    *   The sub-event.
    *
    * @return \Doctrine\Common\Collections\Collection
@@ -212,15 +216,15 @@ class OrderHelper extends AbstractHelper {
   /**
    * Ensure that the pretix callback webhook exists.
    *
-   * @param \ItkDev\Pretix\Api\Client $client
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Client $client
    *   The pretix client.
    *
-   * @return \ItkDev\Pretix\Api\Entity\Webhook
+   * @return \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Webhook
    *   The webhook.
    */
   public function ensureWebhook(Client $client) {
     $targetUrl = Url::fromRoute(
-      'itk_pretix.pretix_webhook',
+      'dpl_pretix.pretix_webhook',
       [],
       ['absolute' => TRUE]
     )->toString();
@@ -266,7 +270,7 @@ class OrderHelper extends AbstractHelper {
   /**
    * Get sub-event availability from pretix.
    *
-   * @param \ItkDev\Pretix\Api\Entity\SubEvent $subEvent
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent
    *   The sub-event.
    *
    * @return \Doctrine\Common\Collections\Collection

@@ -4,7 +4,9 @@ namespace Drupal\dpl_pretix\Entity;
 
 use Drupal\dpl_pretix\Exception\InvalidPropertyException;
 use Drupal\recurring_events\EventInterface;
+use Safe\Exceptions\JsonException;
 use function \Safe\json_decode;
+use function \Safe\sprintf;
 
 /**
  * Event data for event series and event instance.
@@ -62,6 +64,8 @@ final class EventData implements \JsonSerializable {
 
   /**
    * The data.
+   *
+   * @var array<string, mixed>
    */
   public ?array $data = NULL;
 
@@ -100,7 +104,7 @@ final class EventData implements \JsonSerializable {
     try {
       $data->data = json_decode($row->data ?? 'NULL', TRUE, 512, JSON_THROW_ON_ERROR);
     }
-    catch (\JsonException $e) {
+    catch (JsonException) {
     }
 
     return $data;
@@ -142,6 +146,8 @@ final class EventData implements \JsonSerializable {
 
   /**
    * {@inheritdoc}
+   *
+   * @return array<string, string|bool|array<string, mixed>|null>
    */
   public function jsonSerialize(): array {
     return $this->toArray();
@@ -150,7 +156,7 @@ final class EventData implements \JsonSerializable {
   /**
    * Decide if pretix data is set.
    */
-  public function hasPretixEvent() {
+  public function hasPretixEvent(): bool {
     return !empty($this->pretixUrl)
       && !empty($this->pretixOrganizer)
       && !empty($this->pretixEvent);
@@ -164,6 +170,7 @@ final class EventData implements \JsonSerializable {
       return NULL;
     }
 
+    assert(isset($this->pretixUrl, $this->pretixOrganizer, $this->pretixEvent));
     return sprintf('%s/control/event/%s/%s', rtrim($this->pretixUrl, '/'), urlencode($this->pretixOrganizer),
       urlencode($this->pretixEvent));
   }
@@ -176,9 +183,10 @@ final class EventData implements \JsonSerializable {
       return NULL;
     }
 
+    assert(isset($this->pretixUrl, $this->pretixOrganizer, $this->pretixEvent));
     $url = sprintf('%s/%s/%s', rtrim($this->pretixUrl, '/'), urlencode($this->pretixOrganizer), urlencode($this->pretixEvent));
 
-    if (NULL !== $this->pretixSubeventId) {
+    if (isset($this->pretixSubeventId)) {
       $url .= '/' . $this->pretixSubeventId;
     }
 
@@ -188,7 +196,7 @@ final class EventData implements \JsonSerializable {
   /**
    * Convert kebab_case to camelCase.
    */
-  private static function kebab2camel(string $value) {
+  private static function kebab2camel(string $value): string {
     return lcfirst(str_replace('_', '', ucwords($value, '_')));
   }
 

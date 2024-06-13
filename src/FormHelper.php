@@ -11,7 +11,6 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\recurring_events\Entity\EventSeries;
-use Psr\Log\LoggerInterface;
 
 /**
  * Form helper.
@@ -31,7 +30,6 @@ class FormHelper {
     private readonly EntityHelper $eventHelper,
     private readonly EventDataHelper $eventDataHelper,
     private readonly AccountInterface $currentUser,
-    private readonly LoggerInterface $logger,
   ) {
   }
 
@@ -64,13 +62,12 @@ class FormHelper {
       '#weight' => $this->settings->getEventForm()['weight'] ?? 9999,
       '#type' => 'details',
       '#title' => $this->t('pretix'),
-      // '#group' => 'additional_settings',
       '#tree' => TRUE,
       '#open' => TRUE,
     ];
 
     // We don't allow manual change of the ticket link if pretix is used.
-    if ($eventData?->maintainCopy) {
+    if ($eventData->maintainCopy) {
       if (isset($form['field_event_link'])) {
         $element = &$form['field_event_link'];
         $element['#disabled'] = TRUE;
@@ -79,7 +76,7 @@ class FormHelper {
       }
     }
 
-    $pretixEventId = $eventData?->pretixEvent;
+    $pretixEventId = $eventData->pretixEvent;
 
     // We don't allow updates to capacity after the event is created in pretix,
     // must be updated in pretix.
@@ -118,7 +115,7 @@ class FormHelper {
         '#type' => 'select',
         '#title' => $this->t('PSP Element'),
         '#options' => $options,
-        '#default_value' => $eventData?->pspElement,
+        '#default_value' => $eventData->pspElement,
         '#required' => TRUE,
         '#empty_option' => $this->t('Select PSP Element'),
         '#description' => $description,
@@ -129,7 +126,7 @@ class FormHelper {
     $form[self::FORM_KEY][self::ELEMENT_MAINTAIN_COPY] = [
       '#type' => 'checkbox',
       '#title' => t('Maintain copy in pretix'),
-      '#default_value' => $eventData?->maintainCopy,
+      '#default_value' => $eventData->maintainCopy,
       '#description' => t('When set, a corresponding event is created and updated on the pretix ticket booking service.'),
     ];
 
@@ -141,12 +138,12 @@ class FormHelper {
         'email_ticket' => t('Email Tickets'),
       ],
       '#required' => TRUE,
-      '#default_value' => $eventData?->ticketType,
+      '#default_value' => $eventData->ticketType,
       '#description' => t('Use PDF or Email tickets for the event?'),
     ];
 
     if (!$entity->isNew()) {
-      if ($pretixAdminUrl = $eventData?->getEventAdminUrl()) {
+      if ($pretixAdminUrl = $eventData->getEventAdminUrl()) {
         $pretix_link = Link::fromTextAndUrl($pretixAdminUrl, Url::fromUri($pretixAdminUrl))->toString();
       }
       else {

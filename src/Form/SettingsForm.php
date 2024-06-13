@@ -126,10 +126,9 @@ final class SettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => $this->t('pretix'),
       '#open' => empty($defaults['url'])
-      || empty($defaults['organizer'])
-      || empty($defaults['api_token'])
-      || empty($defaults['template_event'])
-      ||TRUE,
+        || empty($defaults['organizer'])
+        || empty($defaults['api_token'])
+        || empty($defaults['template_event']),
 
       'url' => [
         '#type' => 'url',
