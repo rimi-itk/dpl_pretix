@@ -9,3 +9,5 @@ composer-*.*
 node_modules
 package.json
 phpcs.xml
+release/
+vendor/
