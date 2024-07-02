@@ -1,12 +1,25 @@
 pretix:
-  url: https://pretix.eu/
-  # Organizer short form
-  organizer: ~
-  # Team API token
-  api_token: ~
-  # Template event short form
-  template_event: ~
-  event_slug_template: '{id}'
+  prod:
+    domain: ~
+    url: https://pretix.eu/
+    # Organizer short form
+    organizer: ~
+    # Team API token
+    api_token: ~
+    # Template event short form
+    template_event: ~
+    event_slug_template: '{id}'
+
+  test:
+    domain: ~
+    url: https://test.pretix.eu/
+    # Organizer short form
+    organizer: ~
+    # Team API token
+    api_token: ~
+    # Template event short form
+    template_event: ~
+    event_slug_template: 'test-{id}'
 
 libraries: {}
 #   -

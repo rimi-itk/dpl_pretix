@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
 use Drupal\dpl_pretix\Settings\PretixSettings;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Settings for dpl_pretix.
@@ -18,6 +19,7 @@ class Settings {
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
+    private readonly RequestStack $requestStack,
   ) {
     $this->config = $configFactory->get(SettingsForm::CONFIG_NAME);
   }
@@ -28,8 +30,38 @@ class Settings {
    * @return \Drupal\dpl_pretix\Settings\PretixSettings
    *   The pretix setting(s).
    */
-  public function getPretixSettings(): PretixSettings {
-    return new PretixSettings($this->getValue(SettingsForm::SECTION_PRETIX));
+  public function getPretixSettings(string $domain = NULL): PretixSettings {
+    $domain ??= $this->getCurrentDomain();
+
+    $values = $this->getValue(SettingsForm::SECTION_PRETIX);
+    $pretixValues = [];
+    if (isset($values[$domain])) {
+      $pretixValues = $values[$domain];
+    }
+    else {
+      // Find settings by host.
+      foreach ($values as $key => $config) {
+        if (is_array($config) && $domain === ($config['domain'] ?? NULL)) {
+          $pretixValues = $config;
+        }
+      }
+    }
+
+    return new PretixSettings($pretixValues);
+  }
+
+  /**
+   * Check if a pretix settings is active.
+   */
+  public function isActivePretixSettings(PretixSettings $settings): bool {
+    return $settings->domain === $this->getCurrentDomain();
+  }
+
+  /**
+   * Get current domain.
+   */
+  public function getCurrentDomain(): ?string {
+    return $this->requestStack->getCurrentRequest()?->getHost();
   }
 
   /**
@@ -60,6 +92,22 @@ class Settings {
    */
   public function getEventForm(?string $key = NULL): array|string|null {
     return $this->getValue(SettingsForm::SECTION_EVENT_FORM, $key);
+  }
+
+  /**
+   * Convert kebab_case to camelCase.
+   */
+  public static function kebab2camel(string $value): string {
+    return lcfirst(str_replace('_', '', ucwords($value, '_')));
+  }
+
+  /**
+   * Convert camelCase to kebab_case.
+   *
+   * @see https://stackoverflow.com/a/40514305/2502647
+   */
+  public static function camel2kebab(string $value): string {
+    return strtolower(preg_replace('/(?<=\d)(?=[A-Za-z])|(?<=[A-Za-z])(?=\d)|(?<=[a-z])(?=[A-Z])/', '_', $value));
   }
 
   /**

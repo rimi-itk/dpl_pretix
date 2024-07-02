@@ -2,14 +2,22 @@
 
 namespace Drupal\dpl_pretix\Settings;
 
+use Drupal\dpl_pretix\Settings;
+
 /**
  * Abstract settings.
  */
 abstract class AbstractSettings {
 
+  /**
+   * The values.
+   */
+  protected array $values;
+
   public function __construct(array $values) {
+    $this->values = [];
     foreach ($values as $key => $value) {
-      $name = $this->toCamelCase($key);
+      $name = Settings::kebab2camel($key);
       if (!property_exists($this, $name)) {
         throw new \RuntimeException(
           $name !== $key
@@ -18,14 +26,15 @@ abstract class AbstractSettings {
         );
       }
       $this->$name = $value;
+      $this->values[Settings::camel2kebab($name)] = $value;
     }
   }
 
   /**
-   * Convert a snake_case name to camelCase.
+   * Settings as array.
    */
-  protected function toCamelCase(string $value) {
-    return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $value))));
+  public function toArray(): array {
+    return $this->values;
   }
 
 }

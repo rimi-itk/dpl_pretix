@@ -7,6 +7,11 @@ namespace Drupal\dpl_pretix\Settings;
  */
 class PretixSettings extends AbstractSettings {
   /**
+   * The Drupal domain.
+   */
+  public ?string $domain = NULL;
+
+  /**
    * The URL.
    */
   public ?string $url = NULL;

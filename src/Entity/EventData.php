@@ -3,6 +3,7 @@
 namespace Drupal\dpl_pretix\Entity;
 
 use Drupal\dpl_pretix\Exception\InvalidPropertyException;
+use Drupal\dpl_pretix\Settings;
 use Drupal\recurring_events\EventInterface;
 use Safe\Exceptions\JsonException;
 use function \Safe\json_decode;
@@ -114,7 +115,7 @@ final class EventData implements \JsonSerializable {
    * Set value if the current value is not set.
    */
   public function setDefault(string $name, mixed $value): self {
-    $name = self::kebab2camel($name);
+    $name = Settings::kebab2camel($name);
     if (property_exists($this, $name)) {
       // Set property if the current value is null.
       $this->$name ??= $value;
@@ -192,13 +193,6 @@ final class EventData implements \JsonSerializable {
     }
 
     return $url;
-  }
-
-  /**
-   * Convert kebab_case to camelCase.
-   */
-  private static function kebab2camel(string $value): string {
-    return lcfirst(str_replace('_', '', ucwords($value, '_')));
   }
 
 }

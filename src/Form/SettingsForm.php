@@ -13,6 +13,7 @@ use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\Settings;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Module settings form.
@@ -126,80 +127,132 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_PRETIX;
-    $defaults = $this->settings->getPretixSettings();
 
-    $form[$section] = [
-      '#type' => 'details',
-      '#title' => $this->t('pretix'),
-      '#open' => empty($defaults->url)
-      || empty($defaults->organizer)
-      || empty($defaults->apiToken)
-      || empty($defaults->templateEvent),
+    $subSections = ['prod', 'test'];
 
-      'url' => [
-        '#type' => 'url',
-        '#title' => t('URL'),
-        '#default_value' => $defaults->url,
-        '#required' => TRUE,
-        '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
-      ],
+    $activeSettings = NULL;
 
-      'organizer' => [
-        '#type' => 'textfield',
-        '#title' => $this->t('Organizer'),
-        '#default_value' => $defaults->organizer,
-        '#required' => TRUE,
-        '#description' => $this->t('This is the default organizer short form used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
-      ],
-
-      'api_token' => [
-        '#type' => 'textfield',
-        '#title' => $this->t('The API token of the Organizer Team'),
-        '#default_value' => $defaults->apiToken,
-        '#required' => TRUE,
-        '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
-      ],
-
-      'template_event' => [
-        '#type' => 'textfield',
-        '#title' => $this->t('The short form of the default event template'),
-        '#default_value' => $defaults->templateEvent,
-        '#required' => TRUE,
-        '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
-      ],
-
-      'event_slug_template' => [
-        '#type' => 'textfield',
-        '#title' => $this->t('Event slug template'),
-        '#default_value' => $defaults->eventSlugTemplate,
-        '#required' => TRUE,
-        '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/> <code>{id}</code>: the event (node) id'),
-      ],
+    $groupName = $section . '_tabs';
+    $form[$groupName] = [
+      '#type' => 'vertical_tabs',
+      '#title' => $this->t('pretix event settings'),
+      '#description' => $this->t('The active pretix settings will be selected based on the active domain (%domain).', [
+        '%domain' => $this->settings->getCurrentDomain(),
+      ]),
+      '#description_display' => 'before',
     ];
 
-    $webhookUrl = Url::fromRoute('dpl_pretix.pretix_webhook')->setAbsolute();
-    $form[$section]['pretix_webhook_info'] = [
-      '#type' => 'container',
+    foreach ($subSections as $subSection) {
+      $defaults = $this->settings->getPretixSettings($subSection);
+      $isActive = $this->settings->isActivePretixSettings($defaults);
 
-      'label' => [
-        '#type' => 'label',
-        '#title' => $this->t('pretix webhook URL'),
-      ],
+      if ($isActive) {
+        $activeSettings = $defaults;
+        $form[$groupName]['#default_tab'] = 'edit-pretix-' . $subSection;
+      }
 
-      'link' => [
-        '#type' => 'link',
-        '#title' => $webhookUrl->toString(TRUE)->getGeneratedUrl(),
-        '#url' => $webhookUrl,
-      ],
+      $form[$section][$subSection] = [
+        '#group' => $groupName,
 
-      'description' => [
-        '#markup' => $this->t('The <a href="@pretix_webhook_url">pretix webhook URL</a> used by pretix to send notifications.', [
-          '@pretix_webhook_url' => 'https://docs.pretix.eu/en/latest/api/webhooks.html',
-        ]),
-        '#prefix' => '<div class="form-item__description">',
-        '#suffix' => '</div>',
-      ],
-    ];
+        '#type' => 'details',
+        '#title' => $this->t('pretix (%section)', ['%section' => $subSection])
+        . ($isActive ? ' [' . $this->t('active') . ']' : ''),
+
+        'domain' => [
+          '#type' => 'textfield',
+          '#title' => t('Domain'),
+          '#default_value' => $defaults->domain,
+          '#required' => TRUE,
+          '#description' => t('The Drupal domain that these pretix settings apply to.'),
+          '#element_validate' => [[$this, 'validateDomain']],
+        ],
+
+        'url' => [
+          '#type' => 'url',
+          '#title' => t('URL'),
+          '#default_value' => $defaults->url,
+          '#required' => TRUE,
+          '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
+        ],
+
+        'organizer' => [
+          '#type' => 'textfield',
+          '#title' => $this->t('Organizer'),
+          '#default_value' => $defaults->organizer,
+          '#required' => TRUE,
+          '#description' => $this->t('This is the default organizer short form used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
+        ],
+
+        'api_token' => [
+          '#type' => 'textfield',
+          '#title' => $this->t('The API token of the Organizer Team'),
+          '#default_value' => $defaults->apiToken,
+          '#required' => TRUE,
+          '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
+        ],
+
+        'template_event' => [
+          '#type' => 'textfield',
+          '#title' => $this->t('The short form of the default event template'),
+          '#default_value' => $defaults->templateEvent,
+          '#required' => TRUE,
+          '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
+        ],
+
+        'event_slug_template' => [
+          '#type' => 'textfield',
+          '#title' => $this->t('Event slug template'),
+          '#default_value' => $defaults->eventSlugTemplate,
+          '#required' => TRUE,
+          '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/> <code>{id}</code>: the event (node) id'),
+        ],
+      ];
+
+      $webhookUrl = Url::fromRoute('dpl_pretix.pretix_webhook')->setAbsolute();
+      $form[$section][$subSection]['pretix_webhook_info'] = [
+        '#type' => 'container',
+
+        'label' => [
+          '#type' => 'label',
+          '#title' => $this->t('pretix webhook URL'),
+        ],
+
+        'link' => [
+          '#type' => 'link',
+          '#title' => $webhookUrl->toString(TRUE)->getGeneratedUrl(),
+          '#url' => $webhookUrl,
+        ],
+
+        'description' => [
+          '#markup' => $this->t('The <a href="@pretix_webhook_url">pretix webhook URL</a> used by pretix to send notifications.',
+            [
+              '@pretix_webhook_url' => 'https://docs.pretix.eu/en/latest/api/webhooks.html',
+            ]),
+          '#prefix' => '<div class="form-item__description">',
+          '#suffix' => '</div>',
+        ],
+      ];
+    }
+
+    if (Request::METHOD_GET === $this->getRequest()->getMethod() && empty($activeSettings)) {
+      $this->messenger()->addWarning(
+        $this->t('No pretix settings are currently active (based on the domain %domain).', [
+          '%domain' => $this->settings->getCurrentDomain(),
+        ])
+      );
+    }
+  }
+
+  /**
+   * Validate domain.
+   */
+  public function validateDomain(array $element, FormStateInterface $formState) {
+    $value = $formState->getValue($element['#parents']);
+
+    // @todo FILTER_VALIDATE_DOMAIN does not work as expected; it does not report '1 2 3', say, as invalid.
+    if (!filter_var($value, FILTER_VALIDATE_DOMAIN)) {
+      $formState->setError($element, $this->t('@value is not a valid host name'));
+    }
   }
 
   /**
