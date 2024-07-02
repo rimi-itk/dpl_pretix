@@ -104,12 +104,9 @@ class EntityHelper {
             'slug' => str_replace(['{id}'], [$event->id()], 'dpl-pretix-{id}'),
             'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
           ]);
-          /** @var string $url */
-          $url = $this->settings->getPretix('url');
-          $data->pretixUrl = $url;
-          /** @var string $organizer */
-          $organizer = $this->settings->getPretix('organizer');
-          $data->pretixOrganizer = $organizer;
+          $settings = $this->settings->getPretixSettings();
+          $data->pretixUrl = $settings->url;
+          $data->pretixOrganizer = $settings->organizer;
           $data->pretixEvent = $pretixEvent->getSlug();
           $this->eventDataHelper->saveEventData($event, $data);
 
@@ -198,7 +195,12 @@ class EntityHelper {
    */
   private function pretix(): PretixApiClient {
     if (!isset($this->pretixApiClient)) {
-      $this->pretixApiClient = new PretixApiClient($this->settings->getPretix());
+      $settings = $this->settings->getPretixSettings();
+      $this->pretixApiClient = new PretixApiClient([
+        'url' => $settings->url,
+        'organizer' => $settings->organizer,
+        'api_token' => $settings->apiToken,
+      ]);
     }
 
     return $this->pretixApiClient;

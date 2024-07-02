@@ -68,6 +68,7 @@ class EventHelper extends AbstractHelper {
    * Synchronize pretix event with a node.
    *
    * @return array<string, mixed>
+   *   The result.
    */
   public function syncronizePretixEvent(NodeInterface $node, array $options): array {
     $client = $this->getPretixClient($node);
@@ -177,7 +178,7 @@ class EventHelper extends AbstractHelper {
    *
    * @throws \Exception
    */
-  public function synchronizePretixSubEvents(Event $event, NodeInterface $node, FieldItemListInterface $dates, Client $client): array  {
+  public function synchronizePretixSubEvents(Event $event, NodeInterface $node, FieldItemListInterface $dates, Client $client): array {
     $info = [];
     $subEventIds = [];
     foreach ($dates as $date) {

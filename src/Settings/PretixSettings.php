@@ -1,0 +1,34 @@
+<?php
+
+namespace Drupal\dpl_pretix\Settings;
+
+/**
+ * Pretix settings.
+ */
+class PretixSettings extends AbstractSettings {
+  /**
+   * The URL.
+   */
+  public ?string $url = NULL;
+
+  /**
+   * The organizer.
+   */
+  public ?string $organizer = NULL;
+
+  /**
+   * The API token.
+   */
+  public ?string $apiToken = NULL;
+
+  /**
+   * The template event (slug).
+   */
+  public ?string $templateEvent = NULL;
+
+  /**
+   * The event slug template.
+   */
+  public ?string $eventSlugTemplate = '{id}';
+
+}

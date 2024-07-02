@@ -148,6 +148,7 @@ final class EventData implements \JsonSerializable {
    * {@inheritdoc}
    *
    * @return array<string, string|bool|array<string, mixed>|null>
+   *   The array.
    */
   public function jsonSerialize(): array {
     return $this->toArray();

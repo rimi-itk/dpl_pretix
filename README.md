@@ -86,6 +86,10 @@ See the `build:pretix-api-client` task in `Taskfile.yml` for details on how the 
 task dev:coding-standards:check
 ```
 
+``` shell
+docker run --rm --volume "$PWD:/mnt" koalaman/shellcheck:stable scripts/create-release scripts/code-analysis
+```
+
 ## Code analysis
 
 ``` shell
@@ -95,3 +99,7 @@ task dev:code-analysis
 [`itk-dev/pretix-api-client-php`]: https://github.com/itk-dev/pretix-api-client-php
 [itk-dev/pretix-api-client-php[DPL CMS]: https://github.com/danskernesdigitalebibliotek/dpl-cms/
 [pretix]: https://pretix.eu/about/en/ "Ticketing software that cares about your event—all the way."
+
+``` shell
+docker compose build && docker compose run --rm php scripts/create-release dev-test
+```

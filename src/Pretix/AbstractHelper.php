@@ -8,11 +8,11 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\dpl_pretix\Exception\SynchronizeException;
 use Drupal\dpl_pretix\Plugin\Field\FieldType\PretixDate;
-use Drupal\node\Entity\Node;
-use Drupal\node\NodeInterface;
 use Drupal\dpl_pretix\Pretix\ApiClient\Client;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent;
+use Drupal\node\Entity\Node;
+use Drupal\node\NodeInterface;
 
 /**
  * Abstract helper.

@@ -10,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\EntityHelper;
+use Drupal\dpl_pretix\Settings;
 use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -33,6 +34,7 @@ final class SettingsForm extends ConfigFormBase {
     ConfigFactoryInterface $configFactory,
     private NodeStorageInterface $nodeStorage,
     private readonly EntityHelper $eventHelper,
+    private readonly Settings $settings,
   ) {
     parent::__construct($configFactory);
   }
@@ -44,10 +46,14 @@ final class SettingsForm extends ConfigFormBase {
     /** @var \Drupal\dpl_pretix\EntityHelper $eventHelper */
     $eventHelper = $container->get(EntityHelper::class);
 
+    /** @var \Drupal\dpl_pretix\Settings $settings */
+    $settings = $container->get(Settings::class);
+
     return new static(
       $container->get('config.factory'),
       $container->get('entity_type.manager')->getStorage('node'),
-      $eventHelper
+      $eventHelper,
+      $settings
     );
   }
 
@@ -120,20 +126,20 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_PRETIX;
-    $defaults = $config->get($section);
+    $defaults = $this->settings->getPretixSettings();
 
     $form[$section] = [
       '#type' => 'details',
       '#title' => $this->t('pretix'),
-      '#open' => empty($defaults['url'])
-        || empty($defaults['organizer'])
-        || empty($defaults['api_token'])
-        || empty($defaults['template_event']),
+      '#open' => empty($defaults->url)
+      || empty($defaults->organizer)
+      || empty($defaults->apiToken)
+      || empty($defaults->templateEvent),
 
       'url' => [
         '#type' => 'url',
         '#title' => t('URL'),
-        '#default_value' => $defaults['url'] ?? NULL,
+        '#default_value' => $defaults->url,
         '#required' => TRUE,
         '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
       ],
@@ -141,7 +147,7 @@ final class SettingsForm extends ConfigFormBase {
       'organizer' => [
         '#type' => 'textfield',
         '#title' => $this->t('Organizer'),
-        '#default_value' => $defaults['organizer'] ?? NULL,
+        '#default_value' => $defaults->organizer,
         '#required' => TRUE,
         '#description' => $this->t('This is the default organizer short form used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
@@ -149,7 +155,7 @@ final class SettingsForm extends ConfigFormBase {
       'api_token' => [
         '#type' => 'textfield',
         '#title' => $this->t('The API token of the Organizer Team'),
-        '#default_value' => $defaults['api_token'] ?? NULL,
+        '#default_value' => $defaults->apiToken,
         '#required' => TRUE,
         '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
       ],
@@ -157,7 +163,7 @@ final class SettingsForm extends ConfigFormBase {
       'template_event' => [
         '#type' => 'textfield',
         '#title' => $this->t('The short form of the default event template'),
-        '#default_value' => $defaults['template_event'] ?? NULL,
+        '#default_value' => $defaults->templateEvent,
         '#required' => TRUE,
         '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
       ],
@@ -165,7 +171,7 @@ final class SettingsForm extends ConfigFormBase {
       'event_slug_template' => [
         '#type' => 'textfield',
         '#title' => $this->t('Event slug template'),
-        '#default_value' => $defaults['event_slug_template'] ?? '{id}',
+        '#default_value' => $defaults->eventSlugTemplate,
         '#required' => TRUE,
         '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/> <code>{id}</code>: the event (node) id'),
       ],

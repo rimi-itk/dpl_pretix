@@ -153,6 +153,7 @@ class OrderHelper extends AbstractHelper {
    *   The pretix order.
    *
    * @return array<string, mixed>
+   *   The order lines.
    *
    * @throws \Exception
    */
@@ -167,6 +168,7 @@ class OrderHelper extends AbstractHelper {
    *   The node.
    *
    * @return array<string, mixed>
+   *   The availability.
    */
   public function getAvailability(NodeInterface $node): array {
     throw new \RuntimeException(__METHOD__ . ' not implemented');
@@ -175,7 +177,7 @@ class OrderHelper extends AbstractHelper {
   /**
    * Get sub-event availability from pretix.
    *
-   * @param SubEvent $subEvent
+   * @param \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent
    *   The sub-event.
    *
    * @return \Doctrine\Common\Collections\Collection

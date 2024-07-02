@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
+use Drupal\dpl_pretix\Settings\PretixSettings;
 
 /**
  * Settings for dpl_pretix.
@@ -24,11 +25,11 @@ class Settings {
   /**
    * Get pretix config.
    *
-   * @return array<string, mixed>|string|null
+   * @return \Drupal\dpl_pretix\Settings\PretixSettings
    *   The pretix setting(s).
    */
-  public function getPretix(?string $key = NULL): array|string|null {
-    return $this->getValue(SettingsForm::SECTION_PRETIX, $key);
+  public function getPretixSettings(): PretixSettings {
+    return new PretixSettings($this->getValue(SettingsForm::SECTION_PRETIX));
   }
 
   /**
@@ -64,13 +65,13 @@ class Settings {
   /**
    * Get settings value.
    *
-   * @return array<string, mixed>|string|null
+   * @return array<string, mixed>
    *   The settings values.
    */
-  private function getValue(string $section, ?string $key = NULL): array|string|null {
+  private function getValue(string $section): array {
     $values = $this->config->get($section);
 
-    return NULL === $key ? $values : ($values[$key] ?? NULL);
+    return is_array($values) ? $values : [];
   }
 
 }
