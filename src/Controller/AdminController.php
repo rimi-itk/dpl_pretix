@@ -117,7 +117,7 @@ final class AdminController extends ControllerBase {
   private function getActions(?string $action): array {
     $actions = array_filter(
       get_class_methods($this),
-      static fn ($action) => preg_match('/^action[A-Z]/', $action),
+      static fn ($action) => 1 === preg_match('/^action[A-Z]/', $action),
     );
 
     $actions = array_combine(

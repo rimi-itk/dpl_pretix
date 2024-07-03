@@ -9,12 +9,14 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
         "drupal/coder": "^8.3",
         "ergebnis/composer-normalize": "^2.42",
-        "mglaman/drupal-check": "^1.4"
+        "mglaman/phpstan-drupal": "^1.2",
+        "phpstan/extension-installer": "^1.4"
     },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "ergebnis/composer-normalize": true
+            "ergebnis/composer-normalize": true,
+            "phpstan/extension-installer": true
         }
     },
     "scripts": {

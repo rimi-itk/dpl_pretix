@@ -1,0 +1,94 @@
+on: pull_request
+name: Review
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    name: Changelog should be updated
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Git fetch
+        run: git fetch
+
+      - name: Check that changelog has been updated.
+        run: git diff --exit-code origin/${{ github.base_ref }} -- CHANGELOG.md && exit 1 || exit 0
+
+  markdown-coding-standards:
+    name: Markdown coding standards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Coding standards
+        run: |
+          docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md'
+
+  composer-normalize:
+    name: composer-normalize
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker compose run --user root --rm php composer install
+          docker compose run --user root --rm php composer normalize
+
+  coding-standards-php-cs-fixer:
+    name: coding-standards-check/php-cs-fixer
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker compose run --user root --rm php composer install
+          docker compose run --user root --rm php vendor/bin/phpcs
+
+  coding-standards-shellcheck:
+    name: coding-standards-check/shellcheck
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm --volume "$PWD:/mnt" koalaman/shellcheck:stable scripts/create-release scripts/code-analysis
+
+  # @fixme
+  # code-analysis-phpstan:
+  #   name: code-analysis/phpstan
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #   env:
+  #     # https://getcomposer.org/doc/03-cli.md#composer-auth
+  #     COMPOSER_AUTH: |
+  #       {
+  #         "github-oauth": {
+  #           "github.com": "${{ github.TOKEN }}"
+  #         }
+  #       }
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: |
+  #         docker compose run --env COMPOSER_AUTH --user root --rm php scripts/code-analysis
+
+  check-create-release:
+    runs-on: ubuntu-latest
+    name: Test create release
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test release
+        run: |
+          docker compose run --user root --rm php scripts/create-release dev-test

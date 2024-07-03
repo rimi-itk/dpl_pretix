@@ -92,12 +92,12 @@ class FormHelper {
     ];
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
-    $metaKey = $ding_pretix_psp_elements['pretix_psp_meta_key'] ?? NULL;
-    $elements = $ding_pretix_psp_elements['list'] ?? [];
+    $metaKey = $ding_pretix_psp_elements->pretixPspMetaKey ?? NULL;
+    $elements = $ding_pretix_psp_elements->list ?? [];
     if (!empty($metaKey) && is_array($elements) && !empty($elements)) {
       $options = [];
       foreach ($elements as $element) {
-        $options[$element['value']] = $element['name'];
+        $options[$element->value] = $element->name;
       }
 
       // PSP is a code for accounting. If an event has orders, we don't allow

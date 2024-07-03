@@ -1,15 +1,15 @@
 parameters:
-  level: 6
+  level: 8
   paths:
-    - src/
+    - .
   excludePaths:
-    - src/Pretix/ApiClient/
-
+    analyse:
+      - src/Pretix/ApiClient
+    analyseAndScan:
+      - vendor
   ignoreErrors:
-    - "#Method [a-zA-Z0-9\\_\\\\:\\(\\)]+ has parameter \\$[a-zA-Z0-9_]+ with no value type specified in iterable type array#"
-    - "#Method [a-zA-Z0-9\\_\\\\:\\(\\)]+ return type has no value type specified in iterable type array#"
-
-  # checkGenericClassInNonGenericObjectType: false
+    - '#(Function|Method) (Drupal\\dpl_pretix\\|dpl_pretix_).+ return type has no value type specified in iterable type array.#'
+    - '#(Function|Method) (Drupal\\dpl_pretix\\|dpl_pretix_).+ has parameter \$(element|form|options) with no value type specified in iterable type array.#'
 
 
 # Local Variables:
