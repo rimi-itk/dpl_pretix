@@ -310,6 +310,7 @@ final class SettingsForm extends ConfigFormBase {
      * @see https://www.drupal.org/project/views_bulk_operations/issues/3351434
      */
     if (!isset($this->nodeStorage)) {
+      // @phpstan-ignore-next-line
       $this->nodeStorage = \Drupal::service('entity_type.manager')->getStorage('node');
     }
 

@@ -3,3 +3,7 @@ services:
     build: .
     volumes:
       - .:/app
+    environment:
+      # Apparently, code analysis will report "Some parallel worker jobs have not finished." if running out of memory
+      # (cf. https://github.com/phpstan/phpstan/discussions/11137#discussioncomment-9651169).
+      - PHP_MEMORY_LIMIT=512M

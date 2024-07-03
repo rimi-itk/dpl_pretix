@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-script_dir=$(pwd)
-module_name=$(basename "$script_dir")
+
+script_dir=$PWD
+module_name=dpl_pretix
 drupal_dir=vendor/drupal-module-code-analysis
 # Relative to $drupal_dir
-module_path=web/modules/contrib/$module_name
+module_path=web/sites/default/files/modules_local/$module_name
 
 cd "$script_dir" || exit
 
@@ -11,25 +12,23 @@ drupal_composer() {
   composer --working-dir="$drupal_dir" --no-interaction "$@"
 }
 
-# Create new Drupal 10 project
+set -x
+
+# Create new DPL CMS project
 if [ ! -f "$drupal_dir/composer.json" ]; then
-  composer --no-interaction create-project drupal/recommended-project:^10 "$drupal_dir"
+  rm -fr "$drupal_dir"
+  # https://getcomposer.org/doc/03-cli.md#create-project
+  composer --no-interaction create-project danskernesdigitalebibliotek/dpl-cms --repository='{"url": "https://github.com/danskernesdigitalebibliotek/dpl-cms", "type": "vcs"}' --add-repository "$drupal_dir"
 fi
+
+git -C "$drupal_dir" pull
+
 # Copy our code into the modules folder
 
-# Clean up
-rm -fr "$drupal_dir/$module_path"
+mkdir -p "$drupal_dir/$module_path"
 
 # https://stackoverflow.com/a/15373763
-# rsync --archive --compress . --filter=':- .gitignore' --exclude "$drupal_dir" --exclude .git "$drupal_dir/$module_path"
-
-# The rsync command in not available in itkdev/php8.1-fpm
-
-git config --global --add safe.directory /app
-# Create directories
-git ls-files -z | xargs --null -I {} bash -c 'mkdir -p '"$drupal_dir/$module_path/"'$(dirname {})'
-# Copy files
-git ls-files -z | xargs --null -I {} cp {} "$drupal_dir/$module_path/{}"
+rsync --archive --delete --compress . --filter=':- .gitignore' --exclude "$drupal_dir" --exclude .git "$drupal_dir/$module_path"
 
 drupal_composer config minimum-stability dev
 
@@ -43,4 +42,4 @@ drupal_composer config extra.merge-plugin.include "$module_path/composer.json"
 drupal_composer require --dev symfony/phpunit-bridge
 
 # Run PHPStan
-(cd "$drupal_dir" && vendor/bin/phpstan --configuration="$module_path/phpstan.neon.dist")
+(cd "$drupal_dir/$module_path" && "$script_dir/$drupal_dir/vendor/bin/phpstan" --configuration=phpstan.neon.dist -vvv --debug)

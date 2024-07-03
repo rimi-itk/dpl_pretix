@@ -34,9 +34,14 @@ final class DplPretixCommands extends DrushCommands {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container): static {
+    /** @var \Drupal\dpl_pretix\EntityHelper $entityHelper */
+    $entityHelper = $container->get(EntityHelper::class);
+    /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
+    $eventDataHelper = $container->get(EventDataHelper::class);
+
     return new static(
-      $container->get(EntityHelper::class),
-      $container->get(EventDataHelper::class),
+      $entityHelper,
+      $eventDataHelper
     );
   }
 
