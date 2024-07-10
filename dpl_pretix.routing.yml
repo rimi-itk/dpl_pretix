@@ -4,7 +4,7 @@ dpl_pretix.settings:
     _title: 'pretix'
     _form: '\Drupal\dpl_pretix\Form\SettingsForm'
   requirements:
-    _permission: 'administer pretix settings'
+    _permission: 'administer dpl_pretix settings'
 
 dpl_pretix.settings_debug:
   path: '/admin/config/dpl_pretix/admin/{action}'
@@ -15,7 +15,7 @@ dpl_pretix.settings_debug:
   options:
     no_cache: true
   requirements:
-    _permission: 'administer pretix settings'
+    _permission: 'administer dpl_pretix settings'
 
 dpl_pretix.pretix_webhook:
   path: '/dpl_pretix/pretix/webhook'

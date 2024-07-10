@@ -159,7 +159,7 @@ class FormHelper {
     }
 
     // Make it easy for administrators to edit pretix settings.
-    if ($this->currentUser->hasPermission('administer pretix settings')) {
+    if ($this->currentUser->hasPermission('administer dpl_pretix settings')) {
       $form[self::FORM_KEY]['pretix_settings'] = [
         '#type' => 'container',
 
