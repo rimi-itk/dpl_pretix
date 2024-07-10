@@ -50,8 +50,6 @@ class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
-    $this->messenger->addWarning(__FUNCTION__);
-
     if ($entity instanceof EventSeries) {
       // @see https://drupal.stackexchange.com/a/225627
       drupal_register_shutdown_function($this->postEntityInsert(...), $entity);
@@ -62,8 +60,6 @@ class EntityHelper {
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
-    $this->messenger->addWarning(__FUNCTION__);
-
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity, self::UPDATE);
     }
@@ -73,8 +69,6 @@ class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
-    $this->messenger->addWarning(__FUNCTION__);
-
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity, self::DELETE);
     }
@@ -84,8 +78,6 @@ class EntityHelper {
    * Syncronize event in pretix.
    */
   public function synchronizeEvent(EventSeries $event, string $action): void {
-    $this->messenger->addWarning(__FUNCTION__);
-
     if ($event instanceof EventSeries) {
       try {
         $data = $this->eventDataHelper->loadEventData($event) ?? $this->eventDataHelper->createEventData($event);
@@ -212,8 +204,6 @@ class EntityHelper {
    * @see https://drupal.stackexchange.com/a/225627
    */
   private function postEntityInsert(EntityInterface $entity): void {
-    $this->messenger->addWarning(__FUNCTION__);
-
     if ($entity instanceof EventSeries) {
       $data = $this->eventDataHelper->createEventData($entity);
       $this->eventDataHelper->saveEventData($entity, $data);
