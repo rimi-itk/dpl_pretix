@@ -8,6 +8,7 @@ use Drupal\dpl_pretix\Form\SettingsForm;
 use Drupal\dpl_pretix\Settings\EventFormSettings;
 use Drupal\dpl_pretix\Settings\EventNodeSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
+use Drupal\dpl_pretix\Settings\PspElementSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -69,11 +70,11 @@ class Settings {
   /**
    * Get PSP elements config.
    *
-   * @return array<string, mixed>|string|null
+   * @return \Drupal\dpl_pretix\Settings\PspElementSettings
    *   The PSP elements setting(s).
    */
-  public function getPspElements(?string $key = NULL): array|string|null {
-    return $this->getValue(SettingsForm::SECTION_PSP_ELEMENTS, $key);
+  public function getPspElements(): PspElementSettings {
+    return new PspElementSettings($this->getValue(SettingsForm::SECTION_PSP_ELEMENTS));
   }
 
   /**
@@ -89,7 +90,7 @@ class Settings {
   /**
    * Get event form config.
    *
-   * @return array<string, mixed>|string|null
+   * @return \Drupal\dpl_pretix\Settings\EventFormSettings
    *   The event from setting(s).
    */
   public function getEventForm(): EventFormSettings {

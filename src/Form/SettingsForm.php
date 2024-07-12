@@ -334,7 +334,7 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormPspElements(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_PSP_ELEMENTS;
-    $defaults = $config->get($section);
+    $defaults = $this->settings->getPspElements();
 
     $form[$section] = [
       '#type' => 'details',
@@ -344,7 +344,7 @@ final class SettingsForm extends ConfigFormBase {
       'pretix_psp_meta_key' => [
         '#type' => 'textfield',
         '#title' => $this->t('pretix PSP property name'),
-        '#default_value' => $defaults['pretix_psp_meta_key'] ?? NULL,
+        '#default_value' => $defaults->pretixPspMetaKey ?? NULL,
         '#size' => 50,
         '#maxlength' => 50,
         '#description' => $this->t('The name of the organizer metadata property for the PSP element in pretix (case sensitive).'),
@@ -380,7 +380,7 @@ final class SettingsForm extends ConfigFormBase {
     // data (ajax calls).
     $pspElements = $formState->getValue([$section, 'list']);
     if (empty($pspElements)) {
-      $pspElements = $defaults['list'] ?? NULL;
+      $pspElements = $defaults->list ?? NULL;
     }
 
     if (is_array($pspElements)) {
@@ -392,7 +392,7 @@ final class SettingsForm extends ConfigFormBase {
           'name' => [
             '#type' => 'textfield',
             '#title' => $this->t('Name'),
-            '#default_value' => $value['name'] ?? NULL,
+            '#default_value' => $value->name ?? NULL,
           ],
 
           'value' => [
@@ -400,7 +400,7 @@ final class SettingsForm extends ConfigFormBase {
             '#title' => $this->t('Value'),
             '#size' => 50,
             '#maxlength' => 50,
-            '#default_value' => $value['value'] ?? NULL,
+            '#default_value' => $value->value ?? NULL,
           ],
         ];
       }
@@ -570,9 +570,9 @@ final class SettingsForm extends ConfigFormBase {
     ] as $section) {
       $values = $form_state->getValue($section);
       if (is_array($values)) {
-        foreach ($values as $key => $value) {
-          $config->set($section . '.' . $key, $value);
-        }
+        // Remove some values that are only used for form stuff.
+        unset($values['add_element'], $values['remove_element']);
+        $config->set($section, $values);
       }
     }
 
