@@ -11,6 +11,7 @@ use Drupal\dpl_pretix\Settings\LibrariesSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
 use Drupal\dpl_pretix\Settings\PspElementSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
+use function Safe\preg_replace;
 
 /**
  * Settings for dpl_pretix.

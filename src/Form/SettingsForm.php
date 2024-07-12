@@ -76,8 +76,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Form constructor.
@@ -122,8 +120,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormPretix(array &$form): void {
     $section = self::SECTION_PRETIX;
@@ -246,7 +242,7 @@ final class SettingsForm extends ConfigFormBase {
   /**
    * Validate domain.
    */
-  public function validateDomain(array $element, FormStateInterface $formState) {
+  public function validateDomain(array $element, FormStateInterface $formState): void {
     $value = $formState->getValue($element['#parents']);
 
     // @todo FILTER_VALIDATE_DOMAIN does not work as expected; it does not report '1 2 3', say, as invalid.
@@ -257,8 +253,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormLibraries(array &$form): void {
     $section = self::SECTION_LIBRARIES;
@@ -330,8 +324,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormPspElements(array &$form, FormStateInterface $formState): void {
     $section = self::SECTION_PSP_ELEMENTS;
@@ -412,11 +404,6 @@ final class SettingsForm extends ConfigFormBase {
    * Callback for PSP element AJAX buttons.
    *
    * Selects and returns the fieldset with the PSP elements in it.
-   *
-   * @return array<string, mixed>
-   *   The form
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspAjaxCallback(array $form, FormStateInterface $formState): array {
     return $form[self::SECTION_PSP_ELEMENTS]['list'];
@@ -424,8 +411,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "add-one-more" button.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspAddElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
@@ -443,8 +428,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "Remove PSP elements" button.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspRemoveElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
@@ -459,8 +442,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormEventNodes(array &$form): void {
     $section = self::SECTION_EVENT_NODES;
@@ -505,8 +486,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function buildFormEventForm(array &$form): void {
     $section = self::SECTION_EVENT_FORM;
@@ -530,8 +509,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
@@ -545,8 +522,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {

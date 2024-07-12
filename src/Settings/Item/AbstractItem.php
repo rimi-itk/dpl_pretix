@@ -3,6 +3,7 @@
 namespace Drupal\dpl_pretix\Settings\Item;
 
 use Drupal\dpl_pretix\Settings;
+use function Safe\sprintf;
 
 /**
  * Abstract item.
@@ -18,9 +19,17 @@ abstract class AbstractItem {
 
   /**
    * The values.
+   *
+   * @var array<string, mixed>
    */
   protected array $values;
 
+  /**
+   * Constructor.
+   *
+   * @param array<string, mixed> $values
+   *   The values.
+   */
   public function __construct(array $values) {
     $this->values = [];
 
@@ -46,6 +55,9 @@ abstract class AbstractItem {
 
   /**
    * Values as array.
+   *
+   * @return array<string, mixed>
+   *   The values.
    */
   public function toArray(): array {
     return $this->values;

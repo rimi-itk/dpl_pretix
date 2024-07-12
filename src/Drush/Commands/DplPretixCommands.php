@@ -9,9 +9,10 @@ use Drupal\recurring_events\Entity\EventSeries;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use function Safe\sprintf;
 
 /**
- * A Drush commandfile.
+ * A Drush command file.
  *
  * In addition to this file, you need a drush.services.yml
  * in root of your module, and a composer.json file that provides the name
@@ -32,7 +33,7 @@ final class DplPretixCommands extends DrushCommands {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): static {
     return new static(
       $container->get(EntityHelper::class),
       $container->get(EventDataHelper::class),
@@ -45,18 +46,18 @@ final class DplPretixCommands extends DrushCommands {
   #[CLI\Command(name: 'dpl_pretix:event:synchronize')]
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
   #[CLI\Usage(name: 'dpl_pretix:event:synchronize 87', description: 'Synchronize event 87')]
-  public function synchronizeEvent(string $eventId, $options = []) {
-    $event = $this->getEventSeries($eventId);
+  public function synchronizeEvent(string $eventId, array $options = []): void {
+    $event = $this->entityHelper->getEventSeries($eventId);
 
     $this->entityHelper->synchronizeEvent($event, EntityHelper::UPDATE);
   }
 
   /**
-   * Info command.
+   * Show event information.
    */
   #[CLI\Command(name: 'dpl_pretix:event:info')]
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
-  public function info(string $eventId, $options = []) {
+  public function info(string $eventId, array $options = []): void {
     $event = $this->entityHelper->getEventSeries($eventId);
 
     $this->io()->section('Event');
@@ -87,7 +88,7 @@ final class DplPretixCommands extends DrushCommands {
 
     foreach ($instances as $instance) {
       /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
-      $date = $instance->get('date')?->first();
+      $date = $instance->get('date')->first();
       $this->io()->writeln([
         sprintf('%s: %s', $instance->id(), $instance->label()),
         $date->get('value')->getValue(),
@@ -97,10 +98,10 @@ final class DplPretixCommands extends DrushCommands {
   }
 
   /**
-   * Synchronize event in pretix.
+   * Create event.
    */
   #[CLI\Command(name: 'dpl_pretix:event:test-create-event')]
-  public function testCreateEventName() {
+  public function testCreateEventName(): void {
 
     $event = EventSeries::create([
       'type' => 'default',
@@ -117,12 +118,12 @@ final class DplPretixCommands extends DrushCommands {
 
     $event->save();
 
-    $event = $this->entityHelper->getEventSeries($event->id());
-    $this->io()->success(sprintf('%s:%s created', $event->getEntityTypeId(),
+    $event = $this->entityHelper->getEventSeries((string) $event->id());
+    $this->io()->success(sprintf('%s:%s created.', $event->getEntityTypeId(),
       $event->id()));
 
     drupal_register_shutdown_function(function () use ($event) {
-      $this->info($event->id());
+      $this->info((string) $event->id());
     });
   }
 
