@@ -463,7 +463,7 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormEventNodes(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_EVENT_NODES;
-    $defaults = $config->get($section);
+    $defaults = $this->settings->getEventNodes();
 
     $form[$section] = [
       '#type' => 'details',
@@ -474,7 +474,7 @@ final class SettingsForm extends ConfigFormBase {
         '#type' => 'number',
         '#min' => 0,
         '#title' => $this->t('Capacity'),
-        '#default_value' => $defaults['capacity'] ?? 0,
+        '#default_value' => $defaults->capacity ?? 0,
         '#size' => 5,
         '#maxlength' => 5,
         '#description' => $this->t('The default capacity for new events. Set to 0 for unlimited capacity.'),
@@ -483,7 +483,7 @@ final class SettingsForm extends ConfigFormBase {
       'maintain_copy' => [
         '#type' => 'checkbox',
         '#title' => $this->t('Maintain copy in pretix'),
-        '#default_value' => $defaults['maintain_copy'] ?? FALSE,
+        '#default_value' => $defaults->maintainCopy ?? FALSE,
         '#return_value' => TRUE,
         '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
       ],
@@ -496,7 +496,7 @@ final class SettingsForm extends ConfigFormBase {
           'email_ticket' => $this->t('Email Tickets'),
         ],
         '#required' => TRUE,
-        '#default_value' => $defaults['ticket_type'] ?? [],
+        '#default_value' => $defaults->ticketType ?? '',
         '#description' => t('Should new events use PDF or Email tickets by default?'),
       ],
     ];

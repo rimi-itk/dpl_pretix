@@ -135,11 +135,10 @@ class EventDataHelper {
    */
   private function setDefaults(?EventData $data): ?EventData {
     if (NULL !== $data) {
-      /** @var array<string, mixed> $defaults */
       $defaults = $this->settings->getEventNodes();
 
       // Set default value on null values.
-      foreach ($defaults as $name => $default) {
+      foreach ($defaults->toArray() as $name => $default) {
         $data->setDefault($name, $default);
       }
     }

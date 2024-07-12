@@ -94,7 +94,7 @@ final class EventData implements \JsonSerializable {
 
     $data->entityType = $row->entity_type;
     $data->entityId = $row->entity_id;
-    $data->capacity = $row->capacity ?? 0;
+    $data->capacity = $row->capacity ?? NULL;
     $data->maintainCopy = (bool) ($row->maintain_copy ?? TRUE);
     $data->pspElement = $row->psp_element ?? NULL;
     $data->ticketType = $row->ticket_type ?? NULL;
@@ -103,7 +103,7 @@ final class EventData implements \JsonSerializable {
     $data->pretixEvent = $row->pretix_event ?? NULL;
     $data->pretixSubeventId = $row->pretix_subevent_id ?? NULL;
     try {
-      $data->data = json_decode($row->data ?? 'NULL', TRUE, 512, JSON_THROW_ON_ERROR);
+      $data->data = json_decode($row->data ?? 'NULL', TRUE);
     }
     catch (JsonException) {
     }

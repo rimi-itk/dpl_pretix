@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
+use Drupal\dpl_pretix\Settings\EventNodeSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -77,11 +78,11 @@ class Settings {
   /**
    * Get event nodes config.
    *
-   * @return array<string, mixed>|string|null
+   * @return \Drupal\dpl_pretix\Settings\EventNodeSettings
    *   The event nodes setting(s).
    */
-  public function getEventNodes(?string $key = NULL): array|string|null {
-    return $this->getValue(SettingsForm::SECTION_EVENT_NODES, $key);
+  public function getEventNodes(): EventNodeSettings {
+    return new EventNodeSettings($this->getValue(SettingsForm::SECTION_EVENT_NODES));
   }
 
   /**
