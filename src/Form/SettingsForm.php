@@ -509,7 +509,7 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormEventForm(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_EVENT_FORM;
-    $defaults = $config->get($section);
+    $defaults = $this->settings->getEventForm();
 
     $form[$section] = [
       '#type' => 'details',
@@ -519,7 +519,7 @@ final class SettingsForm extends ConfigFormBase {
       'weight' => [
         '#type' => 'number',
         '#title' => $this->t('Weight'),
-        '#default_value' => $defaults['weight'] ?? 9999,
+        '#default_value' => $defaults->weight ?? 9999,
         '#size' => 5,
         '#maxlength' => 5,
         '#description' => $this->t('The weight if the pretix section on event form.'),

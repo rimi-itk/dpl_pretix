@@ -59,7 +59,7 @@ class FormHelper {
       ?? $this->eventDataHelper->createEventData($entity);
 
     $form[self::FORM_KEY] = [
-      '#weight' => $this->settings->getEventForm()['weight'] ?? 9999,
+      '#weight' => $this->settings->getEventForm()->weight ?? 9999,
       '#type' => 'details',
       '#title' => $this->t('pretix'),
       '#tree' => TRUE,

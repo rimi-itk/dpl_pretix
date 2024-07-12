@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
+use Drupal\dpl_pretix\Settings\EventFormSettings;
 use Drupal\dpl_pretix\Settings\EventNodeSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -91,8 +92,8 @@ class Settings {
    * @return array<string, mixed>|string|null
    *   The event from setting(s).
    */
-  public function getEventForm(?string $key = NULL): array|string|null {
-    return $this->getValue(SettingsForm::SECTION_EVENT_FORM, $key);
+  public function getEventForm(): EventFormSettings {
+    return new EventFormSettings($this->getValue(SettingsForm::SECTION_EVENT_FORM));
   }
 
   /**
