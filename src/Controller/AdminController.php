@@ -48,7 +48,8 @@ final class AdminController extends ControllerBase {
   /**
    * Main action.
    *
-   * @phpstan-return array<string, mixed>
+   * @return array<string, mixed>
+   *   The render array.
    */
   public function main(Request $request, ?string $action): array {
     $build = [];

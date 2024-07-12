@@ -35,8 +35,6 @@ class FormHelper {
 
   /**
    * Implements hook_form_alter().
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formAlter(array &$form, FormStateInterface $formState, string $formId): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
@@ -46,8 +44,6 @@ class FormHelper {
 
   /**
    * Alters event form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   private function formAlterEventSeries(
     array &$form,
@@ -187,8 +183,6 @@ class FormHelper {
 
   /**
    * Submit handler for event form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function submitHandler(array $form, FormStateInterface $formState): void {
     if ($event = $this->getEventSeriesEntity($formState)) {

@@ -38,7 +38,7 @@ class EventDataHelper {
   public function getEventData(EventInterface $event, bool $withDefaults = FALSE): ?EventData {
     $data = $this->loadEventData($event);
 
-    return $withDefaults ? $this->setDefaults($data) : $data;
+    return $withDefaults && NULL !== $data ? $this->setDefaults($data) : $data;
   }
 
   /**
@@ -110,6 +110,7 @@ class EventDataHelper {
       throw new \InvalidArgumentException('Missing event type');
     }
 
+    /** @var \Drupal\Core\Database\Query\SelectInterface $query */
     $query = $this->database
       ->select(self::EVENT_TABLE_NAME, 't')
       ->fields('t');
@@ -120,9 +121,9 @@ class EventDataHelper {
       $query->condition('t.entity_id', $entityId);
     }
 
-    $result = $query
-      ->execute()
-      ->fetchAll();
+    $statement = $query->execute();
+    assert(NULL !== $statement);
+    $result = $statement->fetchAll();
 
     return array_map(
       EventData::createFromDatabaseRow(...),
@@ -133,14 +134,12 @@ class EventDataHelper {
   /**
    * Set default values on event data.
    */
-  private function setDefaults(?EventData $data): ?EventData {
-    if (NULL !== $data) {
-      $defaults = $this->settings->getEventNodes();
+  private function setDefaults(EventData $data): EventData {
+    $defaults = $this->settings->getEventNodes();
 
-      // Set default value on null values.
-      foreach ($defaults->toArray() as $name => $default) {
-        $data->setDefault($name, $default);
-      }
+    // Set default value on null values.
+    foreach ($defaults->toArray() as $name => $default) {
+      $data->setDefault($name, $default);
     }
 
     return $data;

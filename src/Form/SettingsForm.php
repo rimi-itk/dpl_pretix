@@ -76,8 +76,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Form constructor.
@@ -87,11 +85,11 @@ final class SettingsForm extends ConfigFormBase {
 
     $form['#tree'] = TRUE;
 
-    $this->buildFormPretix($form, $form_state, $config);
-    $this->buildFormLibraries($form, $form_state, $config);
-    $this->buildFormPspElements($form, $form_state, $config);
-    $this->buildFormEventNodes($form, $form_state, $config);
-    $this->buildFormEventForm($form, $form_state, $config);
+    $this->buildFormPretix($form);
+    $this->buildFormLibraries($form);
+    $this->buildFormPspElements($form, $form_state);
+    $this->buildFormEventNodes($form);
+    $this->buildFormEventForm($form);
 
     $form['admin'] = [
       '#type' => 'container',
@@ -122,10 +120,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
-  private function buildFormPretix(array &$form, FormStateInterface $formState, Config $config): void {
+  private function buildFormPretix(array &$form): void {
     $section = self::SECTION_PRETIX;
 
     $subSections = ['prod', 'test'];
@@ -246,7 +242,7 @@ final class SettingsForm extends ConfigFormBase {
   /**
    * Validate domain.
    */
-  public function validateDomain(array $element, FormStateInterface $formState) {
+  public function validateDomain(array $element, FormStateInterface $formState): void {
     $value = $formState->getValue($element['#parents']);
 
     // @todo FILTER_VALIDATE_DOMAIN does not work as expected; it does not report '1 2 3', say, as invalid.
@@ -257,10 +253,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
-  private function buildFormLibraries(array &$form, FormStateInterface $formState, Config $config): void {
+  private function buildFormLibraries(array &$form): void {
     $section = self::SECTION_LIBRARIES;
     $defaults = $this->settings->getLibrarySettings();
 
@@ -330,10 +324,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
-  private function buildFormPspElements(array &$form, FormStateInterface $formState, Config $config): void {
+  private function buildFormPspElements(array &$form, FormStateInterface $formState): void {
     $section = self::SECTION_PSP_ELEMENTS;
     $defaults = $this->settings->getPspElements();
 
@@ -412,11 +404,6 @@ final class SettingsForm extends ConfigFormBase {
    * Callback for PSP element AJAX buttons.
    *
    * Selects and returns the fieldset with the PSP elements in it.
-   *
-   * @return array<string, mixed>
-   *   The form
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspAjaxCallback(array $form, FormStateInterface $formState): array {
     return $form[self::SECTION_PSP_ELEMENTS]['list'];
@@ -424,8 +411,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "add-one-more" button.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspAddElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
@@ -443,8 +428,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Submit handler for the "Remove PSP elements" button.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function formPspRemoveElement(array $form, FormStateInterface $formState): void {
     $key = [self::SECTION_PSP_ELEMENTS, 'list'];
@@ -459,10 +442,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
-  private function buildFormEventNodes(array &$form, FormStateInterface $formState, Config $config): void {
+  private function buildFormEventNodes(array &$form): void {
     $section = self::SECTION_EVENT_NODES;
     $defaults = $this->settings->getEventNodes();
 
@@ -505,10 +486,8 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * Build form.
-   *
-   * @phpstan-param array<string, mixed> $form
    */
-  private function buildFormEventForm(array &$form, FormStateInterface $formState, Config $config): void {
+  private function buildFormEventForm(array &$form): void {
     $section = self::SECTION_EVENT_FORM;
     $defaults = $this->settings->getEventForm();
 
@@ -530,8 +509,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
@@ -545,8 +522,6 @@ final class SettingsForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
-   *
-   * @phpstan-param array<string, mixed> $form
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {

@@ -83,11 +83,11 @@ class EntityHelper {
         $data = $this->eventDataHelper->loadEventData($event) ?? $this->eventDataHelper->createEventData($event);
         if ($data->hasPretixEvent()) {
           // Update event in pretix.
-          $pretixEvent = $this->pretix()->updateEvent(
-            $data->pretixEvent, [
-              'name' => ['da' => $event->label()],
-              'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-            ]);
+          assert(NULL !== $data->pretixEvent);
+          $pretixEvent = $this->pretix()->updateEvent($data->pretixEvent, [
+            'name' => ['da' => $event->label()],
+            'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+          ]);
         }
         else {
           // Create event in pretix.
