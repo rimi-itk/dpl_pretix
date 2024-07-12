@@ -262,7 +262,7 @@ final class SettingsForm extends ConfigFormBase {
    */
   private function buildFormLibraries(array &$form, FormStateInterface $formState, Config $config): void {
     $section = self::SECTION_LIBRARIES;
-    $defaults = $config->get($section);
+    $defaults = $this->settings->getLibrarySettings();
 
     $form[$section] = [
       '#type' => 'details',
@@ -273,7 +273,8 @@ final class SettingsForm extends ConfigFormBase {
 
     $libraries = $this->loadLibraries();
     foreach ($libraries as $library) {
-      $form[$section][$library->id()] = [
+      $item = $defaults->list[$library->id()] ?? NULL;
+      $form[$section]['list'][$library->id()] = [
         '#type' => 'fieldset',
         '#title' => $library->getTitle(),
         '#collapsible' => TRUE,
@@ -282,14 +283,14 @@ final class SettingsForm extends ConfigFormBase {
         'organizer' => [
           '#type' => 'textfield',
           '#title' => $this->t('Organizer'),
-          '#default_value' => $defaults[$library->id()]['organizer'] ?? NULL,
+          '#default_value' => $item->organizer ?? NULL,
           '#description' => $this->t('The short form of the pretix organizer to map to.'),
         ],
 
         'api_token' => [
           '#type' => 'textfield',
           '#title' => t('API token'),
-          '#default_value' => $defaults[$library->id()]['api_token'] ?? NULL,
+          '#default_value' => $item->apiToken ?? NULL,
           '#description' => t('The API token of the organizer team'),
         ],
       ];

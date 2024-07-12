@@ -25,7 +25,9 @@ abstract class AbstractItem {
     $this->values = [];
 
     foreach (static::$listProperties as $property => $class) {
-      $values[$property] = array_map(static fn (array $vals) => new $class($vals), $values[$property]);
+      if (isset($values[$property]) && is_array($values[$property])) {
+        $values[$property] = array_map(static fn(array $vals) => new $class($vals), $values[$property]);
+      }
     }
 
     foreach ($values as $key => $value) {

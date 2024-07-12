@@ -7,6 +7,7 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
 use Drupal\dpl_pretix\Settings\EventFormSettings;
 use Drupal\dpl_pretix\Settings\EventNodeSettings;
+use Drupal\dpl_pretix\Settings\LibrariesSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
 use Drupal\dpl_pretix\Settings\PspElementSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -65,6 +66,13 @@ class Settings {
    */
   public function getCurrentDomain(): ?string {
     return $this->requestStack->getCurrentRequest()?->getHost();
+  }
+
+  /**
+   * Get libraries settings.
+   */
+  public function getLibrarySettings(): LibrariesSettings {
+    return new LibrariesSettings($this->getValue(SettingsForm::SECTION_LIBRARIES));
   }
 
   /**
