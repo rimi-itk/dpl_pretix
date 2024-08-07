@@ -220,9 +220,9 @@ final class SettingsForm extends ConfigFormBase {
         ],
 
         'description' => [
-          '#markup' => $this->t('The <a href="@pretix_webhook_url">pretix webhook URL</a> used by pretix to send notifications.',
+          '#markup' => $this->t('The <a href=":pretix_webhook_url">pretix webhook URL</a> used by pretix to send notifications.',
             [
-              '@pretix_webhook_url' => 'https://docs.pretix.eu/en/latest/api/webhooks.html',
+              ':pretix_webhook_url' => 'https://docs.pretix.eu/en/latest/api/webhooks.html',
             ]),
           '#prefix' => '<div class="form-item__description">',
           '#suffix' => '</div>',
@@ -494,16 +494,18 @@ final class SettingsForm extends ConfigFormBase {
 
     $form[$section] = [
       '#type' => 'details',
-      '#title' => $this->t('event form'),
+      '#title' => $this->t('Event form'),
       '#open' => TRUE,
 
       'weight' => [
-        '#type' => 'number',
-        '#title' => $this->t('Weight'),
+        '#type' => 'select',
+        '#options' => [
+          -9999 => $this->t('Top'),
+          9999 => $this->t('Bottom'),
+        ],
+        '#title' => $this->t('Location of pretix section'),
         '#default_value' => $defaults->weight ?? 9999,
-        '#size' => 5,
-        '#maxlength' => 5,
-        '#description' => $this->t('The weight if the pretix section on event form.'),
+        '#description' => $this->t('The location of the pretix section on event form.'),
       ],
     ];
   }
