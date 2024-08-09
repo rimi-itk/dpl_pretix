@@ -193,7 +193,7 @@ final class AdminController extends ControllerBase {
                     '#type' => 'dropbutton',
                     '#links' => [
                       'edit' => [
-                        'title' => $this->t('Edit'),
+                        'title' => $this->t('Edit event'),
                         'url' => $entity->toUrl('edit-form', [
                           'query' => [
                             'destination' => Url::fromRoute('<current>')->toString(TRUE)->getGeneratedUrl(),

@@ -58,6 +58,26 @@ final class DplPretixCommands extends DrushCommands {
   }
 
   /**
+   * Delete pretix event.
+   */
+  #[CLI\Command(name: 'dpl_pretix:pretix-event:delete')]
+  #[CLI\Argument(name: 'eventId', description: 'Event id.')]
+  #[CLI\Usage(name: 'dpl_pretix:pretix-event:delete 87', description: 'Delete pretix event for Drupal event 87')]
+  public function deletePretixEvent(string $eventId): void {
+    $event = $this->entityHelper->getEventSeries($eventId);
+
+    $question = sprintf('Really delete pretix event for Drupal event %s?', $event->label());
+    if ($this->io()->confirm($question)) {
+      if ($this->entityHelper->deleteEvent($event)) {
+        $this->io()->success(t('Event has been deleted in pretix.'));
+        $data = $this->eventDataHelper->loadEventData($event);
+        $this->eventDataHelper->deleteEventData($data);
+        $this->io()->success(t('Event data has been deleted.'));
+      }
+    }
+  }
+
+  /**
    * Show event information.
    */
   #[CLI\Command(name: 'dpl_pretix:event:info')]

@@ -132,6 +132,37 @@ class EventDataHelper {
   }
 
   /**
+   * Detach event data.
+   */
+  public function detachEventData(EventData $data): bool {
+    /** @var \Drupal\Core\Database\Query\Update $query */
+    $query = $this->database
+      ->update(self::EVENT_TABLE_NAME)
+      ->condition('entity_type', $data->entityType)
+      ->condition('entity_id', $data->entityId)
+      ->fields([
+        'pretix_url' => NULL,
+        'pretix_organizer' => NULL,
+        'pretix_event' => NULL,
+      ]);
+
+    return 1 === $query->execute();
+  }
+
+  /**
+   * Delete event data.
+   */
+  public function deleteEventData(EventData $data): bool {
+    /** @var \Drupal\Core\Database\Query\Delete $query */
+    $query = $this->database
+      ->delete(self::EVENT_TABLE_NAME)
+      ->condition('entity_type', $data->entityType)
+      ->condition('entity_id', $data->entityId);
+
+    return 1 === $query->execute();
+  }
+
+  /**
    * Set default values on event data.
    */
   private function setDefaults(EventData $data): EventData {
