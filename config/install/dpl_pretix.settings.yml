@@ -16,6 +16,7 @@ pretix:
     # Template event short form
     template_event: ~
     event_slug_template: '{id}'
+    default_language_code: 'en'
 
   test:
     domain: ~
@@ -27,6 +28,7 @@ pretix:
     # Template event short form
     template_event: ~
     event_slug_template: 'test-{id}'
+    default_language_code: 'en'
 
 libraries: {}
 #   -

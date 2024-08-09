@@ -110,7 +110,7 @@ class EntityHelper {
         // Update event in pretix.
         assert(NULL !== $data->pretixEvent);
         $pretixEvent = $this->pretix()->updateEvent($data->pretixEvent, [
-          'name' => ['da' => $event->label()],
+          'name' => $this->getEventName($event),
           'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
         ]);
       }
@@ -247,17 +247,15 @@ class EntityHelper {
       $data = $itemInfo['data']['subevent'];
     }
 
-    $location = $this->getLocation($event);
-
     /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
     $date = $instance->get('date')->first();
 
     // @todo Handle locales.
     $data = array_merge($data, [
-      'name' => ['en' => $this->getEventName($event)],
+      'name' => $this->getEventName($event),
       'date_from' => $this->formatDate($date->get('value')->getValue()),
       'date_to' => $this->formatDate($date->get('end_value')->getValue()),
-      'location' => ['en' => $location],
+      'location' => $this->getLocation($event),
       'frontpage_text' => NULL,
       'active' => TRUE,
       'is_public' => TRUE,
@@ -458,7 +456,7 @@ class EntityHelper {
    */
   private function getPretixEventData(EventSeries $event, array $data = []): array {
     return $data + [
-      'name' => ['da' => $event->label()],
+      'name' => $this->getEventName($event),
       'slug' => $this->getPretixEventSlug($event),
       'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
       'date_to' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
@@ -564,26 +562,37 @@ class EntityHelper {
   /**
    * Get event name from an event.
    */
-  private function getEventName(EventSeries $event) {
-    return $event->label();
+  private function getEventName(EventSeries $event): array {
+    return [
+      $this->getDefaultLanguageCode($event) => $event->label(),
+    ];
   }
 
   /**
    * Get item location.
    */
-  private function getLocation(EventSeries $event): string {
+  private function getLocation(EventSeries $event): array {
     /** @var \Drupal\address\Plugin\Field\FieldType\AddressItem $address */
     $address = $event->get('field_event_address')->first();
 
     if (empty($address)) {
-      return '';
+      return [];
     }
 
-    return implode(PHP_EOL, array_filter([
-      $address->getAddressLine1(),
-      $address->getAddressLine2(),
-      $address->getPostalCode() . ' ' . $address->getLocality(),
-    ]));
+    return [
+      $this->getDefaultLanguageCode($event) => implode(PHP_EOL, array_filter([
+        $address->getAddressLine1(),
+        $address->getAddressLine2(),
+        $address->getPostalCode() . ' ' . $address->getLocality(),
+      ])),
+    ];
+  }
+
+  /**
+   * Get default language code for an event.
+   */
+  private function getDefaultLanguageCode(EventSeries $event): string {
+    return $this->settings->getPretixSettings()->defaultLanguageCode ?? 'en';
   }
 
   /**

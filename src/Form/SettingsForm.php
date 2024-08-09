@@ -7,6 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\EntityHelper;
@@ -34,6 +35,7 @@ final class SettingsForm extends ConfigFormBase {
   public function __construct(
     ConfigFactoryInterface $configFactory,
     private NodeStorageInterface $nodeStorage,
+    private readonly LanguageManagerInterface $languageManager,
     private readonly EntityHelper $eventHelper,
     private readonly Settings $settings,
   ) {
@@ -53,6 +55,7 @@ final class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('entity_type.manager')->getStorage('node'),
+      $container->get('language_manager'),
       $eventHelper,
       $settings
     );
@@ -147,6 +150,11 @@ final class SettingsForm extends ConfigFormBase {
         $form[$groupName]['#default_tab'] = 'edit-pretix-' . $subSection;
       }
 
+      $languageOptions = [];
+      foreach ($this->languageManager->getLanguages() as $language) {
+        $languageOptions[$language->getId()] = $language->getName();
+      }
+
       $form[$section][$subSection] = [
         '#group' => $groupName,
 
@@ -201,6 +209,15 @@ final class SettingsForm extends ConfigFormBase {
           '#default_value' => $defaults->eventSlugTemplate,
           '#required' => TRUE,
           '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/> <code>{id}</code>: the event (node) id'),
+        ],
+
+        'default_language_code' => [
+          '#type' => 'select',
+          '#options' => $languageOptions,
+          '#title' => $this->t('Default language code'),
+          '#default_value' => $defaults->defaultLanguageCode,
+          '#required' => TRUE,
+          '#description' => $this->t('Default language code used for pretix events'),
         ],
       ];
 
