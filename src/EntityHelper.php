@@ -2,6 +2,7 @@
 
 namespace Drupal\dpl_pretix;
 
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -33,12 +34,6 @@ class EntityHelper {
 
   // @see /admin/structure/events/instance/types/eventinstance_type/default/edit/fields
   private const EVENT_TICKET_LINK_FIELD = 'field_event_link';
-  private const PRETIX_DATETIME_FORMAT = \DateTimeInterface::ATOM;
-
-  /**
-   * The pretix API client.
-   */
-  private PretixApiClient $pretixApiClient;
 
   /**
    * Used to save entity without running our entity listener.
@@ -50,6 +45,7 @@ class EntityHelper {
   public function __construct(
     private readonly Settings $settings,
     private readonly EventDataHelper $eventDataHelper,
+    private readonly PretixHelper $pretixHelper,
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly MessengerInterface $messenger,
     private readonly LoggerInterface $logger,
@@ -121,6 +117,8 @@ class EntityHelper {
           $templateEvent,
           $this->getPretixEventData($event, [
             // ? 'live' => false,
+            // The API documentation claims that `has_subevents` is copied when cloning, but that doesn't seem to be correct (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-).
+            'has_subevents' => TRUE,
           ])
         );
         $data->pretixUrl = $settings->url;
@@ -147,6 +145,8 @@ class EntityHelper {
         '@message' => $t->getMessage(),
         '@throwable' => $t,
       ]);
+
+      throw $t;
     }
 
     return NULL;
@@ -212,9 +212,9 @@ class EntityHelper {
 
     /** @var ?\Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
     $product = NULL;
-    $data = [];
+    $data = $instanceData->data['subevent'] ?? [];
     if ($isNewItem) {
-      // Get first sub-event from template event.
+      // Get first product (item) from template event.
       try {
         $items = $pretix->getItems($pretixEvent);
       }
@@ -242,19 +242,17 @@ class EntityHelper {
         ],
       ];
       $data['variation_price_overrides'] = [];
-    }
-    else {
-      $data = $itemInfo['data']['subevent'];
+
+      // Store the sub-event data for future updates.
+      $instanceData->data['subevent'] = $data;
     }
 
-    /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
-    $date = $instance->get('date')->first();
+    $range = $this->getDateRange($instance);
 
-    // @todo Handle locales.
     $data = array_merge($data, [
       'name' => $this->getEventName($event),
-      'date_from' => $this->formatDate($date->get('value')->getValue()),
-      'date_to' => $this->formatDate($date->get('end_value')->getValue()),
+      'date_from' => $this->pretixHelper->formatDate($range[0]),
+      'date_to' => $this->pretixHelper->formatDate($range[1]),
       'location' => $this->getLocation($event),
       'frontpage_text' => NULL,
       'active' => TRUE,
@@ -283,7 +281,7 @@ class EntityHelper {
       }
     }
     else {
-      $subEventId = $itemInfo['pretix_subevent_id'];
+      $subEventId = $instanceData->pretixSubeventId;
       try {
         $subEvent = $pretix->updateSubEvent($pretixEvent, $subEventId, $data);
       }
@@ -309,6 +307,11 @@ class EntityHelper {
     }
 
     if ($quotas->isEmpty()) {
+      if (NULL === $product) {
+        throw $this->pretixException($this->t('Product is not set when creating quota from template sub-event @sub_event', [
+          '@sub_event' => $templateSubEvent->getId(),
+        ]));
+      }
       // Create a new quota for the sub-event.
       try {
         $templateQuotas = $pretix->getQuotas(
@@ -361,7 +364,8 @@ class EntityHelper {
       }
     }
 
-    $instanceData->subevent = $subEvent->getId();
+    $instanceData->pretixEvent = $pretixEvent->getSlug();
+    $instanceData->pretixSubeventId = $subEvent->getId();
     $this->eventDataHelper->saveEventData($instance, $instanceData);
 
     return [
@@ -455,11 +459,17 @@ class EntityHelper {
    * @see https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description
    */
   private function getPretixEventData(EventSeries $event, array $data = []): array {
+    $instances = $this->getEventInstances($event);
+    $firstInstance = reset($instances) ?: NULL;
+    $lastInstance = end($instances) ?: NULL;
+    $dateFrom = $this->getDateRange($firstInstance)[0];
+    $dateTo = $this->getDateRange($lastInstance)[1];
+
     return $data + [
       'name' => $this->getEventName($event),
       'slug' => $this->getPretixEventSlug($event),
-      'date_from' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-      'date_to' => (new DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+      'date_from' => $this->pretixHelper->formatDate($dateFrom),
+      'date_to' => $this->pretixHelper->formatDate($dateTo),
       'is_public' => $event->isPublished(),
     ];
   }
@@ -477,16 +487,7 @@ class EntityHelper {
    * Get pretix API client.
    */
   private function pretix(): PretixApiClient {
-    if (!isset($this->pretixApiClient)) {
-      $settings = $this->settings->getPretixSettings();
-      $this->pretixApiClient = new PretixApiClient([
-        'url' => $settings->url,
-        'organizer' => $settings->organizer,
-        'api_token' => $settings->apiToken,
-      ]);
-    }
-
-    return $this->pretixApiClient;
+    return $this->pretixHelper->client();
   }
 
   /**
@@ -572,7 +573,7 @@ class EntityHelper {
    * Get item location.
    */
   private function getLocation(EventSeries $event): array {
-    /** @var \Drupal\address\Plugin\Field\FieldType\AddressItem $address */
+    /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
     $address = $event->get('field_event_address')->first();
 
     if (empty($address)) {
@@ -598,54 +599,27 @@ class EntityHelper {
   /**
    * Get event capacity.
    */
-  private function getCapacity(EventSeries $event): int {
-    return (int) $event->get('field_ticket_capacity')->getValue();
+  private function getCapacity(EventSeries $event): ?int {
+    $capacity = (int) $event->get('field_ticket_capacity')->getString();
+
+    return $capacity > 0 ? $capacity : NULL;
   }
 
   /**
-   * Get data from some value.
-   *
-   * @param mixed $value
-   *   Something that may be converted to a DateTime.
-   *
-   * @return \DateTime|null
-   *   The date.
-   *
-   * @throws \Exception
+   * Get instance date range.
    */
-  private function getDate($value) {
-    if (NULL === $value) {
-      return NULL;
+  private function getDateRange(EventInstance $instance): array {
+    $range = [];
+
+    /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
+    $date = $instance->get('date')->first();
+
+    foreach (['value', 'end_value'] as $key) {
+      $value = $date->get($key)->getValue();
+      $range[] = $value ? (new DrupalDateTime($value))->getPhpDateTime() : NULL;
     }
 
-    if ($value instanceof DrupalDateTime) {
-      return $value->getPhpDateTime();
-    }
-
-    if ($value instanceof \DateTime) {
-      return $value;
-    }
-
-    if (is_numeric($value)) {
-      return new \DateTime('@' . $value);
-    }
-
-    return new \DateTime($value);
-  }
-
-  /**
-   * Format a date as a string.
-   *
-   * @param mixed|null $date
-   *   The date.
-   *
-   * @return string|null
-   *   The string representation of the date.
-   *
-   * @throws \Exception
-   */
-  private function formatDate($date = NULL) {
-    return $this->getDate($date)?->format(self::PRETIX_DATETIME_FORMAT);
+    return $range;
   }
 
 }

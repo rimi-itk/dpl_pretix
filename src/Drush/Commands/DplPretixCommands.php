@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix\Drush\Commands;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\EventDataHelper;
+use Drupal\dpl_pretix\PretixHelper;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
@@ -26,6 +27,7 @@ final class DplPretixCommands extends DrushCommands {
   public function __construct(
     private readonly EntityHelper $entityHelper,
     private readonly EventDataHelper $eventDataHelper,
+    private readonly PretixHelper $pretixHelper,
   ) {
     parent::__construct();
   }
@@ -38,10 +40,13 @@ final class DplPretixCommands extends DrushCommands {
     $entityHelper = $container->get(EntityHelper::class);
     /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
     $eventDataHelper = $container->get(EventDataHelper::class);
+    /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
+    $pretixHelper = $container->get(PretixHelper::class);
 
     return new static(
       $entityHelper,
-      $eventDataHelper
+      $eventDataHelper,
+      $pretixHelper
     );
   }
 
@@ -58,6 +63,17 @@ final class DplPretixCommands extends DrushCommands {
   }
 
   /**
+   * Validate pretix template event.
+   */
+  #[CLI\Command(name: 'dpl_pretix:pretix:validate-template-event')]
+  public function validatePretixTemplateEvent(): void {
+    $errors = $this->pretixHelper->validateTemplateEvent();
+    foreach ($errors as $error) {
+      $this->io()->error($error->getMessage());
+    }
+  }
+
+  /**
    * Delete pretix event.
    */
   #[CLI\Command(name: 'dpl_pretix:pretix-event:delete')]
@@ -70,9 +86,15 @@ final class DplPretixCommands extends DrushCommands {
     if ($this->io()->confirm($question)) {
       if ($this->entityHelper->deleteEvent($event)) {
         $this->io()->success(t('Event has been deleted in pretix.'));
-        $data = $this->eventDataHelper->loadEventData($event);
-        $this->eventDataHelper->deleteEventData($data);
-        $this->io()->success(t('Event data has been deleted.'));
+        if ($data = $this->eventDataHelper->loadEventData($event)) {
+          $this->eventDataHelper->deleteEventData($data);
+          foreach ($this->entityHelper->getEventInstances($event) as $instance) {
+            if ($data = $this->eventDataHelper->getEventData($instance)) {
+              $this->eventDataHelper->deleteEventData($data);
+            }
+          }
+          $this->io()->success(t('Event data has been deleted.'));
+        }
       }
     }
   }

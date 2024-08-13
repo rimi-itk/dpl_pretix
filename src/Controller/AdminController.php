@@ -8,6 +8,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\dpl_pretix\EventDataHelper;
+use Drupal\recurring_events\Entity\EventInstance;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -163,6 +164,7 @@ final class AdminController extends ControllerBase {
 
         $this->t('Event shop URL'),
         $this->t('Event admin URL'),
+        $this->t('pretix ID'),
       ],
       '#rows' => array_map(
         function (EventData $data): array {
@@ -175,7 +177,8 @@ final class AdminController extends ControllerBase {
           /** @var \Drupal\recurring_events\EventInterface $entity */
           $entity = $this->entityTypeManager()->getStorage($data->entityType)->load($data->entityId);
 
-          $renderLink = static fn (?string $url) =>$url ? Link::fromTextAndUrl($url, Url::fromUri($url)) : NULL;
+          $renderLink = static fn (?string $url) => $url ? Link::fromTextAndUrl($url, Url::fromUri($url)) : NULL;
+
           return [
             'id' => $id,
             'data' => [
@@ -188,12 +191,14 @@ final class AdminController extends ControllerBase {
               $renderLink($data->getEventShopUrl()),
               $renderLink($data->getEventAdminUrl()),
 
+              $data->pretixSubeventId ?? $data->pretixEvent,
+
                 [
                   'data' => [
                     '#type' => 'dropbutton',
                     '#links' => [
                       'edit' => [
-                        'title' => $this->t('Edit event'),
+                        'title' => $entity instanceof EventInstance ? $this->t('Edit event instance') : $this->t('Edit event series'),
                         'url' => $entity->toUrl('edit-form', [
                           'query' => [
                             'destination' => Url::fromRoute('<current>')->toString(TRUE)->getGeneratedUrl(),

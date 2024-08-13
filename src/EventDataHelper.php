@@ -51,14 +51,15 @@ class EventDataHelper {
       'psp_element' => $data->pspElement,
       'ticket_type' => $data->ticketType,
       'data' => \Safe\json_encode($data->data),
+      'pretix_event' => $data->pretixEvent,
+      'pretix_subevent_id' => $data->pretixSubeventId,
     ];
     // Add pretix data if set (and never set null values in database).
     if ($data->hasPretixEvent()) {
-      $values += [
+      $values += array_filter([
         'pretix_url' => $data->pretixUrl,
         'pretix_organizer' => $data->pretixOrganizer,
-        'pretix_event' => $data->pretixEvent,
-      ];
+      ]);
     }
 
     return $this->database

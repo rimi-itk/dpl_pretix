@@ -17,4 +17,5 @@ services:
   Drupal\dpl_pretix\FormHelper:
     autowire: true
 
-
+  Drupal\dpl_pretix\PretixHelper:
+    autowire: true
