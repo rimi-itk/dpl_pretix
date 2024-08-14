@@ -12,6 +12,8 @@ Enable the module and go to `/admin/config/dpl_pretix` to configure the module.
 
 The module will add a "pretix" section on all events.
 
+Log messages: `/admin/reports/dblog?type[]=dpl_pretix`
+
 ## pretix
 
 We need a _template event_ in pretix, and this template event [will be
@@ -20,7 +22,7 @@ to create new events in pretix.
 
 The template event must
 
-1. be a multipl dates event
+1. be a multiple dates event
 2. have single subevent (date)
 
 ## Event flow
@@ -103,3 +105,7 @@ task dev:code-analysis
 ``` shell
 docker compose build && docker compose run --rm php scripts/create-release dev-test
 ```
+
+## Bugs and caveats
+
+* It seems that updating an event instance uses old data for the update.

@@ -4,6 +4,8 @@ namespace Drupal\dpl_pretix;
 
 use Drupal\dpl_pretix\Exception\ValidationException;
 use Drupal\dpl_pretix\Pretix\ApiClient\Client;
+use function Safe\json_encode;
+use function Safe\sprintf;
 
 /**
  * Pretix helper.
@@ -27,17 +29,23 @@ class PretixHelper {
   /**
    * Validate template event.
    *
-   * @return \Drupal\dpl_pretix\Exception\ValidationException[]|array
+   * @return \Drupal\dpl_pretix\Exception\ValidationException[]
    *   A list of validation errors.
    */
   public function validateTemplateEvent(): array {
     $errors = [];
 
     $settings = $this->settings->getPretixSettings();
-    $event = $this->client()->getEvent($settings->templateEvent);
+    $templateEvent = $settings->templateEvent;
+    if (NULL === $templateEvent) {
+      return [
+        new ValidationException('Template event is not set'),
+      ];
+    }
+
+    $event = $this->client()->getEvent($templateEvent);
     $data = $event->toArray();
 
-    var_export($data);
     $expectedValues = [
       'has_subevents' => TRUE,
       'live' => FALSE,
@@ -74,8 +82,8 @@ class PretixHelper {
   /**
    * Format a date time for pretix.
    */
-  public function formatDate(?\DateTimeInterface $date) {
-    return NULL === $date ? NULL : $date->format(self::PRETIX_DATETIME_FORMAT);
+  public function formatDate(?\DateTimeInterface $date): ?string {
+    return $date?->format(self::PRETIX_DATETIME_FORMAT);
   }
 
   /**

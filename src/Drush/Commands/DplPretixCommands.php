@@ -3,8 +3,10 @@
 namespace Drupal\dpl_pretix\Drush\Commands;
 
 use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\EventDataHelper;
+use Drupal\dpl_pretix\Exception\InvalidEventSeriesException;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drush\Attributes as CLI;
@@ -28,6 +30,7 @@ final class DplPretixCommands extends DrushCommands {
     private readonly EntityHelper $entityHelper,
     private readonly EventDataHelper $eventDataHelper,
     private readonly PretixHelper $pretixHelper,
+    private readonly EntityTypeManagerInterface $entityTypeManager,
   ) {
     parent::__construct();
   }
@@ -40,13 +43,14 @@ final class DplPretixCommands extends DrushCommands {
     $entityHelper = $container->get(EntityHelper::class);
     /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
     $eventDataHelper = $container->get(EventDataHelper::class);
-    /** @var \Drupal\dpl_pretix\EventDataHelper $eventDataHelper */
+    /** @var \Drupal\dpl_pretix\PretixHelper $pretixHelper */
     $pretixHelper = $container->get(PretixHelper::class);
 
     return new static(
       $entityHelper,
       $eventDataHelper,
-      $pretixHelper
+      $pretixHelper,
+      $container->get('entity_type.manager'),
     );
   }
 
@@ -57,7 +61,7 @@ final class DplPretixCommands extends DrushCommands {
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
   #[CLI\Usage(name: 'dpl_pretix:event:synchronize 87', description: 'Synchronize event 87')]
   public function synchronizeEvent(string $eventId, array $options = []): void {
-    $event = $this->entityHelper->getEventSeries($eventId);
+    $event = $this->loadEventSeries($eventId);
 
     $this->entityHelper->synchronizeEvent($event, EntityHelper::UPDATE);
   }
@@ -80,7 +84,7 @@ final class DplPretixCommands extends DrushCommands {
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
   #[CLI\Usage(name: 'dpl_pretix:pretix-event:delete 87', description: 'Delete pretix event for Drupal event 87')]
   public function deletePretixEvent(string $eventId): void {
-    $event = $this->entityHelper->getEventSeries($eventId);
+    $event = $this->loadEventSeries($eventId);
 
     $question = sprintf('Really delete pretix event for Drupal event %s?', $event->label());
     if ($this->io()->confirm($question)) {
@@ -105,7 +109,7 @@ final class DplPretixCommands extends DrushCommands {
   #[CLI\Command(name: 'dpl_pretix:event:info')]
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
   public function info(string $eventId, array $options = []): void {
-    $event = $this->entityHelper->getEventSeries($eventId);
+    $event = $this->loadEventSeries($eventId);
 
     $this->io()->section('Event');
 
@@ -165,13 +169,27 @@ final class DplPretixCommands extends DrushCommands {
 
     $event->save();
 
-    $event = $this->entityHelper->getEventSeries((string) $event->id());
+    $event = $this->loadEventSeries((string) $event->id());
     $this->io()->success(sprintf('%s:%s created.', $event->getEntityTypeId(),
       $event->id()));
 
     drupal_register_shutdown_function(function () use ($event) {
       $this->info((string) $event->id());
     });
+  }
+
+  /**
+   * Load event series.
+   */
+  private function loadEventSeries(string $id): EventSeries {
+    /** @var ?\Drupal\recurring_events\Entity\EventSeries $event */
+    $event = $this->entityTypeManager->getStorage('eventseries')->load($id);
+
+    if (NULL === $event) {
+      throw new InvalidEventSeriesException(sprintf('Invalid event series ID: %s', $id));
+    }
+
+    return $event;
   }
 
 }
