@@ -24,11 +24,6 @@ final class EventData implements \JsonSerializable {
   public ?string $entityId = NULL;
 
   /**
-   * The capacity.
-   */
-  public ?int $capacity = NULL;
-
-  /**
    * The maintain copy.
    */
   public ?bool $maintainCopy = NULL;
@@ -94,7 +89,6 @@ final class EventData implements \JsonSerializable {
 
     $data->entityType = $row->entity_type;
     $data->entityId = $row->entity_id;
-    $data->capacity = $row->capacity ?? NULL;
     $data->maintainCopy = (bool) ($row->maintain_copy ?? TRUE);
     $data->pspElement = $row->psp_element ?? NULL;
     $data->ticketType = $row->ticket_type ?? NULL;
@@ -134,7 +128,6 @@ final class EventData implements \JsonSerializable {
     return [
       'entity_type' => $this->entityType ?? NULL,
       'entity_id' => $this->entityId ?? NULL,
-      'capacity' => $this->capacity,
       'maintain_copy' => $this->maintainCopy,
       'psp_element' => $this->pspElement,
       'ticket_type' => $this->ticketType,

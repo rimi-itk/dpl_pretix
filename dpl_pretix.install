@@ -25,13 +25,6 @@ function dpl_pretix_schema(): array {
           'length' => 50,
           'not null' => TRUE,
         ],
-        'capacity' => [
-          'description' => 'The maximum capacity on the pretix event. 0 is interpreted as unlimited capacity on the event (default)',
-          'type' => 'int',
-          'unsigned' => TRUE,
-          'not null' => TRUE,
-          'default' => 0,
-        ],
         'maintain_copy' => [
           'description' => 'Event is created and updated in pretix',
           'type' => 'int',

@@ -46,7 +46,6 @@ class EventDataHelper {
    */
   public function saveEventData(EventInterface $event, EventData $data): ?int {
     $values = [
-      'capacity' => (int) $data->capacity,
       'maintain_copy' => (int) $data->maintainCopy,
       'psp_element' => $data->pspElement,
       'ticket_type' => $data->ticketType,

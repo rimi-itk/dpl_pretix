@@ -39,7 +39,6 @@ psp_elements:
   pretix_psp_meta_key: ~
 
 event_nodes:
-  capacity: ~
   maintain_copy: true
   ticket_type: ~
 

@@ -81,16 +81,6 @@ class FormHelper {
       ? $this->t('Please update capacity in pretix if needed.')
       : $this->t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
 
-    $form[self::FORM_KEY][self::ELEMENT_CAPACITY] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Event capacity'),
-      '#size' => 5,
-      '#maxlength' => 5,
-      '#default_value' => $eventData?->capacity ?? 0,
-      '#description' => $description,
-      '#disabled' => $disabled,
-    ];
-
     $ding_pretix_psp_elements = $this->settings->getPspElements();
     $metaKey = $ding_pretix_psp_elements->pretixPspMetaKey ?? NULL;
     $elements = $ding_pretix_psp_elements->list ?? [];

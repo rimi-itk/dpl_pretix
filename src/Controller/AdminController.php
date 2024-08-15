@@ -157,7 +157,6 @@ final class AdminController extends ControllerBase {
           // 'field' => 'entity_id'
         ],
         $this->t('Title'),
-        $this->t('Capacity'),
         $this->t('Maintain copy'),
         $this->t('Ticket type'),
         $this->t('PSP Element'),
@@ -184,7 +183,6 @@ final class AdminController extends ControllerBase {
             'data' => [
               $id,
               $entity->toLink($entity->label())->toString(),
-              $data->capacity,
               $data->maintainCopy ? $this->t('Yes') : $this->t('No'),
               $data->ticketType,
               $data->pspElement,
