@@ -145,8 +145,9 @@ class EntityHelper {
   public function createEvent(EventSeries $event, string $templateEvent): ?PretixEvent {
     $settings = $this->settings->getPretixSettings();
 
-    $this->logger->info('Creating event @event in pretix',
-      ['@event' => $event->id()]);
+    $this->logger->info('Creating event @event in pretix', [
+      '@event' => $event->id(),
+    ]);
 
     // Create event in pretix (by cloning the template event).
     // @see https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-
@@ -179,8 +180,9 @@ class EntityHelper {
    * Update event in pretix.
    */
   public function updateEvent(EventSeries $event, string $templateEvent, EventData $data): ?PretixEvent {
-    $this->logger->info('Updating event @event in pretix',
-      ['@event' => $event->id()]);
+    $this->logger->info('Updating event @event in pretix', [
+      '@event' => $event->id(),
+    ]);
 
     assert(NULL !== $data->pretixEvent);
     $pretixEvent = $this->pretixHelper->client()->updateEvent(
@@ -201,7 +203,9 @@ class EntityHelper {
    * Synchronize event instances.
    */
   private function synchronizeEventInstances(string $templateEvent, PretixEvent $pretixEvent, EventSeries $event): array {
-    $this->logger->info('Synchronizing sub-events for @event', ['@event' => $event->id()]);
+    $this->logger->info('Synchronizing sub-events for @event', [
+      '@event' => $event->id(),
+    ]);
 
     $instances = $this->getEventInstances($event);
     /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent[] $results */
@@ -391,7 +395,7 @@ class EntityHelper {
     }
     try {
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent */
-      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are fucked up)
+      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up
       $subEvent = $pretix->updateSubEvent($pretixEvent, $subEventId, $data);
     }
     catch (\Exception $exception) {
