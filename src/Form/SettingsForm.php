@@ -25,7 +25,6 @@ final class SettingsForm extends ConfigFormBase {
   public const CONFIG_NAME = 'dpl_pretix.settings';
 
   public const SECTION_PRETIX = 'pretix';
-  public const SECTION_LIBRARIES = 'libraries';
   public const SECTION_PSP_ELEMENTS = 'psp_elements';
   public const SECTION_EVENT_NODES = 'event_nodes';
   public const SECTION_EVENT_FORM = 'event_form';
@@ -89,7 +88,6 @@ final class SettingsForm extends ConfigFormBase {
     $form['#tree'] = TRUE;
 
     $this->buildFormPretix($form);
-    $this->buildFormLibraries($form);
     $this->buildFormPspElements($form, $form_state);
     $this->buildFormEventNodes($form);
     $this->buildFormEventForm($form);
@@ -266,78 +264,6 @@ final class SettingsForm extends ConfigFormBase {
     if (!filter_var($value, FILTER_VALIDATE_DOMAIN)) {
       $formState->setError($element, $this->t('@value is not a valid host name'));
     }
-  }
-
-  /**
-   * Build form.
-   */
-  private function buildFormLibraries(array &$form): void {
-    $section = self::SECTION_LIBRARIES;
-    $defaults = $this->settings->getLibrarySettings();
-
-    $form[$section] = [
-      '#type' => 'details',
-      '#title' => $this->t('Individual library short form/API tokens'),
-      '#description' => $this->t('Optional. If you have several organizers at pretix, each library can have their own short form/API token. In that case, the base short form/API token will be overridden by the provided key when sending data on events related to this library.'),
-      '#open' => TRUE,
-    ];
-
-    $libraries = $this->loadLibraries();
-    foreach ($libraries as $library) {
-      $item = $defaults->list[$library->id()] ?? NULL;
-      $form[$section]['list'][$library->id()] = [
-        '#type' => 'fieldset',
-        '#title' => $library->getTitle(),
-        '#collapsible' => TRUE,
-        '#collapsed' => FALSE,
-
-        'organizer' => [
-          '#type' => 'textfield',
-          '#title' => $this->t('Organizer'),
-          '#default_value' => $item->organizer ?? NULL,
-          '#description' => $this->t('The short form of the pretix organizer to map to.'),
-        ],
-
-        'api_token' => [
-          '#type' => 'textfield',
-          '#title' => $this->t('API token'),
-          '#default_value' => $item->apiToken ?? NULL,
-          '#description' => $this->t('The API token of the organizer team'),
-        ],
-      ];
-    }
-  }
-
-  /**
-   * Load libraries.
-   *
-   * @return \Drupal\node\Entity\Node[]|array
-   *   The libraries.
-   */
-  private function loadLibraries(): array {
-    // @todo Uncaught
-    /*
-     * Typed property Drupal\\dpl_pretix\\Form\\SettingsForm::$nodeStorage must
-     * not be accessed before initialization in
-     * Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;loadLibraries() (line 193 of
-     * sites/default/files/modules_local/dpl_pretix/src/Form/SettingsForm.php).
-     * Drupal\\dpl_pretix\\Form\\SettingsForm-&gt;buildFormLibraries() (Line:
-     * 77)
-     *
-     * @see https://www.drupal.org/project/views_bulk_operations/issues/3351434
-     */
-    if (!isset($this->nodeStorage)) {
-      // @phpstan-ignore-next-line
-      $this->nodeStorage = \Drupal::service('entity_type.manager')->getStorage('node');
-    }
-
-    $ids = $this->nodeStorage
-      ->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', 'branch')
-      ->execute();
-
-    return $this->nodeStorage->loadMultiple($ids);
   }
 
   /**
@@ -548,7 +474,6 @@ final class SettingsForm extends ConfigFormBase {
 
     foreach ([
       self::SECTION_PRETIX,
-      self::SECTION_LIBRARIES,
       self::SECTION_PSP_ELEMENTS,
       self::SECTION_EVENT_NODES,
       self::SECTION_EVENT_FORM,

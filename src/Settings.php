@@ -70,13 +70,6 @@ class Settings {
   }
 
   /**
-   * Get libraries settings.
-   */
-  public function getLibrarySettings(): LibrariesSettings {
-    return new LibrariesSettings($this->getValue(SettingsForm::SECTION_LIBRARIES));
-  }
-
-  /**
    * Get PSP elements config.
    *
    * @return \Drupal\dpl_pretix\Settings\PspElementSettings
