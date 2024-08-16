@@ -6,6 +6,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\recurring_events\EventInterface;
+use function Safe\array_combine;
 
 /**
  * Event data manager.
@@ -29,6 +30,7 @@ class EventDataHelper {
   public function createEventData(EventInterface $event, bool $withDefaults = TRUE): EventData {
     $data = EventData::createFromEvent($event);
 
+    // @todo Apply data from event
     return $withDefaults ? $this->setDefaults($data) : $data;
   }
 
@@ -38,6 +40,7 @@ class EventDataHelper {
   public function getEventData(EventInterface $event, bool $withDefaults = FALSE): ?EventData {
     $data = $this->loadEventData($event);
 
+    // @todo Apply data from event
     return $withDefaults && NULL !== $data ? $this->setDefaults($data) : $data;
   }
 
@@ -74,52 +77,38 @@ class EventDataHelper {
   /**
    * Load event data.
    *
-   * @param \Drupal\recurring_events\EventInterface|int $event
+   * @param \Drupal\recurring_events\EventInterface $event
    *   The event.
-   * @param string|null $entityType
-   *   The entity type. Required if $event is not an event entity.
    *
    * @return \Drupal\dpl_pretix\Entity\EventData|null
-   *   The event data if any.
+   *   The event data, if any.
    *
    * @throws \Exception
    */
-  public function loadEventData(EventInterface|int $event, string $entityType = NULL): ?EventData {
-    $list = $this->loadEventDataList($entityType, $event);
+  public function loadEventData(EventInterface $event): ?EventData {
+    $list = &drupal_static(__FUNCTION__);
+    if (!isset($list)) {
+      $values = $this->loadEventDataList();
+      $keys = array_map(static fn (EventData $data) => $data->entityType . ':' . $data->entityId, $values);
+      $list = array_combine($keys, $values);
+    }
 
-    return 1 === count($list) ? reset($list) : NULL;
+    return $list[$event->getEntityTypeId() . ':' . $event->id()] ?? NULL;
   }
 
   /**
-   * Load event data list.
-   *
-   * @param string|null $entityType
-   *   The entity type.
-   * @param \Drupal\recurring_events\EventInterface|int|null $event
-   *   The event (ID).
+   * Load all event data.
    *
    * @return array<EventData>
    *   The event data list.
    *
    * @throws \Exception
    */
-  public function loadEventDataList(string $entityType = NULL, EventInterface|int $event = NULL): array {
-    $entityType = $event instanceof EventInterface ? $event->getEntityTypeId() : $entityType;
-    $entityId = $event instanceof EventInterface ? $event->id() : $event;
-    if (NULL !== $event && NULL === $entityType) {
-      throw new \InvalidArgumentException('Missing event type');
-    }
-
+  public function loadEventDataList(): array {
     /** @var \Drupal\Core\Database\Query\SelectInterface $query */
     $query = $this->database
       ->select(self::EVENT_TABLE_NAME, 't')
       ->fields('t');
-    if (NULL !== $entityType) {
-      $query->condition('t.entity_type', $entityType);
-    }
-    if (NULL !== $entityId) {
-      $query->condition('t.entity_id', $entityId);
-    }
 
     $statement = $query->execute();
     assert(NULL !== $statement);

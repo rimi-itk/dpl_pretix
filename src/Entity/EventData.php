@@ -83,12 +83,12 @@ final class EventData implements \JsonSerializable {
   public static function createFromDatabaseRow(object $row): static {
     $data = new static();
 
-    if (!isset($row->entity_type, $row->entity_id)) {
-//      throw new InvalidPropertyException('Entity type and entity id are required.');
+    if (!isset($row->entity_type)) {
+      throw new InvalidPropertyException('Entity type is required.');
     }
 
     $data->entityType = $row->entity_type;
-    $data->entityId = $row->entity_id;
+    $data->entityId = $row->entity_id ?? NULL;
     $data->maintainCopy = (bool) ($row->maintain_copy ?? TRUE);
     $data->pspElement = $row->psp_element ?? NULL;
     $data->templateEvent = $row->template_event ?? NULL;

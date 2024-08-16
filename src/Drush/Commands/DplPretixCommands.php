@@ -63,7 +63,7 @@ final class DplPretixCommands extends DrushCommands {
   public function synchronizeEvent(string $eventId, array $options = []): void {
     $event = $this->loadEventSeries($eventId);
 
-    $this->entityHelper->synchronizeEvent($event, EntityHelper::UPDATE);
+    $this->entityHelper->synchronizeEvent($event);
   }
 
   /**

@@ -34,6 +34,15 @@ function dpl_pretix_entity_delete(EntityInterface $entity): void {
 }
 
 /**
+ * Implements hook_entity_load().
+ *
+ * @param EntityInterface[] $entities
+ */
+function dpl_pretix_entity_load(array $entities, string $entity_type_id): void {
+  _dpl_pretix_entity_helper()->entityLoad($entities, $entity_type_id);
+}
+
+/**
  * Get form helper.
  */
 function _dpl_pretix_form_helper(): FormHelper {

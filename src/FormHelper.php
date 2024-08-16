@@ -8,8 +8,8 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
-use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\recurring_events\Entity\EventSeries;
 
 /**
@@ -23,6 +23,9 @@ class FormHelper {
   public const ELEMENT_MAINTAIN_COPY = 'maintain_copy';
   public const ELEMENT_TEMPLATE_EVENT = 'template_event';
   public const ELEMENT_PSP_ELEMENT = 'psp_element';
+
+  public const FIELD_EVENT_LINK = 'field_event_link';
+  private const FIELD_TICKET_CAPACITY = 'field_ticket_capacity';
 
   public function __construct(
     private readonly Settings $settings,
@@ -63,12 +66,7 @@ class FormHelper {
 
     // We don't allow manual change of the ticket link if pretix is used.
     if ($eventData->maintainCopy) {
-      if (isset($form['field_event_link'])) {
-        $element = &$form['field_event_link'];
-        $element['#disabled'] = TRUE;
-        $element['widget'][0]['#description'] = $this->t('This field is managed by pretix for this event.');
-        unset($element);
-      }
+      $this->disableElement($form, self::FIELD_EVENT_LINK, $this->t('This field is managed by pretix for this event.'));
     }
 
     $pretixEventId = $eventData->pretixEvent;
@@ -76,9 +74,9 @@ class FormHelper {
     // We don't allow updates to capacity after the event is created in pretix,
     // must be updated in pretix.
     $disabled = isset($pretixEventId);
-    $description = $disabled
-      ? $this->t('Please update capacity in pretix if needed.')
-      : $this->t('Optional. Maximum capacity on this event. Set to 0 for unlimited capacity.');
+    if ($disabled) {
+      $this->disableElement($form, self::FIELD_TICKET_CAPACITY, $this->t('Update capacity in pretix if needed.'));
+    }
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
     $metaKey = $ding_pretix_psp_elements->pretixPspMetaKey ?? NULL;
@@ -112,7 +110,7 @@ class FormHelper {
       '#type' => 'checkbox',
       '#title' => t('Maintain copy in pretix'),
       '#default_value' => $eventData->maintainCopy,
-      '#description' => t('When set, a corresponding event is created and updated on the pretix ticket booking service.'),
+      '#description' => t('When set, a corresponding event is created and updated in pretix.'),
     ];
 
     $options = [
@@ -158,35 +156,15 @@ class FormHelper {
     }
 
     $form['#validate'][] = [$this, 'validateForm'];
-
-    if (isset($form['actions']['submit']['#submit'])) {
-      $form['actions']['submit']['#submit'][] = [$this, 'submitHandler'];
-    }
   }
 
   /**
    * {@inheritdoc}
    */
   public function validateForm(array $form, FormStateInterface $formState): void {
-    // @todo add validation?
-  }
-
-  /**
-   * Submit handler for event form.
-   */
-  public function submitHandler(array $form, FormStateInterface $formState): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
-      // We're lucky, and even new events have already been saved when our
-      // submit handler is run.
-      $data = $this->eventDataHelper->getEventData($event) ?? new EventData();
-
-      $values = $formState->getValue(self::FORM_KEY) ?? [];
-      $data->capacity = (int) ($values[self::ELEMENT_CAPACITY] ?? 0);
-      $data->maintainCopy = (bool) ($values[self::ELEMENT_MAINTAIN_COPY] ?? FALSE);
-      $data->ticketType = $values[self::ELEMENT_TICKET_TYPE] ?? '';
-      $data->pspElement = $values[self::ELEMENT_PSP_ELEMENT] ?? NULL;
-
-      $this->eventHelper->setEventData($event, $data);
+      // Store our custom values for use in entity save/update hook.
+      EntityHelper::setFormValues($event, $formState->getValue(self::FORM_KEY) ?? []);
     }
   }
 
@@ -204,6 +182,25 @@ class FormHelper {
     }
 
     return NULL;
+  }
+
+  /**
+   * Disable a form element and show the reason.
+   */
+  private function disableElement(array &$form, string $field, TranslatableMarkup $reason): void {
+    if (isset($form[$field])) {
+      $element = &$form[$field];
+      $element['#disabled'] = TRUE;
+      // @todo show reason somewhere reasonable.
+      // $element['widget'][0]['#prefix']
+      // = '<div class="form-item__description">'.$reason .'</div>';
+      // if (isset($element['widget'][0]['#description'])) {
+      // $element['widget'][0]['#description'] .= $reason;
+      // }
+      // elseif (isset($element['widget'][0])) {
+      // $element['widget'][0]['#description'] = $reason;
+      // }
+    }
   }
 
 }

@@ -11,34 +11,25 @@ use Drupal\dpl_pretix\Entity\EventData;
 use Drupal\dpl_pretix\Exception\SynchronizeException;
 use Drupal\dpl_pretix\Pretix\ApiClient\Client as PretixApiClient;
 use Drupal\dpl_pretix\Pretix\ApiClient\Collections\EntityCollectionInterface;
+use Drupal\dpl_pretix\Pretix\ApiClient\Entity\AbstractEntity as PretixEntity;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event as PretixEvent;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent as PretixSubEvent;
 use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\recurring_events\EventInterface;
 use Psr\Log\LoggerInterface;
+use Safe\DateTimeImmutable;
 use function Safe\sprintf;
 
 /**
  * Entity helper.
  */
-class EntityHelper {
+final class EntityHelper {
   use StringTranslationTrait;
   use DependencySerializationTrait;
 
-  public const INSERT = 'insert';
-  public const UPDATE = 'update';
-  public const DELETE = 'delete';
-
   // @see /admin/structure/events/instance/types/eventinstance_type/default/edit/fields
   private const EVENT_TICKET_LINK_FIELD = 'field_event_link';
-
-  /**
-   * Used to save entity without running our entity listener.
-   *
-   * @var bool
-   */
-  private bool $skipEntityListeners = FALSE;
 
   public function __construct(
     private readonly Settings $settings,
@@ -53,44 +44,36 @@ class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
-    if ($this->skipEntityListeners) {
-      return;
-    }
-
-    if ($entity instanceof EventSeries) {
-      // @see https://drupal.stackexchange.com/a/225627
-      drupal_register_shutdown_function($this->postEntityInsert(...), $entity);
-    }
+    // The entity has already been saved and has an id.
+    $this->entityUpdate($entity);
   }
 
   /**
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
-    if ($this->skipEntityListeners) {
-      return;
-    }
-
     if ($entity instanceof EventSeries) {
-      $this->synchronizeEvent($entity, self::UPDATE);
+      $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      $settings = $this->settings->getPretixSettings();
-      $templateEvent = $settings->templateEvent;
-      if (NULL === $templateEvent) {
-        $this->messenger->addError($this->t('Cannot get template event'));
-        return;
+      /** @var \Drupal\recurring_events\Entity\EventSeries $event */
+      $event = $entity->getEventSeries();
+      $data = $this->eventDataHelper->loadEventData($event);
+      if (NULL === $data?->pretixEvent) {
+        // Event has not been synchronized with pretix, so we synchronize the
+        // event series (and thus all instances).
+        $this->synchronizeEvent($event);
       }
+      else {
+        if (!$data->maintainCopy) {
+          return;
+        }
+        if (NULL === $data->templateEvent) {
+          throw new SynchronizeException('Cannot get template event for sub-event');
+        }
 
-      $data = $this->eventDataHelper->loadEventData($entity->getEventSeries());
-      if (NULL === $data || empty($data->pretixEvent)) {
-        $this->messenger->addError($this->t('Cannot get event series data for @entity', [
-          '@entity' => sprintf('%s:%s', $entity->getEntityTypeId(), $entity->id()),
-        ]));
-        return;
+        $this->synchronizeEventInstance($entity, $data->templateEvent, $data->pretixEvent);
       }
-
-      $this->synchronizeEventInstance($entity, $templateEvent, $data->pretixEvent);
     }
   }
 
@@ -98,31 +81,68 @@ class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
-    if ($this->skipEntityListeners) {
-      return;
-    }
-
     if ($entity instanceof EventSeries) {
-      $this->synchronizeEvent($entity, self::DELETE);
+      $this->deleteEvent($entity);
+    }
+    elseif ($entity instanceof EventInstance) {
+      $this->deleteEventInstance($entity);
+    }
+  }
+
+  /**
+   * Implements hook_entity_load().
+   *
+   * @param \Drupal\Core\Entity\EntityInterface[] $entities
+   *   The entities.
+   * @param string $entityTypeId
+   *   The entity type id.
+   */
+  public function entityLoad(array $entities, string $entityTypeId): void {
+    if ('eventseries' === $entityTypeId) {
+      /** @var \Drupal\recurring_events\EventInterface $entity */
+      foreach ($entities as $entity) {
+        $data = $this->eventDataHelper->loadEventData($entity);
+        if ($url = $data?->getEventShopUrl()) {
+          if ($url !== $entity->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
+            $entity->set(self::EVENT_TICKET_LINK_FIELD, $url);
+          }
+        }
+      }
     }
   }
 
   /**
    * Synchronize event in pretix.
    */
-  public function synchronizeEvent(EventSeries $event, string $action): ?PretixEvent {
-    try {
-      $data = $this->eventDataHelper->loadEventData($event);
-      $settings = $this->settings->getPretixSettings();
-      $templateEvent = $settings->templateEvent;
+  public function synchronizeEvent(EventSeries $event): ?PretixEvent {
+    $synchronized = $this->getEntitySynchronized($event);
+    if (NULL !== $synchronized && $synchronized instanceof PretixEvent) {
+      return $synchronized;
+    }
 
-      if (NULL === $templateEvent) {
-        throw new SynchronizeException('Cannot get template event from settings');
+    try {
+      $data = $this->getEventData($event);
+      if (!$data->maintainCopy) {
+        return NULL;
       }
 
-      return NULL === $data
-        ? $this->createEvent($event, $templateEvent)
+      $templateEvent = $this->getTemplateEvent($event);
+
+      $isNew = NULL === $data->pretixEvent;
+      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $pretixEvent */
+      $pretixEvent = $isNew
+        ? $this->createEvent($event, $templateEvent, $data)
         : $this->updateEvent($event, $templateEvent, $data);
+
+      if ($isNew) {
+        $this->pretix()->updateEvent($pretixEvent, [
+          'live' => $event->isPublished(),
+        ]);
+      }
+
+      $this->setEntitySynchronized($event, $pretixEvent);
+
+      return $pretixEvent;
     }
     catch (\Throwable $t) {
       $this->messenger->addError($this->t('Error synchronizing @event: @message', [
@@ -140,9 +160,21 @@ class EntityHelper {
   }
 
   /**
+   * Get event data and ensure that it has been persisted.
+   */
+  private function getEventData(EventInterface $event): EventData {
+    $data = $this->eventDataHelper->loadEventData($event)
+      ?? $this->eventDataHelper->createEventData($event);
+    static::applyFormValues($data, $event);
+    $this->eventDataHelper->saveEventData($event, $data);
+
+    return $data;
+  }
+
+  /**
    * Create event in pretix.
    */
-  public function createEvent(EventSeries $event, string $templateEvent): ?PretixEvent {
+  public function createEvent(EventSeries $event, string $templateEvent, EventData $data): ?PretixEvent {
     $settings = $this->settings->getPretixSettings();
 
     $this->logger->info('Creating event @event in pretix', [
@@ -153,22 +185,22 @@ class EntityHelper {
     // @see https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-
     $pretixEvent = $this->pretixHelper->client()->cloneEvent(
       $templateEvent,
-      $this->getPretixEventData($event, [
-        // ? 'live' => false,
+      $this->getPretixEventData($event, $data, [
+        // We cannot set the event live on create
+        // (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-).
         'slug' => $this->getPretixEventSlug($event),
         // The API documentation claims that `has_subevents` is copied when cloning, but that doesn't seem to be correct (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-).
         'has_subevents' => TRUE,
       ])
     );
 
-    $data = $this->eventDataHelper->createEventData($event);
+    $data->data['event'] = $pretixEvent->toArray();
     $data->pretixUrl = $settings->url;
     $data->pretixOrganizer = $settings->organizer;
     $data->pretixEvent = $pretixEvent->getSlug();
     $this->eventDataHelper->saveEventData($event, $data);
 
-    $this->setTicketLink($event, save: TRUE);
-
+    // @todo $this->setTicketLink($event, save: TRUE);
     // @todo Set settings?
     // $this->pretix()->setEventSetting();
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
@@ -187,10 +219,12 @@ class EntityHelper {
     assert(NULL !== $data->pretixEvent);
     $pretixEvent = $this->pretixHelper->client()->updateEvent(
       $data->pretixEvent,
-      $this->getPretixEventData($event, [
-        // ? 'live' => false,
+      $this->getPretixEventData($event, $data, [
+        'live' => $event->isPublished(),
       ])
     );
+
+    $this->eventDataHelper->saveEventData($event, $data);
 
     // @todo Set settings?
     // $this->pretix()->setEventSetting();
@@ -234,18 +268,27 @@ class EntityHelper {
   /**
    * Synchronize event instance.
    */
-  private function synchronizeEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixEvent): PretixSubEvent {
-    $instanceData = $this->eventDataHelper->loadEventData($instance);
+  private function synchronizeEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixSubEvent): PretixSubEvent {
+    $synchronized = $this->getEntitySynchronized($instance);
+    if (NULL !== $synchronized && $synchronized instanceof PretixSubEvent) {
+      return $synchronized;
+    }
 
-    return NULL === $instanceData
-      ? $this->createEventInstance($instance, $templateEvent, $pretixEvent)
-      : $this->updateEventInstance($instance, $pretixEvent, $instanceData);
+    $data = $this->getEventData($instance);
+
+    $pretixSubEvent = NULL === $data->pretixSubeventId
+      ? $this->createEventInstance($instance, $templateEvent, $pretixSubEvent, $data)
+      : $this->updateEventInstance($instance, $pretixSubEvent, $data);
+
+    $this->setEntitySynchronized($instance, $pretixSubEvent);
+
+    return $pretixSubEvent;
   }
 
   /**
    * Synchronize event instance.
    */
-  private function createEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixEvent): PretixSubEvent {
+  private function createEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
     $pretix = $this->pretix();
 
     $data = $this->getSubEventData($instance);
@@ -310,7 +353,6 @@ class EntityHelper {
         ]), $exception);
     }
 
-    $instanceData = $this->eventDataHelper->createEventData($instance);
     // Store the sub-event data for future updates.
     $instanceData->data['subevent'] = $data;
 
@@ -395,7 +437,7 @@ class EntityHelper {
     }
     try {
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent */
-      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up
+      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
       $subEvent = $pretix->updateSubEvent($pretixEvent, $subEventId, $data);
     }
     catch (\Exception $exception) {
@@ -471,6 +513,22 @@ class EntityHelper {
   }
 
   /**
+   * Delete event instance in pretix.
+   */
+  public function deleteEventInstance(EventInstance $instance): bool {
+    $data = $this->eventDataHelper->loadEventData($instance);
+
+    if (NULL !== $data && isset($data->pretixEvent, $data->pretixSubeventId)) {
+      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
+      $this->pretix()->deleteSubEvent($data->pretixEvent, $data->pretixSubeventId);
+
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Get event instances.
    *
    * @return array<EventInstance>
@@ -485,14 +543,15 @@ class EntityHelper {
    */
   public function setEventData(EventSeries $event, EventData $data): void {
     $this->eventDataHelper->saveEventData($event, $data);
-    $this->synchronizeEvent($event, $event->isNew() ? self::INSERT : self::UPDATE);
+    $this->synchronizeEvent($event);
   }
 
   /**
    * Decide if event has orders in pretix.
    */
   public function hasOrders(string $event): bool {
-    return $this->getOrders($event)->count() > 0;
+    // @todo Do we need this?
+    return FALSE;
   }
 
   /**
@@ -524,24 +583,40 @@ class EntityHelper {
    *
    * @param \Drupal\recurring_events\Entity\EventSeries $event
    *   The event.
+   * @param \Drupal\dpl_pretix\Entity\EventData $eventData
+   *   The event data.
    * @param array<string, mixed> $data
    *   The current data, if any.
    *
    * @see https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description
    */
-  private function getPretixEventData(EventSeries $event, array $data = []): array {
+  private function getPretixEventData(EventSeries $event, EventData $eventData, array $data = []): array {
     $instances = $this->getEventInstances($event);
     $firstInstance = reset($instances) ?: NULL;
     $lastInstance = end($instances) ?: NULL;
     $dateFrom = NULL !== $firstInstance ? $this->getDateRange($firstInstance)[0] : NULL;
     $dateTo = NULL !== $lastInstance ? $this->getDateRange($lastInstance)[1] : NULL;
 
-    return $data + [
+    $settings = $this->settings->getPspElements();
+    if (!empty($settings->pretixPspMetaKey)) {
+      if (!empty($eventData->pspElement)) {
+        $data['meta_data'][$settings->pretixPspMetaKey] = $eventData->pspElement;
+      }
+    }
+    $data += [
       'name' => $this->getEventName($event),
       'date_from' => $this->pretixHelper->formatDate($dateFrom),
       'date_to' => $this->pretixHelper->formatDate($dateTo),
       'is_public' => $event->isPublished(),
     ];
+
+    // date_from must be set (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description)
+    $data['date_from'] ??= $eventData->data['event']['date_from'] ?? $this->pretixHelper->formatDate(new DateTimeImmutable());
+
+    // Important: meta_data value must be an object!
+    $data['meta_data'] = (object) ($data['meta_data'] ?? []);
+
+    return $data;
   }
 
   /**
@@ -558,50 +633,6 @@ class EntityHelper {
    */
   private function pretix(): PretixApiClient {
     return $this->pretixHelper->client();
-  }
-
-  /**
-   * Post entity insert handler.
-   *
-   * @see https://drupal.stackexchange.com/a/225627
-   */
-  private function postEntityInsert(EntityInterface $entity): void {
-    if ($entity instanceof EventSeries) {
-      $data = $this->eventDataHelper->createEventData($entity);
-      $this->eventDataHelper->saveEventData($entity, $data);
-      $this->synchronizeEvent($entity, self::INSERT);
-    }
-    elseif ($entity instanceof EventInstance) {
-      // @todo $entity->getEventSeries();
-    }
-  }
-
-  /**
-   * Set ticket link on event entity.
-   */
-  private function setTicketLink(EventInterface $event, bool $save = FALSE): void {
-    $data = $this->eventDataHelper->getEventData($event);
-    if ($url = $data?->getEventShopUrl()) {
-      if ($event->hasField(self::EVENT_TICKET_LINK_FIELD)) {
-        $event->set(self::EVENT_TICKET_LINK_FIELD, [
-          'uri' => $url,
-        ]);
-        if ($save) {
-          $this->runWithoutEntityListeners(static function () use ($event) {
-            $event->save();
-          });
-        }
-      }
-    }
-  }
-
-  /**
-   * Run code with triggering our entity listeners.
-   */
-  private function runWithoutEntityListeners(callable $callable): void {
-    $this->skipEntityListeners = TRUE;
-    $callable();
-    $this->skipEntityListeners = FALSE;
   }
 
   /**
@@ -668,16 +699,14 @@ class EntityHelper {
       $address = $series->get($fieldName)->first();
     }
 
-    if (empty($address)) {
-      return [];
-    }
-
     return [
-      $this->getDefaultLanguageCode($event) => implode(PHP_EOL, array_filter([
-        $address->getAddressLine1(),
-        $address->getAddressLine2(),
-        $address->getPostalCode() . ' ' . $address->getLocality(),
-      ])),
+      $this->getDefaultLanguageCode($event) => empty($address)
+        ? ''
+        : implode(PHP_EOL, array_filter([
+          $address->getAddressLine1(),
+          $address->getAddressLine2(),
+          $address->getPostalCode() . ' ' . $address->getLocality(),
+        ])),
     ];
   }
 
@@ -723,6 +752,87 @@ class EntityHelper {
     }
 
     return $range;
+  }
+
+  /**
+   * The temporary event form values.
+   *
+   * @var array<string, mixed>
+   */
+  private static array $formValues = [];
+
+  /**
+   * Set event form values needed for updating events in pretix.
+   *
+   * @param \Drupal\recurring_events\EventInterface $event
+   *   The event.
+   * @param array<string, mixed> $values
+   *   The form values.
+   */
+  public static function setFormValues(EventInterface $event, array $values): void {
+    static::$formValues[$event->getEntityTypeId() . ':' . ($event->id() ?? 'new')] = $values;
+  }
+
+  /**
+   * Get form values.
+   */
+  private static function getFormValues(EventInterface $event): ?array {
+    // Check for form values for the specific event.
+    $values = static::$formValues[$event->getEntityTypeId() . ':' . $event->id()]
+      // Or a new event.
+      ?? static::$formValues[$event->getEntityTypeId() . ':new']
+      ?? NULL;
+
+    // @todo Should we reset values immediately after reading?
+    // unset(static::$formValues[$key]);.
+    return $values;
+  }
+
+  /**
+   * Apply form values to event data.
+   */
+  private static function applyFormValues(EventData $data, EventInterface $event): void {
+    if ($values = static::getFormValues($event)) {
+      $data->maintainCopy = (bool) ($values[FormHelper::ELEMENT_MAINTAIN_COPY] ?? FALSE);
+      $data->templateEvent = $values[FormHelper::ELEMENT_TEMPLATE_EVENT] ?? '';
+      $data->pspElement = $values[FormHelper::ELEMENT_PSP_ELEMENT] ?? NULL;
+    }
+  }
+
+  /**
+   * Used to keep track of which entities have already been synchronized.
+   *
+   * @var array<string, PretixEvent|PretixSubEvent>
+   */
+  private static array $synchronizedEntities = [];
+
+  /**
+   * Get data for a synchronized entity, if any.
+   */
+  private function getEntitySynchronized(EventInterface $event): null|PretixEvent|PretixSubEvent {
+    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] ?? NULL;
+  }
+
+  /**
+   * Set data for a synchronized entity.
+   */
+  private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent $pretixEntity): PretixEntity {
+    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $pretixEntity;
+  }
+
+  /**
+   * Get template event for an event.
+   */
+  private function getTemplateEvent(EventSeries $event): string {
+    $settings = $this->settings->getPretixSettings();
+    $templateEvent = $settings->templateEvent;
+
+    // @todo Get from event data.
+    if (NULL === $templateEvent) {
+      throw new SynchronizeException('Cannot get template event from settings');
+    }
+
+    return $templateEvent;
   }
 
 }

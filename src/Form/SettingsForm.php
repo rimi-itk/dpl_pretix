@@ -471,13 +471,13 @@ final class SettingsForm extends ConfigFormBase {
       '#open' => TRUE,
 
       'capacity' => [
-        '#type' => 'number',
+        '#type' => 'textfield',
         '#min' => 0,
-        '#title' => $this->t('Capacity'),
+        '#title' => $this->t('Default event capacity'),
         '#default_value' => $defaults->capacity ?? 0,
         '#size' => 5,
         '#maxlength' => 5,
-        '#description' => $this->t('The default capacity for new events. Set to 0 for unlimited capacity.'),
+        '#description' => $this->t('The default capacity for new events.'),
       ],
 
       'maintain_copy' => [
@@ -485,7 +485,7 @@ final class SettingsForm extends ConfigFormBase {
         '#title' => $this->t('Maintain copy in pretix'),
         '#default_value' => $defaults->maintainCopy ?? FALSE,
         '#return_value' => TRUE,
-        '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
+        '#description' => $this->t('Should new events be created and updated in pretix by default?'),
       ],
 
     ];
