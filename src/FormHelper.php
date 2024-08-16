@@ -64,6 +64,23 @@ class FormHelper {
       '#open' => TRUE,
     ];
 
+    $form[self::FORM_KEY][self::ELEMENT_MAINTAIN_COPY] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Create and update in pretix'),
+      '#default_value' => $eventData->maintainCopy,
+      '#return_value' => TRUE,
+      '#description' => $this->t('When set, a corresponding event is created and updated in pretix.'),
+    ];
+
+    $states = [
+      '#states' => [
+        'visible' => [
+          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+    $states['#states']['required'] = $states['#states']['visible'];
+
     // We don't allow manual change of the ticket link if pretix is used.
     if ($eventData->maintainCopy) {
       $this->disableElement($form, self::FIELD_EVENT_LINK, $this->t('This field is managed by pretix for this event.'));
@@ -89,42 +106,33 @@ class FormHelper {
 
       // PSP is a code for accounting. If an event has orders, we don't allow
       // this to be changed, as this would invalidate the accounting.
-      $disabled = isset($pretixEventId) && $this->eventHelper->hasOrders($pretixEventId);
+      $disabled = isset($eventData->pretixEvent) && $this->eventHelper->hasOrders($eventData->pretixEvent);
       $description = $disabled
-        ? $this->t('Event has active orders - For accounting reasons the PSP element can no longer be changed.')
+        ? $this->t('Event has active orders. For accounting reasons the PSP element can no longer be changed.')
         : $this->t('Select the PSP element the ticket sales should be registered under.');
 
       $form[self::FORM_KEY][self::ELEMENT_PSP_ELEMENT] = [
         '#type' => 'select',
-        '#title' => $this->t('PSP Element'),
+        '#title' => $this->t('PSP element'),
         '#options' => $options,
         '#default_value' => $eventData->pspElement,
-        '#required' => TRUE,
-        '#empty_option' => $this->t('Select PSP Element'),
+        '#empty_option' => $this->t('Select PSP element'),
         '#description' => $description,
         '#disabled' => $disabled,
-      ];
+      ] + $states;
     }
 
-    $form[self::FORM_KEY][self::ELEMENT_MAINTAIN_COPY] = [
-      '#type' => 'checkbox',
-      '#title' => t('Maintain copy in pretix'),
-      '#default_value' => $eventData->maintainCopy,
-      '#description' => t('When set, a corresponding event is created and updated in pretix.'),
-    ];
-
     $options = [
-      'pdf_ticket' => t('PDF Tickets'),
-      'email_ticket' => t('Email Tickets'),
+      'pdf_ticket' => $this->t('PDF Tickets'),
+      'email_ticket' => $this->t('Email Tickets'),
     ];
     $form[self::FORM_KEY][self::ELEMENT_TEMPLATE_EVENT] = [
-      '#type' => 'radios',
-      '#title' => t('Template event'),
+      '#type' => 'select',
+      '#title' => $this->t('Template event'),
       '#options' => $options,
-      '#required' => TRUE,
       '#default_value' => $eventData->templateEvent,
-      '#description' => t('Template event used to create event in pretix'),
-    ];
+      '#description' => $this->t('Template event used to create event in pretix'),
+    ] + $states;
 
     if (!$entity->isNew()) {
       if ($pretixAdminUrl = $eventData->getEventAdminUrl()) {
@@ -138,8 +146,8 @@ class FormHelper {
         '#type' => 'item',
         '#title' => $this->t('pretix event'),
         '#markup' => $pretix_link,
-        '#description' => $this->t('A link to the corresponding event on the pretix ticket booking service.'),
-      ];
+        '#description' => $this->t('A link to the corresponding event in pretix.'),
+      ] + $states;
     }
 
     // Make it easy for administrators to edit pretix settings.
@@ -165,6 +173,18 @@ class FormHelper {
     if ($event = $this->getEventSeriesEntity($formState)) {
       // Store our custom values for use in entity save/update hook.
       EntityHelper::setFormValues($event, $formState->getValue(self::FORM_KEY) ?? []);
+
+      $eventData = $this->eventDataHelper->getEventData($event)
+        ?? $this->eventDataHelper->createEventData($event);
+
+      if ((bool) $formState->getValue(self::ELEMENT_MAINTAIN_COPY)) {
+        if (empty($formState->getValue(self::ELEMENT_PSP_ELEMENT))) {
+          $formState->setErrorByName(self::ELEMENT_PSP_ELEMENT, $this->t('PSP element is required.'));
+        }
+        if (empty($formState->getValue(self::ELEMENT_TEMPLATE_EVENT))) {
+          $formState->setErrorByName(self::ELEMENT_TEMPLATE_EVENT, $this->t('Template event is required.'));
+        }
+      }
     }
   }
 

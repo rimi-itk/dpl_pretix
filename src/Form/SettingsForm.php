@@ -164,19 +164,19 @@ final class SettingsForm extends ConfigFormBase {
 
         'domain' => [
           '#type' => 'textfield',
-          '#title' => t('Domain'),
+          '#title' => $this->t('Domain'),
           '#default_value' => $defaults->domain,
           '#required' => TRUE,
-          '#description' => t('The Drupal domain that these pretix settings apply to.'),
+          '#description' => $this->t('The Drupal domain that these pretix settings apply to.'),
           '#element_validate' => [[$this, 'validateDomain']],
         ],
 
         'url' => [
           '#type' => 'url',
-          '#title' => t('URL'),
+          '#title' => $this->t('URL'),
           '#default_value' => $defaults->url,
           '#required' => TRUE,
-          '#description' => t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
+          '#description' => $this->t('Enter a valid pretix service endpoint without path info, such as https://www.pretix.eu/'),
         ],
 
         'organizer' => [
@@ -300,9 +300,9 @@ final class SettingsForm extends ConfigFormBase {
 
         'api_token' => [
           '#type' => 'textfield',
-          '#title' => t('API token'),
+          '#title' => $this->t('API token'),
           '#default_value' => $item->apiToken ?? NULL,
-          '#description' => t('The API token of the organizer team'),
+          '#description' => $this->t('The API token of the organizer team'),
         ],
       ];
     }
@@ -482,10 +482,10 @@ final class SettingsForm extends ConfigFormBase {
 
       'maintain_copy' => [
         '#type' => 'checkbox',
-        '#title' => $this->t('Maintain copy in pretix'),
+        '#title' => $this->t('Create and update in pretix'),
         '#default_value' => $defaults->maintainCopy ?? FALSE,
         '#return_value' => TRUE,
-        '#description' => $this->t('Should new events be created and updated in pretix by default?'),
+        '#description' => $this->t('Default value of %field on new event series.', ['%field' => $this->t('Create and update in pretix')]),
       ],
 
     ];

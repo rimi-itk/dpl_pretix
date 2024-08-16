@@ -550,8 +550,7 @@ final class EntityHelper {
    * Decide if event has orders in pretix.
    */
   public function hasOrders(string $event): bool {
-    // @todo Do we need this?
-    return FALSE;
+    return !$this->getOrders($event)->isEmpty();
   }
 
   /**
@@ -611,7 +610,8 @@ final class EntityHelper {
     ];
 
     // date_from must be set (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description)
-    $data['date_from'] ??= $eventData->data['event']['date_from'] ?? $this->pretixHelper->formatDate(new DateTimeImmutable());
+    $data['date_from'] ??= $eventData->data['event']['date_from']
+      ?? $this->pretixHelper->formatDate(new DateTimeImmutable());
 
     // Important: meta_data value must be an object!
     $data['meta_data'] = (object) ($data['meta_data'] ?? []);

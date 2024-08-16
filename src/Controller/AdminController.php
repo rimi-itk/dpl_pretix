@@ -159,7 +159,7 @@ final class AdminController extends ControllerBase {
         $this->t('Title'),
         $this->t('Maintain copy'),
         $this->t('Ticket type'),
-        $this->t('PSP Element'),
+        $this->t('PSP element'),
 
         $this->t('Event shop URL'),
         $this->t('Event admin URL'),
