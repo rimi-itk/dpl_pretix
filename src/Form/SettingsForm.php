@@ -488,17 +488,6 @@ final class SettingsForm extends ConfigFormBase {
         '#description' => $this->t('Should new events be saved and updated to pretix by default?'),
       ],
 
-      'ticket_type' => [
-        '#type' => 'radios',
-        '#title' => $this->t('Use PDF or Email tickets'),
-        '#options' => [
-          'pdf_ticket' => $this->t('PDF Tickets'),
-          'email_ticket' => $this->t('Email Tickets'),
-        ],
-        '#required' => TRUE,
-        '#default_value' => $defaults->ticketType ?? '',
-        '#description' => t('Should new events use PDF or Email tickets by default?'),
-      ],
     ];
   }
 

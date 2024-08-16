@@ -39,8 +39,8 @@ function dpl_pretix_schema(): array {
           'not null' => FALSE,
           'default' => NULL,
         ],
-        'ticket_type' => [
-          'description' => 'Ticket type',
+        'template_event' => [
+          'description' => 'Template event',
           'type' => 'varchar',
           'length' => 50,
           'not null' => FALSE,

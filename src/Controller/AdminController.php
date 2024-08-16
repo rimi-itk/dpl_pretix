@@ -184,7 +184,7 @@ final class AdminController extends ControllerBase {
               $id,
               $entity->toLink($entity->label())->toString(),
               $data->maintainCopy ? $this->t('Yes') : $this->t('No'),
-              $data->ticketType,
+              $data->templateEvent,
               $data->pspElement,
               $renderLink($data->getEventShopUrl()),
               $renderLink($data->getEventAdminUrl()),

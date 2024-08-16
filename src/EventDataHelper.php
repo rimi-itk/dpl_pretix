@@ -48,7 +48,7 @@ class EventDataHelper {
     $values = [
       'maintain_copy' => (int) $data->maintainCopy,
       'psp_element' => $data->pspElement,
-      'ticket_type' => $data->ticketType,
+      'template_event' => $data->templateEvent,
       'data' => \Safe\json_encode($data->data),
       'pretix_event' => $data->pretixEvent,
       'pretix_subevent_id' => $data->pretixSubeventId,

@@ -19,11 +19,10 @@ class FormHelper {
   use StringTranslationTrait;
   use DependencySerializationTrait;
 
-  private const FORM_KEY = 'dpl_pretix';
-  private const ELEMENT_CAPACITY = 'capacity';
-  private const ELEMENT_MAINTAIN_COPY = 'maintain_copy';
-  private const ELEMENT_TICKET_TYPE = 'ticket_type';
-  private const ELEMENT_PSP_ELEMENT = 'psp_element';
+  public const FORM_KEY = 'dpl_pretix';
+  public const ELEMENT_MAINTAIN_COPY = 'maintain_copy';
+  public const ELEMENT_TEMPLATE_EVENT = 'template_event';
+  public const ELEMENT_PSP_ELEMENT = 'psp_element';
 
   public function __construct(
     private readonly Settings $settings,
@@ -116,16 +115,17 @@ class FormHelper {
       '#description' => t('When set, a corresponding event is created and updated on the pretix ticket booking service.'),
     ];
 
-    $form[self::FORM_KEY][self::ELEMENT_TICKET_TYPE] = [
+    $options = [
+      'pdf_ticket' => t('PDF Tickets'),
+      'email_ticket' => t('Email Tickets'),
+    ];
+    $form[self::FORM_KEY][self::ELEMENT_TEMPLATE_EVENT] = [
       '#type' => 'radios',
-      '#title' => t('Use PDF or Email tickets'),
-      '#options' => [
-        'pdf_ticket' => t('PDF Tickets'),
-        'email_ticket' => t('Email Tickets'),
-      ],
+      '#title' => t('Template event'),
+      '#options' => $options,
       '#required' => TRUE,
-      '#default_value' => $eventData->ticketType,
-      '#description' => t('Use PDF or Email tickets for the event?'),
+      '#default_value' => $eventData->templateEvent,
+      '#description' => t('Template event used to create event in pretix'),
     ];
 
     if (!$entity->isNew()) {

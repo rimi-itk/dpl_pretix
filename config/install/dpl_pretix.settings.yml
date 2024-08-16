@@ -40,7 +40,6 @@ psp_elements:
 
 event_nodes:
   maintain_copy: true
-  ticket_type: ~
 
 event_form:
   weight: 9999

@@ -36,7 +36,7 @@ final class EventData implements \JsonSerializable {
   /**
    * The ticket type.
    */
-  public ?string $ticketType = NULL;
+  public ?string $templateEvent = NULL;
 
   /**
    * The pretix URL.
@@ -84,14 +84,14 @@ final class EventData implements \JsonSerializable {
     $data = new static();
 
     if (!isset($row->entity_type, $row->entity_id)) {
-      throw new InvalidPropertyException('Entity type and entity id are required.');
+//      throw new InvalidPropertyException('Entity type and entity id are required.');
     }
 
     $data->entityType = $row->entity_type;
     $data->entityId = $row->entity_id;
     $data->maintainCopy = (bool) ($row->maintain_copy ?? TRUE);
     $data->pspElement = $row->psp_element ?? NULL;
-    $data->ticketType = $row->ticket_type ?? NULL;
+    $data->templateEvent = $row->template_event ?? NULL;
     $data->pretixUrl = $row->pretix_url ?? NULL;
     $data->pretixOrganizer = $row->pretix_organizer ?? NULL;
     $data->pretixEvent = $row->pretix_event ?? NULL;
@@ -130,7 +130,7 @@ final class EventData implements \JsonSerializable {
       'entity_id' => $this->entityId ?? NULL,
       'maintain_copy' => $this->maintainCopy,
       'psp_element' => $this->pspElement,
-      'ticket_type' => $this->ticketType,
+      'template_event' => $this->templateEvent,
       'pretix_url' => $this->pretixUrl,
       'pretix_organizer' => $this->pretixOrganizer,
       'pretix_event' => $this->pretixEvent,
