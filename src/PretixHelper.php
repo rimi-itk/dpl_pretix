@@ -2,6 +2,7 @@
 
 namespace Drupal\dpl_pretix;
 
+use Drupal\Component\Serialization\Yaml;
 use Drupal\dpl_pretix\Exception\ValidationException;
 use Drupal\dpl_pretix\Pretix\ApiClient\Client;
 use function Safe\json_encode;
@@ -27,23 +28,40 @@ class PretixHelper {
   }
 
   /**
+   * Parse template events.
+   */
+  public function parseTemplateEvents(string $value): array {
+    $values = Yaml::decode($value);
+
+    if (empty($values)
+      || !is_array($values)
+      || array_is_list($values)
+      || !empty(array_filter($values, static fn ($value) => !is_string($value)))) {
+      throw new ValidationException(sprintf('Invalid value'));
+    }
+
+    return $values;
+  }
+
+  /**
    * Validate template event.
    *
    * @return \Drupal\dpl_pretix\Exception\ValidationException[]
    *   A list of validation errors.
    */
-  public function validateTemplateEvent(): array {
+  public function validateTemplateEvent(string $templateEvent): array {
     $errors = [];
 
-    $settings = $this->settings->getPretixSettings();
-    $templateEvent = $settings->templateEvent;
-    if (NULL === $templateEvent) {
+    try {
+      $event = $this->client()->getEvent($templateEvent);
+    } catch (\Exception $e) {
       return [
-        new ValidationException('Template event is not set'),
+        new ValidationException(
+          sprintf('Cannot get template event %s.', $templateEvent)
+        ),
       ];
     }
 
-    $event = $this->client()->getEvent($templateEvent);
     $data = $event->toArray();
 
     $expectedValues = [

@@ -27,9 +27,9 @@ class PretixSettings extends AbstractSettings {
   public ?string $apiToken = NULL;
 
   /**
-   * The template event (slug).
+   * The template events (slugs).
    */
-  public ?string $templateEvent = NULL;
+  public ?string $templateEvents = NULL;
 
   /**
    * The event slug template.

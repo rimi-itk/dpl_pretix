@@ -11,8 +11,8 @@ use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\dpl_pretix\EntityHelper;
+use Drupal\dpl_pretix\PretixHelper;
 use Drupal\dpl_pretix\Settings;
-use Drupal\node\NodeStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -29,14 +29,16 @@ final class SettingsForm extends ConfigFormBase {
   public const SECTION_EVENT_NODES = 'event_nodes';
   public const SECTION_EVENT_FORM = 'event_form';
 
+  private const ELEMENT_TEMPLATE_EVENTS = 'template_events';
+
   private const ACTION_PING_API = 'action_ping_api';
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
-    private NodeStorageInterface $nodeStorage,
     private readonly LanguageManagerInterface $languageManager,
     private readonly EntityHelper $eventHelper,
     private readonly Settings $settings,
+    private readonly PretixHelper $pretixHelper,
   ) {
     parent::__construct($configFactory);
   }
@@ -51,12 +53,15 @@ final class SettingsForm extends ConfigFormBase {
     /** @var \Drupal\dpl_pretix\Settings $settings */
     $settings = $container->get(Settings::class);
 
+    /** @var \Drupal\dpl_pretix\PretixHelper $pretixHelper */
+    $pretixHelper = $container->get(PretixHelper::class);
+
     return new static(
       $container->get('config.factory'),
-      $container->get('entity_type.manager')->getStorage('node'),
       $container->get('language_manager'),
       $eventHelper,
-      $settings
+      $settings,
+      $pretixHelper,
     );
   }
 
@@ -193,12 +198,21 @@ final class SettingsForm extends ConfigFormBase {
           '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
         ],
 
-        'template_event' => [
-          '#type' => 'textfield',
-          '#title' => $this->t('The short form of the default event template'),
-          '#default_value' => $defaults->templateEvent,
+        self::ELEMENT_TEMPLATE_EVENTS => [
+          '#type' => 'textarea',
+          '#title' => $this->t('Template events used to create new events in pretix'),
+          '#default_value' => $defaults->templateEvents,
           '#required' => TRUE,
-          '#description' => $this->t('This is the short form of the default event template. When events are created their setting etc. are copied from this event.'),
+          '#description' => str_replace(
+            '%example%',
+            '<pre><code>' .
+            <<<'YAML'
+dpl-cms-default-template: The default event
+dpl-cms-default-template-2: Another event
+YAML
+            . '</code></pre>',
+            $this->t('Define one template per line on the form <code>«template short name»: «display name»</code>. Example: %example%')
+          ),
         ],
 
         'event_slug_template' => [
@@ -448,6 +462,28 @@ final class SettingsForm extends ConfigFormBase {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
       return;
+    }
+
+    foreach ($form_state->getValue(self::SECTION_PRETIX) as $domain => $values) {
+      $yaml = $values[self::ELEMENT_TEMPLATE_EVENTS] ?? NULL;
+      try {
+        $templateEvents = $this->pretixHelper->parseTemplateEvents($yaml);
+        foreach ($templateEvents as $templateEvent => $label) {
+          $errors = $this->pretixHelper->validateTemplateEvent($templateEvent);
+          foreach ($errors as $error) {
+            $form_state->setError(
+              $form[self::SECTION_PRETIX][$domain][self::ELEMENT_TEMPLATE_EVENTS],
+              $this->t('Template event is not valid: @message', ['@message' => $error->getMessage()])
+            );
+          }
+        }
+      }
+      catch (\Exception $exception) {
+        $form_state->setError(
+          $form[self::SECTION_PRETIX][$domain][self::ELEMENT_TEMPLATE_EVENTS],
+          $this->t('Invalid template events in @domain.', ['@domain' => $domain])
+        );
+      }
     }
 
     // @todo check that pretix template event exists.

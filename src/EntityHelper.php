@@ -126,7 +126,10 @@ final class EntityHelper {
         return NULL;
       }
 
-      $templateEvent = $this->getTemplateEvent($event);
+      $templateEvent = $data->templateEvent;
+      if (NULL === $templateEvent) {
+        throw new SynchronizeException('Cannot get template event');
+      }
 
       $isNew = NULL === $data->pretixEvent;
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event $pretixEvent */
@@ -818,21 +821,6 @@ final class EntityHelper {
    */
   private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent $pretixEntity): PretixEntity {
     return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $pretixEntity;
-  }
-
-  /**
-   * Get template event for an event.
-   */
-  private function getTemplateEvent(EventSeries $event): string {
-    $settings = $this->settings->getPretixSettings();
-    $templateEvent = $settings->templateEvent;
-
-    // @todo Get from event data.
-    if (NULL === $templateEvent) {
-      throw new SynchronizeException('Cannot get template event from settings');
-    }
-
-    return $templateEvent;
   }
 
 }

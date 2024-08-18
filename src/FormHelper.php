@@ -6,6 +6,7 @@ use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
@@ -31,6 +32,8 @@ class FormHelper {
     private readonly Settings $settings,
     private readonly EntityHelper $eventHelper,
     private readonly EventDataHelper $eventDataHelper,
+    private readonly PretixHelper $pretixHelper,
+    private readonly MessengerInterface $messenger,
     private readonly AccountInterface $currentUser,
   ) {
   }
@@ -122,15 +125,22 @@ class FormHelper {
       ] + $states;
     }
 
-    $options = [
-      'pdf_ticket' => $this->t('PDF Tickets'),
-      'email_ticket' => $this->t('Email Tickets'),
-    ];
+    try {
+      $options = $this->pretixHelper->parseTemplateEvents(
+        $this->settings->getPretixSettings()->templateEvents ?? ''
+      );
+    }
+    catch (\Exception) {
+      $this->messenger->addError($this->t('Error parsing pretix template events.'));
+      $options = [];
+    }
     $form[self::FORM_KEY][self::ELEMENT_TEMPLATE_EVENT] = [
       '#type' => 'select',
       '#title' => $this->t('Template event'),
       '#options' => $options,
       '#default_value' => $eventData->templateEvent,
+      '#empty_option' => $this->t('Select template event'),
+
       '#description' => $this->t('Template event used to create event in pretix'),
     ] + $states;
 

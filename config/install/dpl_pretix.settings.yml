@@ -14,7 +14,7 @@ pretix:
     # Team API token
     api_token: ~
     # Template event short form
-    template_event: ~
+    template_events: ~
     event_slug_template: '{id}'
     default_language_code: 'en'
 
@@ -26,7 +26,7 @@ pretix:
     # Team API token
     api_token: ~
     # Template event short form
-    template_event: ~
+    template_events: ~
     event_slug_template: 'test-{id}'
     default_language_code: 'en'
 

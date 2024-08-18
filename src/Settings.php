@@ -7,7 +7,6 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\dpl_pretix\Form\SettingsForm;
 use Drupal\dpl_pretix\Settings\EventFormSettings;
 use Drupal\dpl_pretix\Settings\EventNodeSettings;
-use Drupal\dpl_pretix\Settings\LibrariesSettings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
 use Drupal\dpl_pretix\Settings\PspElementSettings;
 use Symfony\Component\HttpFoundation\RequestStack;
