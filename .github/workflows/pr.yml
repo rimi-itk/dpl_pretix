@@ -27,7 +27,7 @@ jobs:
 
       - name: Coding standards
         run: |
-          docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md'
+          docker run --rm --volume $PWD:/md peterdavehello/markdownlint markdownlint --ignore LICENSE.md --ignore vendor/ '**/*.md' --dot
 
   composer-normalize:
     name: composer-normalize

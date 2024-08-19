@@ -54,7 +54,8 @@ class PretixHelper {
 
     try {
       $event = $this->client()->getEvent($templateEvent);
-    } catch (\Exception $e) {
+    }
+    catch (\Exception $e) {
       return [
         new ValidationException(
           sprintf('Cannot get template event %s.', $templateEvent)
