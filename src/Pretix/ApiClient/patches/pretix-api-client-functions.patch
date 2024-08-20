@@ -1,0 +1,36 @@
+diff --git a/src/Pretix/ApiClient/Client.php b/src/Pretix/ApiClient/Client.php
+index 9fa07e9..5047549 100644
+--- a/src/Pretix/ApiClient/Client.php
++++ b/src/Pretix/ApiClient/Client.php
+@@ -308,6 +308,31 @@ class Client
+         );
+     }
+ 
++    /**
++     * Update item.
++     *
++     * @param object|string $event
++     *                             The event or event slug
++     * @param int|object    $item
++     *                             The item or item id
++     * @param array         $data
++     *                             The data
++     *
++     * @return object
++     *                The result
++     */
++    public function updateItem($event, $item, array $data)
++    {
++        $eventSlug = $this->getSlug($event);
++        $itemId = $this->getId($item);
++
++        return $this->patchEntity(
++            Item::class,
++            'organizers/'.$this->organizer.'/events/'.$eventSlug.'/items/'.$itemId.'/',
++            ['json' => $data]
++        );
++    }
++
+     /**
+      * Get quotas.
+      *

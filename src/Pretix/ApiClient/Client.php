@@ -309,6 +309,31 @@ class Client
     }
 
     /**
+     * Update item.
+     *
+     * @param object|string $event
+     *                             The event or event slug
+     * @param int|object    $item
+     *                             The item or item id
+     * @param array         $data
+     *                             The data
+     *
+     * @return object
+     *                The result
+     */
+    public function updateItem($event, $item, array $data)
+    {
+        $eventSlug = $this->getSlug($event);
+        $itemId = $this->getId($item);
+
+        return $this->patchEntity(
+            Item::class,
+            'organizers/'.$this->organizer.'/events/'.$eventSlug.'/items/'.$itemId.'/',
+            ['json' => $data]
+        );
+    }
+
+    /**
      * Get quotas.
      *
      * @param object|string $event

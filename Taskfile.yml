@@ -60,6 +60,8 @@ tasks:
       - mkdir -p src/Pretix/ApiClient
       - tar xvf /tmp/pretix-api-client-php.tar.gz --directory=src/Pretix/ApiClient --strip-components=2 pretix-api-client-php-1.2.0/src
       # Change namespace
-      - find src/Pretix/ApiClient -name '*.php' | xargs sed -i'' 's@ItkDev\\Pretix\\Api@Drupal\\dpl_pretix\\Pretix\\ApiClient@'
+      - docker compose run --rm php sed --in-place 's@ItkDev\\Pretix\\Api@Drupal\\dpl_pretix\\Pretix\\ApiClient@' $(find src/Pretix/ApiClient -name '*.php')
       # Remove use of https://symfony.com/doc/current/components/options_resolver.html
       - patch --strip=1 < src/Pretix/ApiClient/patches/pretix-api-client.patch
+      # Add missing functions
+      - patch --strip=1 < src/Pretix/ApiClient/patches/pretix-api-client-functions.patch
