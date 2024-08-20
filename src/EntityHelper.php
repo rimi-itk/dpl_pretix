@@ -13,6 +13,7 @@ use Drupal\dpl_pretix\Pretix\ApiClient\Client as PretixApiClient;
 use Drupal\dpl_pretix\Pretix\ApiClient\Collections\EntityCollectionInterface;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\AbstractEntity as PretixEntity;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Event as PretixEvent;
+use Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item as PretixItem;
 use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent as PretixSubEvent;
 use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
@@ -69,7 +70,7 @@ final class EntityHelper {
           return;
         }
         if (NULL === $data->templateEvent) {
-          throw new SynchronizeException('Cannot get template event for sub-event');
+          throw new SynchronizeException('Template event for sub-event not set');
         }
 
         $this->synchronizeEventInstance($entity, $data->templateEvent, $data->pretixEvent);
@@ -128,7 +129,7 @@ final class EntityHelper {
 
       $templateEvent = $data->templateEvent;
       if (NULL === $templateEvent) {
-        throw new SynchronizeException('Cannot get template event');
+        throw new SynchronizeException('Template event not set');
       }
 
       $isNew = NULL === $data->pretixEvent;
@@ -184,9 +185,11 @@ final class EntityHelper {
       '@event' => $event->id(),
     ]);
 
+    $pretix = $this->pretixHelper->client();
+
     // Create event in pretix (by cloning the template event).
     // @see https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-
-    $pretixEvent = $this->pretixHelper->client()->cloneEvent(
+    $pretixEvent = $pretix->cloneEvent(
       $templateEvent,
       $this->getPretixEventData($event, $data, [
         // We cannot set the event live on create
@@ -197,13 +200,22 @@ final class EntityHelper {
       ])
     );
 
+    $price = $this->getPrice($event);
+    $products = $pretix->getItems($pretixEvent);
+    if ($products->count() > 0) {
+      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
+      $product = $products->first();
+      $pretix->updateItem($pretixEvent, $product, [
+        'default_price' => $price,
+      ]);
+    }
+
     $data->data['event'] = $pretixEvent->toArray();
     $data->pretixUrl = $settings->url;
     $data->pretixOrganizer = $settings->organizer;
     $data->pretixEvent = $pretixEvent->getSlug();
     $this->eventDataHelper->saveEventData($event, $data);
 
-    // @todo $this->setTicketLink($event, save: TRUE);
     // @todo Set settings?
     // $this->pretix()->setEventSetting();
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
@@ -294,8 +306,6 @@ final class EntityHelper {
   private function createEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
     $pretix = $this->pretix();
 
-    $data = $this->getSubEventData($instance);
-
     try {
       $templateSubEvents = $pretix->getSubEvents($templateEvent);
     }
@@ -335,16 +345,10 @@ final class EntityHelper {
     /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
     $product = $items->first();
 
-    $data += $templateSubEvent->toArray();
+    $data = $this->getSubEventData($instance, $instanceData, $product)
+      + $templateSubEvent->toArray();
     // Remove the template id.
     unset($data['id']);
-
-    $data['item_price_overrides'] = [
-      [
-        'item' => $product->getId(),
-      ],
-    ];
-    $data['variation_price_overrides'] = [];
 
     try {
       $subEvent = $pretix->createSubEvent($pretixEvent, $data);
@@ -352,12 +356,13 @@ final class EntityHelper {
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot create sub-event for event @event',
         [
-          '@event' => is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getId(),
+          '@event' => is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug(),
         ]), $exception);
     }
 
     // Store the sub-event data for future updates.
     $instanceData->data['subevent'] = $data;
+    $instanceData->data['product'] = $product->toArray();
 
     // Get sub-event quotas.
     try {
@@ -427,7 +432,6 @@ final class EntityHelper {
    */
   private function updateEventInstance(EventInstance $instance, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
     $pretix = $this->pretix();
-    $data = $this->getSubEventData($instance, $instanceData);
     $subEventId = $instanceData->pretixSubeventId;
     $quotaData = $instanceData->data['quota'] ?? [];
 
@@ -439,6 +443,7 @@ final class EntityHelper {
         ]));
     }
     try {
+      $data = $this->getSubEventData($instance, $instanceData);
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent */
       // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
       $subEvent = $pretix->updateSubEvent($pretixEvent, $subEventId, $data);
@@ -470,7 +475,7 @@ final class EntityHelper {
   /**
    * Get sub-event data.
    */
-  private function getSubEventData(EventInstance $instance, ?EventData $instanceData = NULL): array {
+  private function getSubEventData(EventInstance $instance, ?EventData $instanceData = NULL, PretixItem $product = NULL): array {
     $range = $this->getDateRange($instance);
 
     $data = array_merge(
@@ -490,9 +495,20 @@ final class EntityHelper {
       ]
     );
 
-    // @todo Handle prices.
-    $price = 0;
-    $data['item_price_overrides'][0]['price'] = $price;
+    // https://docs.pretix.eu/en/latest/api/resources/subevents.html#resource-description
+    $data['item_price_overrides'] = [];
+    $data['variation_price_overrides'] = [];
+    [$dataKey, $itemKey] = ['variation_price_overrides', 'variation'];
+    // [$dataKey, $itemKey] = ['item_price_overrides', 'item'];
+
+    $productId = $product instanceof PretixItem ? $product->getId() : ($instanceData->data['product']['id'] ?? NULL);
+    if (NULL !== $productId) {
+      $price = $this->getPrice($instance);
+      $data[$dataKey][] = [
+        $itemKey => $productId,
+        'price' => $price,
+      ];
+    }
 
     // Important: meta_data value must be an object!
     $data['meta_data'] = (object) ($data['meta_data'] ?? []);
@@ -735,6 +751,15 @@ final class EntityHelper {
    */
   private function getDefaultLanguageCode(EventInterface $event): string {
     return $this->settings->getPretixSettings()->defaultLanguageCode ?? 'en';
+  }
+
+  /**
+   * Get location.
+   */
+  private function getPrice(EventSeries|EventInstance $event): string {
+    $price = $event instanceof EventSeries ? 3.14 : 2.71;
+
+    return number_format($price, 2, '.', '');
   }
 
   /**

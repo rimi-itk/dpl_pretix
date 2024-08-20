@@ -7,11 +7,16 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\EventDataHelper;
 use Drupal\dpl_pretix\Exception\InvalidEventSeriesException;
+use Drupal\dpl_pretix\FormHelper;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\Request;
+use function Safe\json_decode;
+use function Safe\json_encode;
 use function Safe\sprintf;
 
 /**
@@ -60,9 +65,23 @@ final class DplPretixCommands extends DrushCommands {
   #[CLI\Command(name: 'dpl_pretix:event:synchronize')]
   #[CLI\Argument(name: 'eventId', description: 'Event id.')]
   #[CLI\Usage(name: 'dpl_pretix:event:synchronize 87', description: 'Synchronize event 87')]
-  public function synchronizeEvent(string $eventId, array $options = []): void {
+  public function synchronizeEvent(
+    string $eventId,
+    array $options = [
+      'templateEvent' => NULL,
+    ],
+  ): void {
     $event = $this->loadEventSeries($eventId);
 
+    $templateEvent = $options['templateEvent'];
+    if (empty($templateEvent)) {
+      throw new InvalidArgumentException('Missing --templateEvent option.');
+    }
+
+    EntityHelper::setFormValues($event, [
+      FormHelper::ELEMENT_MAINTAIN_COPY => TRUE,
+      FormHelper::ELEMENT_TEMPLATE_EVENT => $templateEvent,
+    ]);
     $this->entityHelper->synchronizeEvent($event);
   }
 
@@ -70,8 +89,9 @@ final class DplPretixCommands extends DrushCommands {
    * Validate pretix template event.
    */
   #[CLI\Command(name: 'dpl_pretix:pretix:validate-template-event')]
-  public function validatePretixTemplateEvent(): void {
-    $errors = $this->pretixHelper->validateTemplateEvent();
+  #[CLI\Argument(name: 'templateEvent', description: 'Template event slug.')]
+  public function validatePretixTemplateEvent(string $templateEvent): void {
+    $errors = $this->pretixHelper->validateTemplateEvent($templateEvent);
     foreach ($errors as $error) {
       $this->io()->error($error->getMessage());
     }
@@ -88,7 +108,10 @@ final class DplPretixCommands extends DrushCommands {
 
     $question = sprintf('Really delete pretix event for Drupal event %s?', $event->label());
     if ($this->io()->confirm($question)) {
-      if ($this->entityHelper->deleteEvent($event)) {
+      if (!$this->entityHelper->deleteEvent($event)) {
+        $this->io()->error(sprintf('Error deleting event %s (%s)', $event->label(), $event->id()));
+      }
+      else {
         $this->io()->success(t('Event has been deleted in pretix.'));
         if ($data = $this->eventDataHelper->loadEventData($event)) {
           $this->eventDataHelper->deleteEventData($data);
@@ -97,7 +120,7 @@ final class DplPretixCommands extends DrushCommands {
               $this->eventDataHelper->deleteEventData($data);
             }
           }
-          $this->io()->success(t('Event data has been deleted.'));
+          $this->io()->success('Event data has been deleted.');
         }
       }
     }
@@ -176,6 +199,32 @@ final class DplPretixCommands extends DrushCommands {
     drupal_register_shutdown_function(function () use ($event) {
       $this->info((string) $event->id());
     });
+  }
+
+  /**
+   * Perform pretix API request.
+   */
+  #[CLI\Command(name: 'dpl_pretix:api:request')]
+  #[CLI\Argument(name: 'path', description: 'Path')]
+  public function pretixApiRequest(
+    string $path,
+    array $options = [
+      'method' => Request::METHOD_GET,
+    ],
+  ): void {
+    $method = $options['method'];
+    if (Request::METHOD_GET !== $method) {
+      throw new InvalidArgumentException(sprintf('Method %s not supported', $method));
+    }
+
+    $pretix = $this->pretixHelper->client();
+    $request = new \ReflectionMethod($pretix, 'request');
+    $requestOptions = [];
+    /** @var \GuzzleHttp\Psr7\Response $response */
+    $response = $request->invoke($pretix, $method, $path, $requestOptions);
+
+    $data = json_decode($response->getBody(), TRUE);
+    $this->io()->write(json_encode($data, JSON_PRETTY_PRINT));
   }
 
   /**
