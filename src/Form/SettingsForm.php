@@ -13,8 +13,10 @@ use Drupal\Core\Url;
 use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\dpl_pretix\Settings;
+use Drupal\dpl_pretix\Settings\PretixSettings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use function Safe\preg_match;
 
 /**
  * Module settings form.
@@ -25,18 +27,20 @@ final class SettingsForm extends ConfigFormBase {
   public const CONFIG_NAME = 'dpl_pretix.settings';
 
   public const SECTION_PRETIX = 'pretix';
+  public const PRETIX_SUB_SECTIONS = ['prod', 'test'];
+
   public const SECTION_PSP_ELEMENTS = 'psp_elements';
   public const SECTION_EVENT_NODES = 'event_nodes';
   public const SECTION_EVENT_FORM = 'event_form';
 
   private const ELEMENT_TEMPLATE_EVENTS = 'template_events';
+  private const ELEMENT_PRETIX_URL = 'url';
 
   private const ACTION_PING_API = 'action_ping_api';
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
     private readonly LanguageManagerInterface $languageManager,
-    private readonly EntityHelper $eventHelper,
     private readonly Settings $settings,
     private readonly PretixHelper $pretixHelper,
   ) {
@@ -47,9 +51,6 @@ final class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container): self {
-    /** @var \Drupal\dpl_pretix\EntityHelper $eventHelper */
-    $eventHelper = $container->get(EntityHelper::class);
-
     /** @var \Drupal\dpl_pretix\Settings $settings */
     $settings = $container->get(Settings::class);
 
@@ -59,7 +60,6 @@ final class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('language_manager'),
-      $eventHelper,
       $settings,
       $pretixHelper,
     );
@@ -93,6 +93,14 @@ final class SettingsForm extends ConfigFormBase {
     $form['#tree'] = TRUE;
 
     $this->buildFormPretix($form);
+
+    foreach (static::PRETIX_SUB_SECTIONS as $subSection) {
+      $defaults = $this->settings->getPretixSettings($subSection);
+      if (!$this->pretixHelper->pingApi($defaults)) {
+        return $form;
+      }
+    }
+
     $this->buildFormPspElements($form, $form_state);
     $this->buildFormEventNodes($form);
     $this->buildFormEventForm($form);
@@ -130,27 +138,14 @@ final class SettingsForm extends ConfigFormBase {
   private function buildFormPretix(array &$form): void {
     $section = self::SECTION_PRETIX;
 
-    $subSections = ['prod', 'test'];
-
     $activeSettings = NULL;
 
-    $groupName = $section . '_tabs';
-    $form[$groupName] = [
-      '#type' => 'vertical_tabs',
-      '#title' => $this->t('pretix event settings'),
-      '#description' => $this->t('The active pretix settings will be selected based on the active domain (%domain).', [
-        '%domain' => $this->settings->getCurrentDomain(),
-      ]),
-      '#description_display' => 'before',
-    ];
-
-    foreach ($subSections as $subSection) {
+    foreach (static::PRETIX_SUB_SECTIONS as $subSection) {
       $defaults = $this->settings->getPretixSettings($subSection);
       $isActive = $this->settings->isActivePretixSettings($defaults);
 
       if ($isActive) {
         $activeSettings = $defaults;
-        $form[$groupName]['#default_tab'] = 'edit-pretix-' . $subSection;
       }
 
       $languageOptions = [];
@@ -158,8 +153,10 @@ final class SettingsForm extends ConfigFormBase {
         $languageOptions[$language->getId()] = $language->getName();
       }
 
+      $canConnect = $this->pretixHelper->pingApi($defaults);
+
       $form[$section][$subSection] = [
-        '#group' => $groupName,
+        '#open' => !$canConnect,
 
         '#type' => 'details',
         '#title' => $this->t('pretix (%section)', ['%section' => $subSection])
@@ -170,11 +167,11 @@ final class SettingsForm extends ConfigFormBase {
           '#title' => $this->t('Domain'),
           '#default_value' => $defaults->domain,
           '#required' => TRUE,
-          '#description' => $this->t('The Drupal domain that these pretix settings apply to.'),
+          '#description' => $this->t('The Drupal domain, e.g. <code>dpl-cms.dk</code>, that these pretix settings apply to.'),
           '#element_validate' => [[$this, 'validateDomain']],
         ],
 
-        'url' => [
+        static::ELEMENT_PRETIX_URL => [
           '#type' => 'url',
           '#title' => $this->t('URL'),
           '#default_value' => $defaults->url,
@@ -198,23 +195,6 @@ final class SettingsForm extends ConfigFormBase {
           '#description' => $this->t('This is the default API token used when connecting to pretix. If you provide short form/API token for a specific library (below), events related to that library will use that key instead of the default key.'),
         ],
 
-        self::ELEMENT_TEMPLATE_EVENTS => [
-          '#type' => 'textarea',
-          '#title' => $this->t('Template events used to create new events in pretix'),
-          '#default_value' => $defaults->templateEvents,
-          '#required' => TRUE,
-          '#description' => str_replace(
-            '%example%',
-            '<pre><code>' .
-            <<<'YAML'
-dpl-cms-default-template: The default event
-dpl-cms-default-template-2: Another event
-YAML
-            . '</code></pre>',
-            $this->t('Define one template per line on the form <code>«template short name»: «display name»</code>. Example: %example%')
-          ),
-        ],
-
         'event_slug_template' => [
           '#type' => 'textfield',
           '#title' => $this->t('Event slug template'),
@@ -230,6 +210,23 @@ YAML
           '#default_value' => $defaults->defaultLanguageCode,
           '#required' => TRUE,
           '#description' => $this->t('Default language code used for pretix events'),
+        ],
+
+        self::ELEMENT_TEMPLATE_EVENTS => [
+          '#type' => 'textarea',
+          '#title' => $this->t('Template events used to create new events in pretix'),
+          '#default_value' => $defaults->templateEvents,
+          '#required' => $canConnect,
+          '#description' => str_replace(
+            '%example%',
+            '<pre><code>' .
+            <<<'YAML'
+dpl-cms-default-template: The default event
+dpl-cms-default-template-2: Another event
+YAML
+            . '</code></pre>',
+            $this->t('Define one template per line on the form <code>«template short name»: «display name»</code>. Example: %example%')
+          ),
         ],
       ];
 
@@ -275,8 +272,8 @@ YAML
     $value = $formState->getValue($element['#parents']);
 
     // @todo FILTER_VALIDATE_DOMAIN does not work as expected; it does not report '1 2 3', say, as invalid.
-    if (!filter_var($value, FILTER_VALIDATE_DOMAIN)) {
-      $formState->setError($element, $this->t('@value is not a valid host name'));
+    if (!preg_match('/^(?:[-A-Za-z0-9]+\.)+[A-Za-z]{2,6}$/', $value)) {
+      $formState->setError($element, $this->t('@value is not a valid domain name', ['@value' => $value]));
     }
   }
 
@@ -465,11 +462,21 @@ YAML
     }
 
     foreach ($form_state->getValue(self::SECTION_PRETIX) as $domain => $values) {
+      $settings = new PretixSettings($values);
+      if (!$this->pretixHelper->pingApi($settings)) {
+        $form_state->setError(
+          $form[self::SECTION_PRETIX][$domain][self::ELEMENT_PRETIX_URL],
+          $this->t('Cannot connect to pretix (@domain)', ['@domain' => $domain])
+        );
+
+        continue;
+      }
+
       $yaml = $values[self::ELEMENT_TEMPLATE_EVENTS] ?? NULL;
       try {
         $templateEvents = $this->pretixHelper->parseTemplateEvents($yaml);
         foreach ($templateEvents as $templateEvent => $label) {
-          $errors = $this->pretixHelper->validateTemplateEvent($templateEvent);
+          $errors = $this->pretixHelper->validateTemplateEvent($templateEvent, $settings);
           foreach ($errors as $error) {
             $form_state->setError(
               $form[self::SECTION_PRETIX][$domain][self::ELEMENT_TEMPLATE_EVENTS],
@@ -497,7 +504,7 @@ YAML
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     if (self::ACTION_PING_API === ($form_state->getTriggeringElement()['#name'] ?? NULL)) {
       try {
-        $this->eventHelper->pingApi();
+        $this->pretixHelper->pingApi();
         $this->messenger()->addStatus($this->t('Pinged API successfully.'));
       }
       catch (\Throwable $t) {
