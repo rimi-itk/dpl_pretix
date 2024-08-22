@@ -200,15 +200,7 @@ final class EntityHelper {
       ])
     );
 
-    $price = $this->getPrice($event);
-    $products = $pretix->getItems($pretixEvent);
-    if ($products->count() > 0) {
-      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
-      $product = $products->first();
-      $pretix->updateItem($pretixEvent, $product, [
-        'default_price' => $price,
-      ]);
-    }
+    $this->updateProductPrices($event, $pretixEvent, $data);
 
     $data->data['event'] = $pretixEvent->toArray();
     $data->pretixUrl = $settings->url;
@@ -239,13 +231,33 @@ final class EntityHelper {
       ])
     );
 
+    // @todo Update products.
+    $this->updateProductPrices($event, $pretixEvent, $data);
+
     $this->eventDataHelper->saveEventData($event, $data);
 
-    // @todo Set settings?
-    // $this->pretix()->setEventSetting();
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
 
     return $pretixEvent;
+  }
+
+  /**
+   * Update product prices.
+   */
+  private function updateProductPrices(EventSeries $event, PretixEvent $pretixEvent, EventData $data): void {
+    $pretix = $this->pretixHelper->client();
+
+    $price = $this->getPrice($event);
+    $products = $pretix->getItems($pretixEvent);
+    if ($products->count() > 0) {
+      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
+      $product = $products->first();
+      $pretix->updateItem($pretixEvent, $product, [
+        'default_price' => $price,
+      ]);
+
+      $data->data['product'] = $product->toArray();
+    }
   }
 
   /**
@@ -500,13 +512,13 @@ final class EntityHelper {
     $data['variation_price_overrides'] = [];
     [$dataKey, $itemKey] = ['variation_price_overrides', 'variation'];
     // [$dataKey, $itemKey] = ['item_price_overrides', 'item'];
-
     $productId = $product instanceof PretixItem ? $product->getId() : ($instanceData->data['product']['id'] ?? NULL);
     if (NULL !== $productId) {
       $price = $this->getPrice($instance);
       $data[$dataKey][] = [
         $itemKey => $productId,
-        'price' => $price,
+        // Never override with no price.
+        'price' => $this->pretixHelper->formatAmount(0.00) === $price ? NULL : $price,
       ];
     }
 
@@ -757,9 +769,21 @@ final class EntityHelper {
    * Get location.
    */
   private function getPrice(EventSeries|EventInstance $event): string {
-    $price = $event instanceof EventSeries ? 3.14 : 2.71;
+    $fieldName = 'field_ticket_categories';
+    $priceFieldName = 'field_ticket_category_price';
 
-    return number_format($price, 2, '.', '');
+    $price = 0.00;
+    /** @var \Drupal\Core\Field\EntityReferenceFieldItemListInterface $field */
+    $field = $event->get($fieldName);
+    $categories = $field->referencedEntities();
+    /** @var \Drupal\paragraphs\Entity\Paragraph $category */
+    foreach ($categories as $category) {
+      $price = (float) $category->get($priceFieldName)->getString();
+      // We support only one price.
+      break;
+    }
+
+    return $this->pretixHelper->formatAmount($price);
   }
 
   /**

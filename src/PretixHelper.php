@@ -106,6 +106,13 @@ class PretixHelper {
   }
 
   /**
+   * Format an amount (money) for pretix.
+   */
+  public function formatAmount(float $amount): string {
+    return number_format($amount, 2, '.', '');
+  }
+
+  /**
    * Get pretix API client.
    */
   public function client(): Client {
