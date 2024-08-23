@@ -85,9 +85,9 @@ class PretixHelper {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 sub-event; %d found.', $event->getSlug(), $subEvents->count()));
     }
 
-    $quotas = $this->client()->getItems($event);
-    if (1 !== $quotas->count()) {
-      $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 product; %d found.', $event->getSlug(), $quotas->count()));
+    $products = $this->client()->getItems($event);
+    if (1 !== $products->count()) {
+      $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 product; %d found.', $event->getSlug(), $products->count()));
     }
 
     $quotas = $this->client()->getQuotas($event);

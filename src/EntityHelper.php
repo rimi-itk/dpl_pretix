@@ -412,12 +412,29 @@ final class EntityHelper {
       $quotaData = $templateQuotas->first()->toArray();
       unset($quotaData['id']);
 
+      // https://docs.pretix.eu/en/latest/api/resources/quotas.html#resource-description
       $quotaData = array_merge($quotaData, [
         'subevent' => $subEvent->getId(),
         'items' => [$product->getId()],
-        'variations' => [$product->toArray()['variations'][0]['id']],
         'size' => $this->getCapacity($instance),
       ]);
+
+      // Check if quota uses variants.
+      if (!empty($quotaData['variations'])) {
+        $productData = $product->toArray();
+        if (!isset($productData['variations'][0]['id'])) {
+          throw $this->pretixException($this->t('Cannot create quota for sub-event @sub_event on event @event; product @product has no variations',
+            [
+              '@sub_event' => $subEvent->getId(),
+              '@event' => is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug(),
+              '@product' => reset($productData['name']) ?: $product->getId(),
+            ])
+          );
+        }
+
+        $quotaData['variations'] = [$productData['variations'][0]['id']];
+      }
+
       try {
         /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota $quota */
         $quota = $pretix->createQuota($pretixEvent, $quotaData);
