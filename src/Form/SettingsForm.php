@@ -5,12 +5,12 @@ namespace Drupal\dpl_pretix\Form;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
-use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\dpl_pretix\Settings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
@@ -23,6 +23,7 @@ use function Safe\preg_match;
  */
 final class SettingsForm extends ConfigFormBase {
   use StringTranslationTrait;
+  use DependencySerializationTrait;
 
   public const CONFIG_NAME = 'dpl_pretix.settings';
 
@@ -94,9 +95,20 @@ final class SettingsForm extends ConfigFormBase {
 
     $this->buildFormPretix($form);
 
+    // We need valid pretix settings before handling the rest of the settings.
     foreach (static::PRETIX_SUB_SECTIONS as $subSection) {
       $defaults = $this->settings->getPretixSettings($subSection);
+
       if (!$this->pretixHelper->pingApi($defaults)) {
+        $form['message'] = [
+          '#theme' => 'status_messages',
+          '#message_list' => [
+            'warning' => [
+              $this->t('More settings will become available when pretix settings are saved and are valid'),
+            ],
+          ],
+        ];
+
         return $form;
       }
     }
@@ -295,7 +307,12 @@ YAML
         '#default_value' => $defaults->pretixPspMetaKey ?? NULL,
         '#size' => 50,
         '#maxlength' => 50,
-        '#description' => $this->t('The name of the organizer metadata property for the PSP element in pretix (case sensitive).'),
+        '#description' => $this->t('The name of the organizer metadata property for the PSP element in pretix (case sensitive), example <code>PSP</code>.'),
+      ],
+
+      'list_header' => [
+        '#theme' => 'form_element_label',
+        '#title' => $this->t('Available PSP elements'),
       ],
 
       'list' => [
