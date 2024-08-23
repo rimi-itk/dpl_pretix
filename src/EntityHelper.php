@@ -619,13 +619,6 @@ final class EntityHelper {
   }
 
   /**
-   * Ping pretix API.
-   */
-  public function pingApi(): void {
-    $this->getEvents([]);
-  }
-
-  /**
    * Get pretix event data.
    *
    * @param \Drupal\recurring_events\Entity\EventSeries $event
@@ -790,7 +783,7 @@ final class EntityHelper {
     $priceFieldName = 'field_ticket_category_price';
 
     $price = 0.00;
-    /** @var \Drupal\Core\Field\EntityReferenceFieldItemListInterface $field */
+    /** @var \Drupal\Core\Field\EntityReferenceFieldItemList $field */
     $field = $event->get($fieldName);
     $categories = $field->referencedEntities();
     /** @var \Drupal\paragraphs\Entity\Paragraph $category */

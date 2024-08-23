@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\dpl_pretix\Exception\ValidationException;
 use Drupal\dpl_pretix\Pretix\ApiClient\Client;
+use Drupal\dpl_pretix\Settings\PretixSettings;
 use function Safe\json_encode;
 use function Safe\sprintf;
 
@@ -49,11 +50,12 @@ class PretixHelper {
    * @return \Drupal\dpl_pretix\Exception\ValidationException[]
    *   A list of validation errors.
    */
-  public function validateTemplateEvent(string $templateEvent): array {
+  public function validateTemplateEvent(string $templateEvent, ?PretixSettings $settings = NULL): array {
     $errors = [];
 
     try {
-      $event = $this->client()->getEvent($templateEvent);
+      $client = NULL !== $settings ? self::createClientFromSettings($settings) : $this->client();
+      $event = $client->getEvent($templateEvent);
     }
     catch (\Exception $e) {
       return [
@@ -80,7 +82,7 @@ class PretixHelper {
       }
     }
 
-    $subEvents = $this->client()->getSubEvents($event);
+    $subEvents = $client->getSubEvents($event);
     if (1 !== $subEvents->count()) {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 sub-event; %d found.', $event->getSlug(), $subEvents->count()));
     }
@@ -90,7 +92,7 @@ class PretixHelper {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 product; %d found.', $event->getSlug(), $products->count()));
     }
 
-    $quotas = $this->client()->getQuotas($event);
+    $quotas = $client->getQuotas($event);
     if (1 !== $quotas->count()) {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 quota; %d found.', $event->getSlug(), $quotas->count()));
     }
@@ -126,6 +128,36 @@ class PretixHelper {
     }
 
     return $this->client;
+  }
+
+  /**
+   * Ping pretix API.
+   */
+  public function pingApi(?PretixSettings $settings = NULL): bool {
+    if (NULL !== $settings && !isset($settings->url, $settings->organizer, $settings->apiToken)) {
+      return FALSE;
+    }
+
+    $client = NULL !== $settings ? self::createClientFromSettings($settings) : $this->client();
+
+    try {
+      $client->getEvents([]);
+      return TRUE;
+    }
+    catch (\Exception) {
+      return FALSE;
+    }
+  }
+
+  /**
+   * Create pretix API client from settings.
+   */
+  private function createClientFromSettings(PretixSettings $settings): Client {
+    return new Client([
+      'url' => $settings->url,
+      'organizer' => $settings->organizer,
+      'api_token' => $settings->apiToken,
+    ]);
   }
 
 }

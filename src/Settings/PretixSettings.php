@@ -34,11 +34,11 @@ class PretixSettings extends AbstractSettings {
   /**
    * The event slug template.
    */
-  public string $eventSlugTemplate = '{id}';
+  public string $eventSlugTemplate = 'test-{id}';
 
   /**
    * The default language code.
    */
-  public string $defaultLanguageCode = 'en';
+  public string $defaultLanguageCode = 'da';
 
 }
