@@ -32,6 +32,9 @@ final class EntityHelper {
   // @see /admin/structure/events/instance/types/eventinstance_type/default/edit/fields
   private const EVENT_TICKET_LINK_FIELD = 'field_event_link';
 
+  private const ITEM_PRICE_OVERRIDES = 'item_price_overrides';
+  private const VARIATION_PRICE_OVERRIDES = 'variation_price_overrides';
+
   public function __construct(
     private readonly Settings $settings,
     private readonly EventDataHelper $eventDataHelper,
@@ -524,19 +527,23 @@ final class EntityHelper {
       ]
     );
 
+    $productData = $product instanceof PretixItem ? $product->toArray() : ($instanceData->data['product'] ?? NULL);
+    $price = $this->getPrice($instance);
+
     // https://docs.pretix.eu/en/latest/api/resources/subevents.html#resource-description
-    $data['item_price_overrides'] = [];
-    $data['variation_price_overrides'] = [];
-    [$dataKey, $itemKey] = ['variation_price_overrides', 'variation'];
-    // [$dataKey, $itemKey] = ['item_price_overrides', 'item'];
-    $productId = $product instanceof PretixItem ? $product->getId() : ($instanceData->data['product']['id'] ?? NULL);
-    if (NULL !== $productId) {
-      $price = $this->getPrice($instance);
-      $data[$dataKey][] = [
-        $itemKey => $productId,
-        // Never override with no price.
-        'price' => $this->pretixHelper->formatAmount(0.00) === $price ? NULL : $price,
-      ];
+    $data[self::ITEM_PRICE_OVERRIDES] = [];
+    $data[self::VARIATION_PRICE_OVERRIDES] = [];
+
+    if ($productData['has_variations'] ?? FALSE) {
+      /** @var array<string, mixed> $variation */
+      $variation = reset($productData['variations']);
+      if (isset($variation['id'])) {
+        $data[self::VARIATION_PRICE_OVERRIDES][] = [
+          'variation' => $variation['id'],
+          // Never override with no price.
+          'price' => $this->pretixHelper->formatAmount(0.00) === $price ? NULL : $price,
+        ];
+      }
     }
 
     // Important: meta_data value must be an object!

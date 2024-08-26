@@ -64,7 +64,7 @@ class EventDataHelper {
       ]);
     }
 
-    return $this->database
+    $result = $this->database
       ->merge(self::EVENT_TABLE_NAME)
       ->keys([
         'entity_type' => $event->getEntityTypeId(),
@@ -72,6 +72,11 @@ class EventDataHelper {
       ])
       ->fields($values)
       ->execute();
+
+    // Reload event data.
+    $this->loadEventData($event, reload: TRUE);
+
+    return $result;
   }
 
   /**
@@ -79,15 +84,17 @@ class EventDataHelper {
    *
    * @param \Drupal\recurring_events\EventInterface $event
    *   The event.
+   * @param bool $reload
+   *   If set, data will be reloaded from database.
    *
    * @return \Drupal\dpl_pretix\Entity\EventData|null
    *   The event data, if any.
    *
    * @throws \Exception
    */
-  public function loadEventData(EventInterface $event): ?EventData {
+  public function loadEventData(EventInterface $event, bool $reload = FALSE): ?EventData {
     $list = &drupal_static(__FUNCTION__);
-    if (!isset($list)) {
+    if ($reload || !isset($list)) {
       $values = $this->loadEventDataList();
       $keys = array_map(static fn (EventData $data) => $data->entityType . ':' . $data->entityId, $values);
       $list = array_combine($keys, $values);
