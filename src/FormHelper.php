@@ -87,12 +87,12 @@ class FormHelper {
     ];
     $states['#states']['required'] = $states['#states']['visible'];
 
+    $pretixEventId = $eventData->pretixEvent;
+
     // We don't allow manual change of the ticket link if pretix is used.
-    if ($eventData->maintainCopy) {
+    if ($eventData->maintainCopy && isset($pretixEventId)) {
       $this->disableElement($form, self::FIELD_EVENT_LINK, $this->t('This field is managed by pretix for this event.'));
     }
-
-    $pretixEventId = $eventData->pretixEvent;
 
     // We don't allow updates to capacity after the event is created in pretix,
     // must be updated in pretix.
@@ -112,7 +112,7 @@ class FormHelper {
 
       // PSP is a code for accounting. If an event has orders, we don't allow
       // this to be changed, as this would invalidate the accounting.
-      $disabled = isset($eventData->pretixEvent) && $this->eventHelper->hasOrders($eventData->pretixEvent);
+      $disabled = isset($pretixEventId) && $this->eventHelper->hasOrders($eventData->pretixEvent);
       $description = $disabled
         ? $this->t('Event has active orders. For accounting reasons the PSP element can no longer be changed.')
         : $this->t('Select the PSP element the ticket sales should be registered under.');
