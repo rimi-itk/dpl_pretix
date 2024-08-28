@@ -231,8 +231,6 @@ final class EntityHelper {
 
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
 
-    $this->setEventLive($event, $pretixEvent, $data);
-
     return $pretixEvent;
   }
 
