@@ -205,7 +205,7 @@ final class EntityHelper {
 
     $this->updateProductPrices($event, $pretixEvent, $data);
 
-    $data->data['event'] = $pretixEvent->toArray();
+    $data->setEvent($pretixEvent->toArray());
     $data->pretixUrl = $settings->url;
     $data->pretixOrganizer = $settings->organizer;
     $data->pretixEvent = $pretixEvent->getSlug();
@@ -259,7 +259,7 @@ final class EntityHelper {
         'default_price' => $price,
       ]);
 
-      $data->data['product'] = $product->toArray();
+      $data->setProduct($product->toArray());
     }
   }
 
@@ -376,8 +376,8 @@ final class EntityHelper {
     }
 
     // Store the sub-event data for future updates.
-    $instanceData->data['subevent'] = $data;
-    $instanceData->data['product'] = $product->toArray();
+    $instanceData->setSubEvent($data);
+    $instanceData->setProduct($product->toArray());
 
     // Get sub-event quotas.
     try {
@@ -441,7 +441,7 @@ final class EntityHelper {
       try {
         /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota $quota */
         $quota = $pretix->createQuota($pretixEvent, $quotaData);
-        $instanceData->data['quota'] = $quota->toArray();
+        $instanceData->setQuota($quota->toArray());
       }
       catch (\Exception $exception) {
         throw $this->pretixException($this->t('Cannot create quota for sub-event @sub_event on event @event',
@@ -465,7 +465,7 @@ final class EntityHelper {
   private function updateEventInstance(EventInstance $instance, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
     $pretix = $this->pretix();
     $subEventId = $instanceData->pretixSubeventId;
-    $quotaData = $instanceData->data['quota'] ?? [];
+    $quotaData = $instanceData->getQuota() ?? [];
 
     if (empty($quotaData)) {
       throw $this->pretixException($this->t('Cannot get quota data for updating sub-event @sub_event on event @event',
@@ -492,7 +492,7 @@ final class EntityHelper {
     try {
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota $quota */
       $quota = $pretix->updateQuota($pretixEvent, $quotaData['id'], $quotaData);
-      $instanceData->data['quota'] = $quota->toArray();
+      $instanceData->setQuota($quota->toArray());
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot update quota for sub-event'),
@@ -511,7 +511,7 @@ final class EntityHelper {
     $range = $this->getDateRange($instance);
 
     $data = array_merge(
-      $instanceData->data['subevent'] ?? [],
+      $instanceData->getSubEvent() ?? [],
       [
         'name' => $this->getEventName($instance),
         'date_from' => $this->pretixHelper->formatDate($range[0]),
@@ -527,7 +527,7 @@ final class EntityHelper {
       ]
     );
 
-    $productData = $product instanceof PretixItem ? $product->toArray() : ($instanceData->data['product'] ?? NULL);
+    $productData = $product instanceof PretixItem ? $product->toArray() : ($instanceData->getProduct());
     $price = $this->getPrice($instance);
 
     // https://docs.pretix.eu/en/latest/api/resources/subevents.html#resource-description
@@ -658,7 +658,7 @@ final class EntityHelper {
     ];
 
     // date_from must be set (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description)
-    $data['date_from'] ??= $eventData->data['event']['date_from']
+    $data['date_from'] ??= $eventData->getEvent()['date_from']
       ?? $this->pretixHelper->formatDate(new DateTimeImmutable());
 
     // Important: meta_data value must be an object!

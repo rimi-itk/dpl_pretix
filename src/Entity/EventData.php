@@ -6,8 +6,9 @@ use Drupal\dpl_pretix\Exception\InvalidPropertyException;
 use Drupal\dpl_pretix\Settings;
 use Drupal\recurring_events\EventInterface;
 use Safe\Exceptions\JsonException;
-use function \Safe\json_decode;
-use function \Safe\sprintf;
+use function Safe\json_decode;
+use function Safe\preg_match;
+use function Safe\sprintf;
 
 /**
  * Event data for event series and event instance.
@@ -116,6 +117,104 @@ final class EventData implements \JsonSerializable {
     }
 
     return $this;
+  }
+
+  /**
+   * Get data name.
+   */
+  private function getDataName(string $name): string {
+    return preg_match('/(?P<action>[sg]et)_(?P<name>.+)$/', Settings::camel2kebab($name), $matches)
+      ? $matches['name']
+      : $name;
+  }
+
+  /**
+   * Set data value.
+   *
+   * @param string $name
+   *   The name.
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  private function setDataValue(string $name, array $value): self {
+    $this->data[$this->getDataName($name)] = $value;
+
+    return $this;
+  }
+
+  /**
+   * Get data value.
+   */
+  private function getDataValue(string $name): ?array {
+    return $this->data[$this->getDataName($name)] ?? NULL;
+  }
+
+  /**
+   * Set (pretix) event data.
+   *
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  public function setEvent(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get (pretix) event data.
+   */
+  public function getEvent(): ?array {
+    return $this->getDataValue(__FUNCTION__);
+  }
+
+  /**
+   * Set sub-event.
+   *
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  public function setSubEvent(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get sub-event.
+   */
+  public function getSubEvent(): ?array {
+    return $this->getDataValue(__FUNCTION__);
+  }
+
+  /**
+   * Set product.
+   *
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  public function setProduct(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get product.
+   */
+  public function getProduct(): ?array {
+    return $this->getDataValue(__FUNCTION__);
+  }
+
+  /**
+   * Set quota data.
+   *
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  public function setQuota(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get quota data.
+   */
+  public function getQuota(): ?array {
+    return $this->getDataValue(__FUNCTION__);
   }
 
   /**
