@@ -94,28 +94,6 @@ final class EntityHelper {
   }
 
   /**
-   * Implements hook_entity_load().
-   *
-   * @param \Drupal\Core\Entity\EntityInterface[] $entities
-   *   The entities.
-   * @param string $entityTypeId
-   *   The entity type id.
-   */
-  public function entityLoad(array $entities, string $entityTypeId): void {
-    if ('eventseries' === $entityTypeId) {
-      /** @var \Drupal\recurring_events\EventInterface $entity */
-      foreach ($entities as $entity) {
-        $data = $this->eventDataHelper->loadEventData($entity);
-        if ($url = $data?->getEventShopUrl()) {
-          if ($url !== $entity->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
-            $entity->set(self::EVENT_TICKET_LINK_FIELD, $url);
-          }
-        }
-      }
-    }
-  }
-
-  /**
    * Synchronize event in pretix.
    */
   public function synchronizeEvent(EventSeries $event): ?PretixEvent {
@@ -144,6 +122,15 @@ final class EntityHelper {
       $this->setEventLive($event, $pretixEvent, $data);
 
       $this->setEntitySynchronized($event, $pretixEvent);
+
+      // Set the ticket URL on new events. Important: must be done after the call to `setEntitySynchronized` to prevent an infinite loop.
+      if ($isNew) {
+        $url = $data?->getEventShopUrl();
+        if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
+          $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
+          $event->save();
+        }
+      }
 
       return $pretixEvent;
     }
