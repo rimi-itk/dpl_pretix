@@ -208,8 +208,11 @@ final class EntityHelper {
     $data->pretixEvent = $pretixEvent->getSlug();
     $this->eventDataHelper->saveEventData($event, $data);
 
-    // @todo Set settings?
-    // $this->pretix()->setEventSetting();
+    $this->messenger->addStatus($this->t('Event <a href=":event_url">@event</a> created in pretix', [
+      ':event_url' => $data->getEventAdminUrl(),
+      '@event' => $event->label(),
+    ]));
+
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
 
     return $pretixEvent;
@@ -233,6 +236,11 @@ final class EntityHelper {
     $this->updateProductPrices($event, $pretixEvent, $data);
 
     $this->eventDataHelper->saveEventData($event, $data);
+
+    $this->messenger->addStatus($this->t('Event <a href=":event_url">@event</a> updated in pretix', [
+      ':event_url' => $data->getEventAdminUrl(),
+      '@event' => $event->label(),
+    ]));
 
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
 
@@ -901,6 +909,11 @@ final class EntityHelper {
       $this->pretix()->updateEvent($pretixEvent, [
         'live' => $live,
       ]);
+
+      $this->messenger->addStatus($this->t('Event <a href=":event_url">@event</a> set live in pretix', [
+        ':event_url' => $data->getEventAdminUrl(),
+        '@event' => $event->label(),
+      ]));
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Error setting @event live in pretix: @message',
