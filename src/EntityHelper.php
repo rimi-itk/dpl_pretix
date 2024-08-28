@@ -142,9 +142,7 @@ final class EntityHelper {
         : $this->updateEvent($event, $templateEvent, $data);
 
       if ($isNew) {
-        $this->pretix()->updateEvent($pretixEvent, [
-          'live' => $event->isPublished(),
-        ]);
+        $this->setEventLive($event, $pretixEvent, $data);
       }
 
       $this->setEntitySynchronized($event, $pretixEvent);
@@ -230,9 +228,7 @@ final class EntityHelper {
     assert(NULL !== $data->pretixEvent);
     $pretixEvent = $this->pretixHelper->client()->updateEvent(
       $data->pretixEvent,
-      $this->getPretixEventData($event, $data, [
-        'live' => $event->isPublished(),
-      ])
+      $this->getPretixEventData($event, $data)
     );
 
     // @todo Update products.
@@ -241,6 +237,8 @@ final class EntityHelper {
     $this->eventDataHelper->saveEventData($event, $data);
 
     $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
+
+    $this->setEventLive($event, $pretixEvent, $data);
 
     return $pretixEvent;
   }
@@ -888,6 +886,33 @@ final class EntityHelper {
    */
   private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent $pretixEntity): PretixEntity {
     return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $pretixEntity;
+  }
+
+  /**
+   * Set event live(ness) in pretix.
+   */
+  private function setEventLive(EventSeries $event, PretixEvent $pretixEvent, EventData $data) {
+    $live = $event->isPublished();
+    $instances = $this->getEventInstances($event);
+    if ($live && empty($instances)) {
+      $this->messenger->addWarning($this->t('At least one event instance is required to set <a href=":pretix_event_url">@event</a> live in pretix', [
+        ':pretix_event_url' => $data->getEventAdminUrl(),
+        '@event' => $event->label(),
+      ]));
+      return;
+    }
+    try {
+      $this->pretix()->updateEvent($pretixEvent, [
+        'live' => $live,
+      ]);
+    }
+    catch (\Exception $exception) {
+      throw $this->pretixException($this->t('Error setting @event live in pretix: @message',
+        [
+          '@event' => $event->label(),
+          '@message' => $exception->getMessage(),
+        ]), $exception);
+    }
   }
 
 }

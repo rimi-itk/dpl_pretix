@@ -67,12 +67,15 @@ class FormHelper {
       '#open' => TRUE,
     ];
 
+    $settings = $this->settings->getPretixSettings();
     $form[self::FORM_KEY][self::ELEMENT_MAINTAIN_COPY] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Create and update in pretix'),
       '#default_value' => $eventData->maintainCopy,
       '#return_value' => TRUE,
-      '#description' => $this->t('When set, a corresponding event is created and updated in pretix.'),
+      '#description' => $this->t('When set, a corresponding event is created and updated in <a href=":organizer_url">pretix</a>.', [
+        ':organizer_url' => $this->pretixHelper->getOrganizerUrl($settings),
+      ]),
     ];
 
     $states = [

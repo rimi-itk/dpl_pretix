@@ -131,6 +131,13 @@ class PretixHelper {
   }
 
   /**
+   * Get organizer URL.
+   */
+  public function getOrganizerUrl(PretixSettings $settings): string {
+    return sprintf('%s/control/organizer/%s', rtrim($settings->url ?? '', '/'), $settings->organizer);
+  }
+
+  /**
    * Ping pretix API.
    */
   public function pingApi(?PretixSettings $settings = NULL): bool {
