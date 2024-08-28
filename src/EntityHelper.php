@@ -200,6 +200,7 @@ final class EntityHelper {
         'slug' => $this->getPretixEventSlug($event),
         // The API documentation claims that `has_subevents` is copied when cloning, but that doesn't seem to be correct (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-).
         'has_subevents' => TRUE,
+        'testmode' => FALSE,
       ])
     );
 
