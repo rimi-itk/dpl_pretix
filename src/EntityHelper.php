@@ -897,10 +897,17 @@ final class EntityHelper {
         'live' => $live,
       ]);
 
-      $this->messenger->addStatus($this->t('Event <a href=":event_url">@event</a> set live in pretix', [
-        ':event_url' => $data->getEventAdminUrl(),
-        '@event' => $event->label(),
-      ]));
+      $this->messenger->addStatus(
+        $live
+          ? $this->t('Event <a href=":event_url">@event</a> set live in pretix', [
+            ':event_url' => $data->getEventAdminUrl(),
+            '@event' => $event->label(),
+          ])
+          : $this->t('Event <a href=":event_url">@event</a> set not live in pretix', [
+            ':event_url' => $data->getEventAdminUrl(),
+            '@event' => $event->label(),
+          ])
+      );
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Error setting @event live in pretix: @message',
