@@ -129,7 +129,7 @@ final class EntityHelper {
 
       // Set the ticket URL on new events. Important: must be done after the call to `setEntitySynchronized` to prevent an infinite loop.
       if ($isNew) {
-        $url = $data?->getEventShopUrl();
+        $url = $data->getEventShopUrl();
         if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
           $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
           $event->save();
@@ -313,12 +313,6 @@ final class EntityHelper {
     $this->setEntitySynchronized($instance, $pretixSubEvent);
 
     return $pretixSubEvent;
-  }
-
-  private function eventHasSubevents(string $event): bool {
-    $event = $this->pretix()->getEvent($event);
-
-    return true === $event->toArray()[PretixHelper::EVENT_HAS_SUBEVENTS];
   }
 
   /**
@@ -513,7 +507,7 @@ final class EntityHelper {
   /**
    * Get sub-event data.
    */
-  private function getSubEventData(EventInstance $instance, ?EventData $instanceData = NULL, PretixItem $product = NULL): array {
+  private function getSubEventData(EventInstance $instance, EventData $instanceData, PretixItem $product = NULL): array {
     $range = $this->getDateRange($instance);
 
     $data = array_merge(
@@ -533,7 +527,7 @@ final class EntityHelper {
       ]
     );
 
-    $productData = $product instanceof PretixItem ? $product->toArray() : ($instanceData->getProduct());
+    $productData = $product instanceof PretixItem ? $product->toArray() : $instanceData->getProduct();
     $price = $this->getPrice($instance);
 
     // https://docs.pretix.eu/en/latest/api/resources/subevents.html#resource-description
@@ -822,9 +816,9 @@ final class EntityHelper {
     $date = $instance->get('date')->first();
 
     foreach (['start_date', 'end_date'] as $key) {
-      /** @var DrupalDateTime $value */
+      /** @var ?DrupalDateTime $value */
       $value = $date->get($key)->getValue();
-      $range[] = $value ? $value->getPhpDateTime() : NULL;
+      $range[] = $value?->getPhpDateTime();
     }
 
     return $range;
@@ -899,7 +893,7 @@ final class EntityHelper {
   /**
    * Set event live(ness) in pretix.
    */
-  private function setEventLive(EventSeries $event, PretixEvent $pretixEvent, EventData $data) {
+  private function setEventLive(EventSeries $event, PretixEvent $pretixEvent, EventData $data): void {
     $live = $event->isPublished();
     $instances = $this->getEventInstances($event);
     if ($live && empty($instances)) {

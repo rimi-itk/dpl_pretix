@@ -84,7 +84,7 @@ final class PretixHelper {
       }
     }
 
-    if (TRUE === $data[self::EVENT_HAS_SUBEVENTS] ?? FALSE) {
+    if ($data[self::EVENT_HAS_SUBEVENTS] ?? FALSE) {
       $subEvents = $client->getSubEvents($event);
       if (1 !== $subEvents->count()) {
         $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 sub-event; %d found.',

@@ -112,7 +112,7 @@ class FormHelper {
 
       // PSP is a code for accounting. If an event has orders, we don't allow
       // this to be changed, as this would invalidate the accounting.
-      $disabled = isset($pretixEventId) && $this->eventHelper->hasOrders($eventData->pretixEvent);
+      $disabled = isset($pretixEventId) && $this->eventHelper->hasOrders($pretixEventId);
       $description = $disabled
         ? $this->t('Event has active orders. For accounting reasons the PSP element can no longer be changed.')
         : $this->t('Select the PSP element the ticket sales should be registered under.');
