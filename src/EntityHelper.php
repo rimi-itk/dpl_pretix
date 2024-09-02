@@ -805,9 +805,10 @@ final class EntityHelper {
     /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
     $date = $instance->get('date')->first();
 
-    foreach (['value', 'end_value'] as $key) {
+    foreach (['start_date', 'end_date'] as $key) {
+      /** @var DrupalDateTime $value */
       $value = $date->get($key)->getValue();
-      $range[] = $value ? (new DrupalDateTime($value))->getPhpDateTime() : NULL;
+      $range[] = $value ? $value->getPhpDateTime() : NULL;
     }
 
     return $range;
