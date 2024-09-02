@@ -12,8 +12,10 @@ use function Safe\sprintf;
 /**
  * Pretix helper.
  */
-class PretixHelper {
+final class PretixHelper {
   private const PRETIX_DATETIME_FORMAT = \DateTimeInterface::ATOM;
+
+  public const EVENT_HAS_SUBEVENTS = 'has_subevents';
 
   /**
    * The pretix API client.
@@ -53,8 +55,9 @@ class PretixHelper {
   public function validateTemplateEvent(string $templateEvent, ?PretixSettings $settings = NULL): array {
     $errors = [];
 
+    $client = NULL !== $settings ? self::createClientFromSettings($settings) : $this->client();
+
     try {
-      $client = NULL !== $settings ? self::createClientFromSettings($settings) : $this->client();
       $event = $client->getEvent($templateEvent);
     }
     catch (\Exception $e) {
@@ -68,7 +71,6 @@ class PretixHelper {
     $data = $event->toArray();
 
     $expectedValues = [
-      'has_subevents' => TRUE,
       'live' => FALSE,
     ];
     foreach ($expectedValues as $name => $expectedValue) {
@@ -82,12 +84,15 @@ class PretixHelper {
       }
     }
 
-    $subEvents = $client->getSubEvents($event);
-    if (1 !== $subEvents->count()) {
-      $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 sub-event; %d found.', $event->getSlug(), $subEvents->count()));
+    if (TRUE === $data[self::EVENT_HAS_SUBEVENTS] ?? FALSE) {
+      $subEvents = $client->getSubEvents($event);
+      if (1 !== $subEvents->count()) {
+        $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 sub-event; %d found.',
+          $event->getSlug(), $subEvents->count()));
+      }
     }
 
-    $products = $this->client()->getItems($event);
+    $products = $client->getItems($event);
     if (1 !== $products->count()) {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 product; %d found.', $event->getSlug(), $products->count()));
     }
@@ -121,7 +126,7 @@ class PretixHelper {
     if (!isset($this->client)) {
       $settings = $this->settings->getPretixSettings();
       $this->client = new Client([
-        'url' => $settings->url,
+        'url' => $settings->url ?? '',
         'organizer' => $settings->organizer,
         'api_token' => $settings->apiToken,
       ]);

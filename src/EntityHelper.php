@@ -72,6 +72,10 @@ final class EntityHelper {
         if (!$data->maintainCopy) {
           return;
         }
+        $pretixEvent = $data->getEvent();
+        if (!($pretixEvent[PretixHelper::EVENT_HAS_SUBEVENTS] ?? false)) {
+          return;
+        }
         if (NULL === $data->templateEvent) {
           throw new SynchronizeException('Template event for sub-event not set');
         }
@@ -172,17 +176,18 @@ final class EntityHelper {
     ]);
 
     $pretix = $this->pretixHelper->client();
+    $pretixTemplateEvent = $pretix->getEvent($templateEvent);
 
     // Create event in pretix (by cloning the template event).
     // @see https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-
     $pretixEvent = $pretix->cloneEvent(
-      $templateEvent,
+      $pretixTemplateEvent->getSlug(),
       $this->getPretixEventData($event, $data, [
         // We cannot set the event live on create
         // (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-).
         'slug' => $this->getPretixEventSlug($event),
         // The API documentation claims that `has_subevents` is copied when cloning, but that doesn't seem to be correct (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-).
-        'has_subevents' => TRUE,
+        PretixHelper::EVENT_HAS_SUBEVENTS => $pretixTemplateEvent->hasSubevents(),
         'testmode' => FALSE,
       ])
     );
@@ -257,6 +262,11 @@ final class EntityHelper {
    * Synchronize event instances.
    */
   private function synchronizeEventInstances(string $templateEvent, PretixEvent $pretixEvent, EventSeries $event): array {
+    $eventData = $this->getEventData($event);
+    if (!($eventData->getEvent()[PretixHelper::EVENT_HAS_SUBEVENTS] ?? false)) {
+      return [];
+    }
+
     $this->logger->info('Synchronizing sub-events for @event', [
       '@event' => $event->id(),
     ]);
@@ -303,6 +313,12 @@ final class EntityHelper {
     $this->setEntitySynchronized($instance, $pretixSubEvent);
 
     return $pretixSubEvent;
+  }
+
+  private function eventHasSubevents(string $event): bool {
+    $event = $this->pretix()->getEvent($event);
+
+    return true === $event->toArray()[PretixHelper::EVENT_HAS_SUBEVENTS];
   }
 
   /**
