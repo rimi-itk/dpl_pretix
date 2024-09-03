@@ -89,9 +89,19 @@ final class SettingsForm extends ConfigFormBase {
     // Form constructor.
     $form = parent::buildForm($form, $form_state);
 
-    $config = $this->getConfig();
-
     $form['#tree'] = TRUE;
+
+    $form['dpl_pretix_header'] = [
+      '#theme' => 'status_messages',
+      '#message_list' => [
+        'warning' => [
+          $this->t('Notice: The settings on this page requires knowledge about <a href=":pretix_eventsdocs_url">pretix events</a> and <a href=":pretix_docs_url">pretix in general</a>.', [
+            ':pretix_events_docs_url' => 'https://docs.pretix.eu/en/latest/user/events/create.html',
+            ':pretix_docs_url' => 'https://docs.pretix.eu/en/latest/index.html',
+          ]),
+        ],
+      ],
+    ];
 
     $this->buildFormPretix($form);
 
@@ -505,7 +515,10 @@ YAML
       catch (\Exception $exception) {
         $form_state->setError(
           $form[self::SECTION_PRETIX][$domain][self::ELEMENT_TEMPLATE_EVENTS],
-          $this->t('Invalid template events in @domain.', ['@domain' => $domain])
+          $this->t('Invalid template events in @domain (@message).', [
+            '@domain' => $domain,
+            '@message' => $exception->getMessage(),
+          ])
         );
       }
     }
