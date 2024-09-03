@@ -26,7 +26,7 @@ class FormHelper {
   public const ELEMENT_TEMPLATE_EVENT = 'template_event';
   public const ELEMENT_PSP_ELEMENT = 'psp_element';
 
-  public const FIELD_EVENT_LINK = 'field_event_link';
+  public const FIELD_TICKET_URL = 'field_event_link';
   public const FIELD_TICKET_CATEGORIES = 'field_ticket_categories';
   public const FIELD_TICKET_CAPACITY = 'field_ticket_capacity';
 
@@ -97,8 +97,14 @@ class FormHelper {
 
     // We don't allow manual change of the ticket link if pretix is used.
     if ($eventData->maintainCopy && isset($pretixEventId)) {
-      $this->disableElement($form, self::FIELD_EVENT_LINK,
+      $this->disableElement($form, self::FIELD_TICKET_URL,
         $this->t('This field is managed by pretix for this event.'));
+    } else {
+      $form[self::FIELD_TICKET_URL]['#states'] = [
+        'disabled' => [
+          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+        ],
+      ];
     }
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
