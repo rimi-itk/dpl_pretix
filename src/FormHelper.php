@@ -26,6 +26,7 @@ class FormHelper {
   public const ELEMENT_PSP_ELEMENT = 'psp_element';
 
   public const FIELD_EVENT_LINK = 'field_event_link';
+  public const FIELD_TICKET_CATEGORIES = 'field_ticket_categories';
 
   public function __construct(
     private readonly Settings $settings,
@@ -177,6 +178,12 @@ class FormHelper {
     }
 
     $form['#validate'][] = [$this, 'validateForm'];
+
+    if (isset($form[self::FIELD_TICKET_CATEGORIES])) {
+      $form[self::FIELD_TICKET_CATEGORIES]['#states']['visible'] = [
+        ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => FALSE],
+      ];
+    }
   }
 
   /**
