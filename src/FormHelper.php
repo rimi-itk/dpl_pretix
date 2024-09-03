@@ -12,6 +12,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\recurring_events\Entity\EventSeries;
+use Drupal\webform\Utility\WebformArrayHelper;
 
 /**
  * Form helper.
@@ -27,6 +28,10 @@ class FormHelper {
 
   public const FIELD_EVENT_LINK = 'field_event_link';
   public const FIELD_TICKET_CATEGORIES = 'field_ticket_categories';
+  public const FIELD_TICKET_CAPACITY = 'field_ticket_capacity';
+
+  public const CUSTOM_FORM_VALUES = 'custom_form_values';
+  public const FIELD_TICKET_PRICE = 'dpl_pretix_field_ticket_price';
 
   public function __construct(
     private readonly Settings $settings,
@@ -73,9 +78,10 @@ class FormHelper {
       '#title' => $this->t('Create and update in pretix'),
       '#default_value' => $eventData->maintainCopy,
       '#return_value' => TRUE,
-      '#description' => $this->t('When set, a corresponding event is created and updated in <a href=":organizer_url">pretix</a>.', [
-        ':organizer_url' => $this->pretixHelper->getOrganizerUrl($settings),
-      ]),
+      '#description' => $this->t('When set, a corresponding event is created and updated in <a href=":organizer_url">pretix</a>.',
+        [
+          ':organizer_url' => $this->pretixHelper->getOrganizerUrl($settings),
+        ]),
     ];
 
     $states = [
@@ -150,7 +156,8 @@ class FormHelper {
 
     if (!$entity->isNew()) {
       if ($pretixAdminUrl = $eventData->getEventAdminUrl()) {
-        $pretix_link = Link::fromTextAndUrl($pretixAdminUrl, Url::fromUri($pretixAdminUrl))->toString();
+        $pretix_link = Link::fromTextAndUrl($pretixAdminUrl,
+          Url::fromUri($pretixAdminUrl))->toString();
       }
       else {
         $pretix_link = $this->t('None');
@@ -184,6 +191,23 @@ class FormHelper {
         ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => FALSE],
       ];
     }
+
+    // Add custom price field.
+    $customValues = $eventData?->getFormValues() ?? [];
+    if (isset($form[self::FIELD_TICKET_CAPACITY])) {
+      $element = [
+        '#type' => 'number',
+        '#title' => $this->t('Ticket price'),
+        '#default_value' => $customValues[self::FIELD_TICKET_PRICE] ?? NULL,
+        '#description' => $this->t('Set to 0 for free events.'),
+        '#min' => 0,
+        '#required' => TRUE,
+      ];
+      if (isset($form[self::FIELD_TICKET_CAPACITY]['#weight'])) {
+        $element['#weight'] = $form[self::FIELD_TICKET_CAPACITY]['#weight'];
+      }
+      WebformArrayHelper::insertAfter($form, self::FIELD_TICKET_CAPACITY, self::FIELD_TICKET_PRICE, $element);
+    }
   }
 
   /**
@@ -192,7 +216,13 @@ class FormHelper {
   public function validateForm(array $form, FormStateInterface $formState): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
       // Store our custom values for use in entity save/update hook.
-      EntityHelper::setFormValues($event, $formState->getValue(self::FORM_KEY) ?? []);
+      $values = $formState->getValue(self::FORM_KEY) ?? [];
+      $values += [
+        self::CUSTOM_FORM_VALUES => [
+          self::FIELD_TICKET_PRICE => $formState->getValue(self::FIELD_TICKET_PRICE),
+        ],
+      ];
+      EntityHelper::setFormValues($event, $values);
 
       $eventData = $this->eventDataHelper->getEventData($event)
         ?? $this->eventDataHelper->createEventData($event);

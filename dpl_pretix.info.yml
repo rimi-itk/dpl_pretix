@@ -7,5 +7,6 @@ core_version_requirement: ^10
 
 dependencies:
   - dpl_event:dpl_event
+  - webform:webform
 
 configure: dpl_pretix.settings

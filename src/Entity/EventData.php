@@ -218,6 +218,23 @@ final class EventData implements \JsonSerializable {
   }
 
   /**
+   * Set form values data.
+   *
+   * @param array<string, mixed> $value
+   *   The value.
+   */
+  public function setFormValues(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get form values data.
+   */
+  public function getFormValues(): ?array {
+    return $this->getDataValue(__FUNCTION__);
+  }
+
+  /**
    * Convert data to array.
    *
    * @return array<string, mixed>

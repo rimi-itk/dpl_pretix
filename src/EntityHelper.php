@@ -777,7 +777,7 @@ final class EntityHelper {
    * Get event capacity.
    */
   private function getCapacity(EventSeries|EventInstance $event): ?int {
-    $fieldName = 'field_ticket_capacity';
+    $fieldName = FormHelper::FIELD_TICKET_CAPACITY;
 
     $capacity = $event->get($fieldName)->getString();
     if ('' === $capacity && $event instanceof EventInstance) {
@@ -801,19 +801,13 @@ final class EntityHelper {
    * Get location.
    */
   private function getPrice(EventSeries|EventInstance $event): string {
-    $fieldName = 'field_ticket_categories';
-    $priceFieldName = 'field_ticket_category_price';
-
-    $price = 0.00;
-    /** @var \Drupal\Core\Field\EntityReferenceFieldItemList $field */
-    $field = $event->get($fieldName);
-    $categories = $field->referencedEntities();
-    /** @var \Drupal\paragraphs\Entity\Paragraph $category */
-    foreach ($categories as $category) {
-      $price = (float) $category->get($priceFieldName)->getString();
-      // We support only one price.
-      break;
+    if ($event instanceof EventInstance) {
+      return $this->getPrice($event->getEventSeries());
     }
+
+    $data = $this->eventDataHelper->getEventData($event);
+    $formValues = $data->getFormValues();
+    $price = $formValues[FormHelper::FIELD_TICKET_PRICE] ?? 0.00;
 
     return $this->pretixHelper->formatAmount($price);
   }
@@ -881,6 +875,10 @@ final class EntityHelper {
       $data->maintainCopy = (bool) ($values[FormHelper::ELEMENT_MAINTAIN_COPY] ?? FALSE);
       $data->templateEvent = $values[FormHelper::ELEMENT_TEMPLATE_EVENT] ?? '';
       $data->pspElement = $values[FormHelper::ELEMENT_PSP_ELEMENT] ?? NULL;
+      $data->setFormValues(array_merge(
+        $data->getFormValues() ?? [],
+        $values[FormHelper::CUSTOM_FORM_VALUES] ?? []
+      ));
     }
   }
 
