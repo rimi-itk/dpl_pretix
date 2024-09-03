@@ -11,6 +11,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
+use Drupal\dpl_pretix\Exception\ValidationException;
 use Drupal\dpl_pretix\PretixHelper;
 use Drupal\dpl_pretix\Settings;
 use Drupal\dpl_pretix\Settings\PretixSettings;
@@ -503,11 +504,18 @@ YAML
       try {
         $templateEvents = $this->pretixHelper->parseTemplateEvents($yaml);
         foreach ($templateEvents as $templateEvent => $label) {
-          $errors = $this->pretixHelper->validateTemplateEvent($templateEvent, $settings);
-          foreach ($errors as $error) {
+          $errors = $this->pretixHelper->validateTemplateEvent($templateEvent,
+            $settings);
+          if (!empty($errors)) {
             $form_state->setError(
               $form[self::SECTION_PRETIX][$domain][self::ELEMENT_TEMPLATE_EVENTS],
-              $this->t('Template event is not valid: @message', ['@message' => $error->getMessage()])
+              $this->t('Template event <a href=":pretix_event_url">@event</a> is not valid: @errors',
+                [
+                  '@event' => $templateEvent,
+                  ':pretix_event_url' => $this->pretixHelper->getEventAdminUrl($settings,
+                    $templateEvent),
+                  '@errors' => implode('; ', array_map(static fn (ValidationException $exception) => $exception->getMessage(), $errors)),
+                ])
             );
           }
         }

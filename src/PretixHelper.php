@@ -92,11 +92,6 @@ final class PretixHelper {
       }
     }
 
-    $products = $client->getItems($event);
-    if (1 !== $products->count()) {
-      $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 product; %d found.', $event->getSlug(), $products->count()));
-    }
-
     $quotas = $client->getQuotas($event);
     if (1 !== $quotas->count()) {
       $errors[] = new ValidationException(sprintf('Template event %s must have exactly 1 quota; %d found.', $event->getSlug(), $quotas->count()));
@@ -162,6 +157,13 @@ final class PretixHelper {
    */
   public function getOrganizerUrl(PretixSettings $settings): string {
     return sprintf('%s/control/organizer/%s', rtrim($settings->url ?? '', '/'), $settings->organizer);
+  }
+
+  /**
+   * Get organizer URL.
+   */
+  public function getEventAdminUrl(PretixSettings $settings, string $eventShortForm): string {
+    return sprintf('%s/control/event/%s/%s', rtrim($settings->url ?? '', '/'), $settings->organizer, $eventShortForm);
   }
 
   /**
