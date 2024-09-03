@@ -2,7 +2,6 @@
 
 namespace Drupal\dpl_pretix;
 
-use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -69,11 +68,11 @@ final class EntityHelper {
         $this->synchronizeEvent($event);
       }
       else {
-        if (!$data->maintainCopy) {
+        // Skip singular pretix events.
+        if ($this->pretixHelper->isSingularEvent($data->getEvent())) {
           return;
         }
-        $pretixEvent = $data->getEvent();
-        if (!($pretixEvent[PretixHelper::EVENT_HAS_SUBEVENTS] ?? false)) {
+        if (!$data->maintainCopy) {
           return;
         }
         if (NULL === $data->templateEvent) {
@@ -127,7 +126,8 @@ final class EntityHelper {
 
       $this->setEntitySynchronized($event, $pretixEvent);
 
-      // Set the ticket URL on new events. Important: must be done after the call to `setEntitySynchronized` to prevent an infinite loop.
+      // Set the ticket URL on new events. Important: must be done after the
+      // call to `setEntitySynchronized` to prevent an infinite loop.
       if ($isNew) {
         $url = $data->getEventShopUrl();
         if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
@@ -224,7 +224,6 @@ final class EntityHelper {
       $this->getPretixEventData($event, $data)
     );
 
-    // @todo Update products.
     $this->updateProductPrices($event, $pretixEvent, $data);
 
     $this->eventDataHelper->saveEventData($event, $data);
@@ -256,6 +255,17 @@ final class EntityHelper {
 
       $data->setProduct($product->toArray());
     }
+
+    if ($this->pretixHelper->isSingularEvent($pretixEvent->toArray())) {
+      $capacity = $this->getCapacity($event);
+      // Set capacity (size) on all quotas.
+      $quotas = $pretix->getQuotas($pretixEvent->getSlug());
+      foreach ($quotas as $quota) {
+        $pretix->updateQuota($pretixEvent->getSlug(), $quota->getId(), [
+          'size' => $capacity,
+        ]);
+      }
+    }
   }
 
   /**
@@ -263,7 +273,7 @@ final class EntityHelper {
    */
   private function synchronizeEventInstances(string $templateEvent, PretixEvent $pretixEvent, EventSeries $event): array {
     $eventData = $this->getEventData($event);
-    if (!($eventData->getEvent()[PretixHelper::EVENT_HAS_SUBEVENTS] ?? false)) {
+    if ($this->pretixHelper->isSingularEvent($eventData->getEvent())) {
       return [];
     }
 
@@ -605,7 +615,12 @@ final class EntityHelper {
    * Decide if event has orders in pretix.
    */
   public function hasOrders(string $event): bool {
-    return !$this->getOrders($event)->isEmpty();
+    try {
+      return !$this->getOrders($event)->isEmpty();
+    }
+    catch (\Exception) {
+      return FALSE;
+    }
   }
 
   /**
@@ -816,7 +831,7 @@ final class EntityHelper {
     $date = $instance->get('date')->first();
 
     foreach (['start_date', 'end_date'] as $key) {
-      /** @var ?DrupalDateTime $value */
+      /** @var ?\Drupal\Core\Datetime\DrupalDateTime $value */
       $value = $date->get($key)->getValue();
       $range[] = $value?->getPhpDateTime();
     }

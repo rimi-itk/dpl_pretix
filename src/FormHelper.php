@@ -26,7 +26,6 @@ class FormHelper {
   public const ELEMENT_PSP_ELEMENT = 'psp_element';
 
   public const FIELD_EVENT_LINK = 'field_event_link';
-  private const FIELD_TICKET_CAPACITY = 'field_ticket_capacity';
 
   public function __construct(
     private readonly Settings $settings,
@@ -91,14 +90,8 @@ class FormHelper {
 
     // We don't allow manual change of the ticket link if pretix is used.
     if ($eventData->maintainCopy && isset($pretixEventId)) {
-      $this->disableElement($form, self::FIELD_EVENT_LINK, $this->t('This field is managed by pretix for this event.'));
-    }
-
-    // We don't allow updates to capacity after the event is created in pretix,
-    // must be updated in pretix.
-    $disabled = isset($pretixEventId);
-    if ($disabled) {
-      $this->disableElement($form, self::FIELD_TICKET_CAPACITY, $this->t('Update capacity in pretix if needed.'));
+      $this->disableElement($form, self::FIELD_EVENT_LINK,
+        $this->t('This field is managed by pretix for this event.'));
     }
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
@@ -128,23 +121,30 @@ class FormHelper {
       ] + $states;
     }
 
-    try {
-      $options = $this->pretixHelper->parseTemplateEvents(
-        $this->settings->getPretixSettings()->templateEvents ?? ''
-      );
+    $disabled = isset($eventData->templateEvent);
+    if ($disabled) {
+      $options = [$eventData->templateEvent => $eventData->templateEvent];
     }
-    catch (\Exception) {
-      $this->messenger->addError($this->t('Error parsing pretix template events.'));
-      $options = [];
+    else {
+      try {
+        $options = $this->pretixHelper->parseTemplateEvents(
+          $this->settings->getPretixSettings()->templateEvents ?? ''
+        );
+      }
+      catch (\Exception) {
+        $this->messenger->addError($this->t('Error parsing pretix template events.'));
+        $options = [];
+      }
     }
+
     $form[self::FORM_KEY][self::ELEMENT_TEMPLATE_EVENT] = [
       '#type' => 'select',
       '#title' => $this->t('Template event'),
-      '#options' => $options,
       '#default_value' => $eventData->templateEvent,
+      '#options' => $options,
       '#empty_option' => $this->t('Select template event'),
-
-      '#description' => $this->t('Template event used to create event in pretix'),
+      '#disabled' => $disabled,
+      '#description' => $this->t('Template event used to create event in pretix.'),
     ] + $states;
 
     if (!$entity->isNew()) {

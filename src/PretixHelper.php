@@ -120,6 +120,28 @@ final class PretixHelper {
   }
 
   /**
+   * Determine if an event is a singular event.
+   *
+   * @param string|array<string, mixed>|null $event
+   *   The event slug or data.
+   *
+   * @see https://docs.pretix.eu/en/latest/user/events/create.html
+   */
+  public function isSingularEvent(string|array $event = NULL): bool {
+    try {
+      if (is_string($event)) {
+        $event = $this->client()->getEvent($event);
+        $event = $event->toArray();
+      }
+
+      return !($event[self::EVENT_HAS_SUBEVENTS] ?? FALSE);
+    }
+    catch (\Exception) {
+      return FALSE;
+    }
+  }
+
+  /**
    * Get pretix API client.
    */
   public function client(): Client {
