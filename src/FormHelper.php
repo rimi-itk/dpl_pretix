@@ -99,7 +99,8 @@ class FormHelper {
     if ($eventData->maintainCopy && isset($pretixEventId)) {
       $this->disableElement($form, self::FIELD_TICKET_URL,
         $this->t('This field is managed by pretix for this event.'));
-    } else {
+    }
+    else {
       $form[self::FIELD_TICKET_URL]['#states'] = [
         'disabled' => [
           ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
@@ -207,8 +208,7 @@ class FormHelper {
         '#default_value' => $customValues[self::FIELD_TICKET_PRICE] ?? NULL,
         '#description' => $this->t('Set to 0 for free events.'),
         '#min' => 0,
-        '#required' => TRUE,
-      ];
+      ] + $states;
       if (isset($form[self::FIELD_TICKET_CAPACITY]['#weight'])) {
         $element['#weight'] = $form[self::FIELD_TICKET_CAPACITY]['#weight'];
       }
@@ -230,15 +230,22 @@ class FormHelper {
       ];
       EntityHelper::setFormValues($event, $values);
 
-      $eventData = $this->eventDataHelper->getEventData($event)
-        ?? $this->eventDataHelper->createEventData($event);
-
-      if ((bool) $formState->getValue(self::ELEMENT_MAINTAIN_COPY)) {
-        if (empty($formState->getValue(self::ELEMENT_PSP_ELEMENT))) {
-          $formState->setErrorByName(self::ELEMENT_PSP_ELEMENT, $this->t('PSP element is required.'));
+      if ($values[self::ELEMENT_MAINTAIN_COPY] ?? FALSE) {
+        if (empty($values[self::ELEMENT_PSP_ELEMENT])) {
+          $formState->setErrorByName(self::FORM_KEY . '][' . self::ELEMENT_PSP_ELEMENT, $this->t('@field is required.', [
+            '@field' => $this->t('PSP element'),
+          ]));
         }
-        if (empty($formState->getValue(self::ELEMENT_TEMPLATE_EVENT))) {
-          $formState->setErrorByName(self::ELEMENT_TEMPLATE_EVENT, $this->t('Template event is required.'));
+        if (empty($values[self::ELEMENT_TEMPLATE_EVENT])) {
+          $formState->setErrorByName(self::ELEMENT_TEMPLATE_EVENT, $this->t('@field is required.', [
+            '@field' => $this->t('Template event'),
+          ]));
+        }
+        $price = (string) $formState->getValue(self::FIELD_TICKET_PRICE);
+        if ($price !== (string) intval($price)) {
+          $formState->setErrorByName(self::FIELD_TICKET_PRICE, $this->t('@field is required.', [
+            '@field' => $this->t('Ticket price'),
+          ]));
         }
       }
     }
