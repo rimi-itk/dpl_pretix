@@ -564,8 +564,7 @@ final class EntityHelper {
       if (isset($variation['id'])) {
         $data[self::VARIATION_PRICE_OVERRIDES][] = [
           'variation' => $variation['id'],
-          // Never override with no price.
-          'price' => $this->pretixHelper->formatAmount(0.00) === $price ? NULL : $price,
+          'price' => $price,
         ];
       }
     }
