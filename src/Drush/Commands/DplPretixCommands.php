@@ -69,6 +69,7 @@ final class DplPretixCommands extends DrushCommands {
     string $eventId,
     array $options = [
       'templateEvent' => NULL,
+      'formValues' => '{}',
     ],
   ): void {
     $event = $this->loadEventSeries($eventId);
@@ -81,6 +82,7 @@ final class DplPretixCommands extends DrushCommands {
     EntityHelper::setFormValues($event, [
       FormHelper::ELEMENT_MAINTAIN_COPY => TRUE,
       FormHelper::ELEMENT_TEMPLATE_EVENT => $templateEvent,
+      FormHelper::CUSTOM_FORM_VALUES => json_decode($options['formValues'], TRUE),
     ]);
     $this->entityHelper->synchronizeEvent($event);
   }
