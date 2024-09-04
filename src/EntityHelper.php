@@ -2,6 +2,7 @@
 
 namespace Drupal\dpl_pretix;
 
+use Drupal\Component\Utility\Random;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -27,6 +28,13 @@ use function Safe\sprintf;
 final class EntityHelper {
   use StringTranslationTrait;
   use DependencySerializationTrait;
+
+  /**
+   * A random object.
+   *
+   * @var \Drupal\Component\Utility\Random
+   */
+  private Random $random;
 
   // @see /admin/structure/events/instance/types/eventinstance_type/default/edit/fields
   private const EVENT_TICKET_LINK_FIELD = 'field_event_link';
@@ -692,9 +700,18 @@ final class EntityHelper {
    * Get pretix event short name.
    */
   private function getPretixEventSlug(EventSeries $event): string {
+    if (!isset($this->random)) {
+      $this->random = new Random();
+    }
+
     $pretixSettings = $this->settings->getPretixSettings();
 
-    return str_replace(['{id}'], [$event->id()], $pretixSettings->eventSlugTemplate);
+    $replacements = [
+      '{id}' => $event->id(),
+      '{random}' => $this->random->machineName(8, TRUE),
+    ];
+
+    return str_replace(array_keys($replacements), $replacements, $pretixSettings->eventSlugTemplate);
   }
 
   /**
