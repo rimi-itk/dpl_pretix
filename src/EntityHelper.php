@@ -160,6 +160,12 @@ final class EntityHelper {
     $data = $this->eventDataHelper->loadEventData($event)
       ?? $this->eventDataHelper->createEventData($event);
     static::applyFormValues($data, $event);
+
+    if ($event instanceof EventInstance) {
+      // Copy form values from series.
+      $seriesEventData = $this->getEventData($event->getEventSeries());
+      $seriesEventData->setFormValues($seriesEventData->getFormValues());
+    }
     $this->eventDataHelper->saveEventData($event, $data);
 
     return $data;
