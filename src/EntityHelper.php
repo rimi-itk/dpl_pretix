@@ -172,7 +172,7 @@ final class EntityHelper {
     if ($event instanceof EventInstance) {
       // Copy form values from series.
       $seriesEventData = $this->getEventData($event->getEventSeries());
-      $seriesEventData->setFormValues($seriesEventData->getFormValues());
+      $seriesEventData->setFormValues($seriesEventData->getFormValues() ?? []);
     }
     $this->eventDataHelper->saveEventData($event, $data);
 
@@ -824,11 +824,13 @@ final class EntityHelper {
    */
   private function getPrice(EventSeries|EventInstance $event): string {
     if ($event instanceof EventInstance) {
-      return $this->getPrice($event->getEventSeries());
+      /** @var \Drupal\recurring_events\Entity\EventSeries $series */
+      $series = $event->getEventSeries();
+      return $this->getPrice($series);
     }
 
     $data = $this->eventDataHelper->getEventData($event);
-    $formValues = $data->getFormValues();
+    $formValues = $data?->getFormValues() ?? [];
     $price = $formValues[FormHelper::FIELD_TICKET_PRICE] ?? 0.00;
 
     return $this->pretixHelper->formatAmount($price);

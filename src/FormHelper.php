@@ -200,7 +200,7 @@ class FormHelper {
     }
 
     // Add custom price field.
-    $customValues = $eventData?->getFormValues() ?? [];
+    $customValues = $eventData->getFormValues() ?? [];
     if (isset($form[self::FIELD_TICKET_CAPACITY])) {
       $element = [
         '#type' => 'number',
