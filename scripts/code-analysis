@@ -14,17 +14,10 @@ drupal_composer() {
 
 set -x
 
-# Create new DPL CMS project
-if [ ! -f "$drupal_dir/composer.json" ]; then
-  rm -fr "$drupal_dir"
-  # https://getcomposer.org/doc/03-cli.md#create-project
-  composer --no-interaction create-project danskernesdigitalebibliotek/dpl-cms --repository='{"url": "https://github.com/danskernesdigitalebibliotek/dpl-cms", "type": "vcs"}' --add-repository "$drupal_dir"
-fi
-
-git -C "$drupal_dir" pull
+rm -fr "$drupal_dir"
+git clone --branch=develop --depth=1 https://github.com/danskernesdigitalebibliotek/dpl-cms "$drupal_dir"
 
 # Copy our code into the modules folder
-
 mkdir -p "$drupal_dir/$module_path"
 
 # https://stackoverflow.com/a/15373763

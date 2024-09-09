@@ -1,16 +1,23 @@
-on: pull_request
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
 name: Review
+
 jobs:
   changelog:
     runs-on: ubuntu-latest
     name: Changelog should be updated
+    if: github.event_name == 'pull_request'
     strategy:
       fail-fast: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 1
 
       - name: Git fetch
         run: git fetch
@@ -61,24 +68,25 @@ jobs:
       - run: |
           docker run --rm --volume "$PWD:/mnt" koalaman/shellcheck:stable scripts/create-release scripts/code-analysis
 
-  # @fixme
-  # code-analysis-phpstan:
-  #   name: code-analysis/phpstan
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     fail-fast: false
-  #   env:
-  #     # https://getcomposer.org/doc/03-cli.md#composer-auth
-  #     COMPOSER_AUTH: |
-  #       {
-  #         "github-oauth": {
-  #           "github.com": "${{ github.TOKEN }}"
-  #         }
-  #       }
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: |
-  #         docker compose run --env COMPOSER_AUTH --user root --rm php scripts/code-analysis
+  code-analysis-phpstan:
+    name: code-analysis/phpstan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    env:
+      # https://getcomposer.org/doc/03-cli.md#composer-auth
+      COMPOSER_AUTH: |
+        {
+          "github-oauth": {
+            "github.com": "${{ github.TOKEN }}"
+          }
+        }
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker compose build
+          docker compose run --user root --rm php composer install
+          docker compose run --user root --rm --env COMPOSER_AUTH php scripts/code-analysis
 
   check-create-release:
     runs-on: ubuntu-latest
