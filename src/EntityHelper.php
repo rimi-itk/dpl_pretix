@@ -683,6 +683,7 @@ final class EntityHelper {
       'date_from' => $this->pretixHelper->formatDate($dateFrom),
       'date_to' => $this->pretixHelper->formatDate($dateTo),
       'is_public' => $event->isPublished(),
+      'location' => $this->getLocation($event),
     ];
 
     // date_from must be set (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description)
