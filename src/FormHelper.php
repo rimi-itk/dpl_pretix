@@ -31,7 +31,6 @@ class FormHelper {
   public const FIELD_TICKET_CAPACITY = 'field_ticket_capacity';
 
   public const CUSTOM_FORM_VALUES = 'custom_form_values';
-  public const FIELD_TICKET_PRICE = 'dpl_pretix_field_ticket_price';
 
   public function __construct(
     private readonly Settings $settings,
@@ -194,51 +193,28 @@ class FormHelper {
     $form['#validate'][] = [$this, 'validateForm'];
 
     if (isset($form[self::FIELD_TICKET_CATEGORIES])) {
-      if ($entity->get(self::FIELD_TICKET_CATEGORIES)->isEmpty()) {
-        $form[self::FIELD_TICKET_CATEGORIES]['#states']['visible'] = [
-          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => FALSE],
-        ];
-      }
-      elseif ($eventData->maintainCopy) {
-        $message = $this->t('This event is maintained in pretix and should not have ticket categories.');
-        $this->messenger->addWarning($message);
-
-        $element = [
-          '#type' => 'container',
-
-          'message' => [
-            '#theme' => 'status_messages',
-            '#message_list' => [
-              'warning' => [$message],
-            ],
-          ],
-          '#states' => [
-            'visible' => [
-              ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
-            ],
-          ],
-        ];
-        if (isset($form[self::FIELD_TICKET_CATEGORIES]['#weight'])) {
-          $element['#weight'] = $form[self::FIELD_TICKET_CATEGORIES]['#weight'];
-        }
-        WebformArrayHelper::insertBefore($form, self::FIELD_TICKET_CATEGORIES, self::FIELD_TICKET_CATEGORIES . '_warning', $element);
-      }
-    }
-
-    // Add custom price field.
-    $customValues = $eventData->getFormValues() ?? [];
-    if (isset($form[self::FIELD_TICKET_CAPACITY])) {
       $element = [
-        '#type' => 'number',
-        '#title' => $this->t('Ticket price'),
-        '#default_value' => $customValues[self::FIELD_TICKET_PRICE] ?? NULL,
-        '#description' => $this->t('Set to 0 for free events.'),
-        '#min' => 0,
-      ] + $states;
-      if (isset($form[self::FIELD_TICKET_CAPACITY]['#weight'])) {
-        $element['#weight'] = $form[self::FIELD_TICKET_CAPACITY]['#weight'];
+        // Wrap message in container to make states work.
+        '#type' => 'container',
+
+        'message' => [
+          '#theme' => 'status_messages',
+          '#message_list' => [
+            'warning' => [
+              $this->t('Create a ticket category to set the event price in pretix. Only the price from the first category will be used.'),
+            ],
+          ],
+        ],
+        '#states' => [
+          'visible' => [
+            ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+          ],
+        ],
+      ];
+      if (isset($form[self::FIELD_TICKET_CATEGORIES]['#weight'])) {
+        $element['#weight'] = $form[self::FIELD_TICKET_CATEGORIES]['#weight'];
       }
-      WebformArrayHelper::insertAfter($form, self::FIELD_TICKET_CAPACITY, self::FIELD_TICKET_PRICE, $element);
+      WebformArrayHelper::insertBefore($form, self::FIELD_TICKET_CATEGORIES, self::FIELD_TICKET_CATEGORIES . '_message', $element);
     }
   }
 
@@ -250,9 +226,7 @@ class FormHelper {
       // Store our custom values for use in entity save/update hook.
       $values = $formState->getValue(self::FORM_KEY) ?? [];
       $values += [
-        self::CUSTOM_FORM_VALUES => [
-          self::FIELD_TICKET_PRICE => $formState->getValue(self::FIELD_TICKET_PRICE),
-        ],
+        self::CUSTOM_FORM_VALUES => [],
       ];
       EntityHelper::setFormValues($event, $values);
 
@@ -265,12 +239,6 @@ class FormHelper {
         if (empty($values[self::ELEMENT_TEMPLATE_EVENT])) {
           $formState->setErrorByName(self::ELEMENT_TEMPLATE_EVENT, $this->t('@field is required.', [
             '@field' => $this->t('Template event'),
-          ]));
-        }
-        $price = (string) $formState->getValue(self::FIELD_TICKET_PRICE);
-        if ($price !== (string) intval($price)) {
-          $formState->setErrorByName(self::FIELD_TICKET_PRICE, $this->t('@field is required.', [
-            '@field' => $this->t('Ticket price'),
           ]));
         }
       }

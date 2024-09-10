@@ -815,9 +815,19 @@ final class EntityHelper {
       return $this->getPrice($series);
     }
 
-    $data = $this->eventDataHelper->getEventData($event);
-    $formValues = $data?->getFormValues() ?? [];
-    $price = $formValues[FormHelper::FIELD_TICKET_PRICE] ?? 0.00;
+    $fieldName = FormHelper::FIELD_TICKET_CATEGORIES;
+    $priceFieldName = 'field_ticket_category_price';
+
+    $price = 0.00;
+    /** @var \Drupal\Core\Field\EntityReferenceFieldItemList $field */
+    $field = $event->get($fieldName);
+    $categories = $field->referencedEntities();
+    /** @var \Drupal\paragraphs\Entity\Paragraph $category */
+    foreach ($categories as $category) {
+      $price = (float) $category->get($priceFieldName)->getString();
+      // We support only one price.
+      break;
+    }
 
     return $this->pretixHelper->formatAmount($price);
   }
