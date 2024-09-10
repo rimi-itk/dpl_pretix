@@ -194,9 +194,35 @@ class FormHelper {
     $form['#validate'][] = [$this, 'validateForm'];
 
     if (isset($form[self::FIELD_TICKET_CATEGORIES])) {
-      $form[self::FIELD_TICKET_CATEGORIES]['#states']['visible'] = [
-        ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => FALSE],
-      ];
+      if ($entity->get(self::FIELD_TICKET_CATEGORIES)->isEmpty()) {
+        $form[self::FIELD_TICKET_CATEGORIES]['#states']['visible'] = [
+          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => FALSE],
+        ];
+      }
+      elseif ($eventData->maintainCopy) {
+        $message = $this->t('This event is maintained in pretix and should not have ticket categories.');
+        $this->messenger->addWarning($message);
+
+        $element = [
+          '#type' => 'container',
+
+          'message' => [
+            '#theme' => 'status_messages',
+            '#message_list' => [
+              'warning' => [$message],
+            ],
+          ],
+          '#states' => [
+            'visible' => [
+              ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+            ],
+          ],
+        ];
+        if (isset($form[self::FIELD_TICKET_CATEGORIES]['#weight'])) {
+          $element['#weight'] = $form[self::FIELD_TICKET_CATEGORIES]['#weight'];
+        }
+        WebformArrayHelper::insertBefore($form, self::FIELD_TICKET_CATEGORIES, self::FIELD_TICKET_CATEGORIES . '_warning', $element);
+      }
     }
 
     // Add custom price field.
