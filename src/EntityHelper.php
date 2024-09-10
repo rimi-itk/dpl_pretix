@@ -244,9 +244,7 @@ final class EntityHelper {
     foreach ($products as $product) {
       $productDatum = $product->toArray();
       $defaultPrice = $productDatum['default_price'];
-      if ($price !== $defaultPrice
-        // Only update products with a price.
-        && $this->pretixHelper->formatAmount(0.00) !== $defaultPrice) {
+      if ($price !== $defaultPrice) {
         $pretix->updateItem($pretixEvent, $product, [
           'default_price' => $price,
         ]);
