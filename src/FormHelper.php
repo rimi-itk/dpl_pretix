@@ -135,7 +135,7 @@ class FormHelper {
       ] + $states;
     }
 
-    $disabled = isset($eventData->templateEvent);
+    $disabled = !empty($eventData->templateEvent);
     if ($disabled) {
       $options = [$eventData->templateEvent => $eventData->templateEvent];
     }
