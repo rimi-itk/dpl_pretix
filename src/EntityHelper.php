@@ -67,28 +67,7 @@ final class EntityHelper {
       $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      /** @var \Drupal\recurring_events\Entity\EventSeries $event */
-      $event = $entity->getEventSeries();
-      $data = $this->eventDataHelper->loadEventData($event);
-      if (NULL === $data?->pretixEvent) {
-        // Event has not been synchronized with pretix, so we synchronize the
-        // event series (and thus all instances).
-        $this->synchronizeEvent($event);
-      }
-      else {
-        // Skip singular pretix events.
-        if ($this->pretixHelper->isSingularEvent($data->getEvent())) {
-          return;
-        }
-        if (!$data->maintainCopy) {
-          return;
-        }
-        if (NULL === $data->templateEvent) {
-          throw new SynchronizeException('Template event for sub-event not set');
-        }
-
-        $this->synchronizeEventInstance($entity, $data->templateEvent, $data->pretixEvent);
-      }
+      $this->entityUpdate($entity->getEventSeries());
     }
   }
 
