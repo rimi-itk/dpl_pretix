@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+* [PR-10](https://github.com/rimi-itk/dpl_pretix/pull/10)
+  Added documentation on pretix settings
 * [PR-4](https://github.com/rimi-itk/dpl_pretix/pull/4)
   Fixed settings form
 * [PR-1](https://github.com/rimi-itk/dpl_pretix/pull/1)
