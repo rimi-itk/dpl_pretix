@@ -133,7 +133,7 @@ final class EventData implements \JsonSerializable {
    *
    * @param string $name
    *   The name.
-   * @param array<string, mixed> $value
+   * @param array<string, mixed>|array<int, array<string, mixed>> $value
    *   The value.
    */
   private function setDataValue(string $name, array $value): self {
@@ -184,6 +184,26 @@ final class EventData implements \JsonSerializable {
   }
 
   /**
+   * Set products.
+   *
+   * @param array<int, array<string, mixed>> $value
+   *   The value.
+   */
+  public function setProducts(array $value): self {
+    return $this->setDataValue(__FUNCTION__, $value);
+  }
+
+  /**
+   * Get products.
+   *
+   * @return null|array<int, array<string, mixed>>
+   *   The value.
+   */
+  public function getProducts(): ?array {
+    return $this->getDataValue(__FUNCTION__);
+  }
+
+  /**
    * Set product.
    *
    * @param array<string, mixed> $value
@@ -195,6 +215,9 @@ final class EventData implements \JsonSerializable {
 
   /**
    * Get product.
+   *
+   * @return array<string, mixed>
+   *   The value.
    */
   public function getProduct(): ?array {
     return $this->getDataValue(__FUNCTION__);

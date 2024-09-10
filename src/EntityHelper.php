@@ -67,28 +67,7 @@ final class EntityHelper {
       $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      /** @var \Drupal\recurring_events\Entity\EventSeries $event */
-      $event = $entity->getEventSeries();
-      $data = $this->eventDataHelper->loadEventData($event);
-      if (NULL === $data?->pretixEvent) {
-        // Event has not been synchronized with pretix, so we synchronize the
-        // event series (and thus all instances).
-        $this->synchronizeEvent($event);
-      }
-      else {
-        // Skip singular pretix events.
-        if ($this->pretixHelper->isSingularEvent($data->getEvent())) {
-          return;
-        }
-        if (!$data->maintainCopy) {
-          return;
-        }
-        if (NULL === $data->templateEvent) {
-          throw new SynchronizeException('Template event for sub-event not set');
-        }
-
-        $this->synchronizeEventInstance($entity, $data->templateEvent, $data->pretixEvent);
-      }
+      $this->entityUpdate($entity->getEventSeries());
     }
   }
 
@@ -260,15 +239,20 @@ final class EntityHelper {
 
     $price = $this->getPrice($event);
     $products = $pretix->getItems($pretixEvent);
-    if ($products->count() > 0) {
-      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
-      $product = $products->first();
-      $pretix->updateItem($pretixEvent, $product, [
-        'default_price' => $price,
-      ]);
+    $productsData = [];
+    /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
+    foreach ($products as $product) {
+      $productDatum = $product->toArray();
+      $defaultPrice = $productDatum['default_price'];
+      if ($price !== $defaultPrice) {
+        $pretix->updateItem($pretixEvent, $product, [
+          'default_price' => $price,
+        ]);
+      }
 
-      $data->setProduct($product->toArray());
+      $productsData[] = $productDatum;
     }
+    $data->setProducts($productsData);
 
     if ($this->pretixHelper->isSingularEvent($pretixEvent->toArray())) {
       $capacity = $this->getCapacity($event);
@@ -551,6 +535,7 @@ final class EntityHelper {
       ]
     );
 
+    // @todo De we really need to override prices on products?
     $productData = $product instanceof PretixItem ? $product->toArray() : $instanceData->getProduct();
     $price = $this->getPrice($instance);
 
@@ -683,6 +668,7 @@ final class EntityHelper {
       'date_from' => $this->pretixHelper->formatDate($dateFrom),
       'date_to' => $this->pretixHelper->formatDate($dateTo),
       'is_public' => $event->isPublished(),
+      'location' => $this->getLocation($event),
     ];
 
     // date_from must be set (cf. https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description)
@@ -829,9 +815,19 @@ final class EntityHelper {
       return $this->getPrice($series);
     }
 
-    $data = $this->eventDataHelper->getEventData($event);
-    $formValues = $data?->getFormValues() ?? [];
-    $price = $formValues[FormHelper::FIELD_TICKET_PRICE] ?? 0.00;
+    $fieldName = FormHelper::FIELD_TICKET_CATEGORIES;
+    $priceFieldName = 'field_ticket_category_price';
+
+    $price = 0.00;
+    /** @var \Drupal\Core\Field\EntityReferenceFieldItemList $field */
+    $field = $event->get($fieldName);
+    $categories = $field->referencedEntities();
+    /** @var \Drupal\paragraphs\Entity\Paragraph $category */
+    foreach ($categories as $category) {
+      $price = (float) $category->get($priceFieldName)->getString();
+      // We support only one price.
+      break;
+    }
 
     return $this->pretixHelper->formatAmount($price);
   }
