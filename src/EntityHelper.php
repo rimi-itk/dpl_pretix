@@ -260,15 +260,22 @@ final class EntityHelper {
 
     $price = $this->getPrice($event);
     $products = $pretix->getItems($pretixEvent);
-    if ($products->count() > 0) {
-      /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
-      $product = $products->first();
-      $pretix->updateItem($pretixEvent, $product, [
-        'default_price' => $price,
-      ]);
+    $productsData = [];
+    /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
+    foreach ($products as $product) {
+      $productDatum = $product->toArray();
+      $defaultPrice = $productDatum['default_price'];
+      if ($price !== $defaultPrice
+        // Only update products with a price.
+        && $this->pretixHelper->formatAmount(0.00) !== $defaultPrice) {
+        $pretix->updateItem($pretixEvent, $product, [
+          'default_price' => $price,
+        ]);
+      }
 
-      $data->setProduct($product->toArray());
+      $productsData[] = $productDatum;
     }
+    $data->setProducts($productsData);
 
     if ($this->pretixHelper->isSingularEvent($pretixEvent->toArray())) {
       $capacity = $this->getCapacity($event);
@@ -551,6 +558,7 @@ final class EntityHelper {
       ]
     );
 
+    // @todo De we really need to override prices on products?
     $productData = $product instanceof PretixItem ? $product->toArray() : $instanceData->getProduct();
     $price = $this->getPrice($instance);
 
