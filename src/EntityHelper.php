@@ -763,17 +763,19 @@ final class EntityHelper {
     $fieldName = 'field_event_address';
     /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
     $address = $event->get($fieldName)->first();
+    $place = $event->get('field_event_place')->first()?->getString();
 
     if (empty($address) && $event instanceof EventInstance) {
+      /** @var \Drupal\recurring_events\Entity\EventSeries $series */
       $series = $event->getEventSeries();
-      /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
-      $address = $series->get($fieldName)->first();
+      return $this->getLocation($series);
     }
 
     return [
       $this->getDefaultLanguageCode($event) => empty($address)
         ? ''
         : implode(PHP_EOL, array_filter([
+          $place,
           $address->getAddressLine1(),
           $address->getAddressLine2(),
           $address->getPostalCode() . ' ' . $address->getLocality(),
