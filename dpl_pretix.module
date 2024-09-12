@@ -34,6 +34,13 @@ function dpl_pretix_entity_delete(EntityInterface $entity): void {
 }
 
 /**
+ * Implements hook_entity_prepare_form().
+ */
+function dpl_pretix_entity_prepare_form(EntityInterface $entity, string $operation, FormStateInterface $form_state): void {
+  _dpl_pretix_form_helper()->prepareForm($entity, $operation, $form_state);
+}
+
+/**
  * Get form helper.
  */
 function _dpl_pretix_form_helper(): FormHelper {

@@ -4,6 +4,7 @@ namespace Drupal\dpl_pretix;
 
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityForm;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -11,6 +12,7 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
+use Drupal\paragraphs\Entity\Paragraph;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\webform\Utility\WebformArrayHelper;
 
@@ -40,6 +42,33 @@ class FormHelper {
     private readonly MessengerInterface $messenger,
     private readonly AccountInterface $currentUser,
   ) {
+  }
+
+  /**
+   * Implements hook_prepare_form().
+   */
+  public function prepareForm(EntityInterface $entity, string $operation, FormStateInterface $formState): void {
+    if ($event = $this->getEventSeriesEntity($formState)) {
+      $this->prepareFormEventSeries($event, $operation, $formState);
+    }
+  }
+
+  /**
+   * Prepare event.
+   */
+  public function prepareFormEventSeries(EventSeries $event, string $operation, FormStateInterface $formState): void {
+    /** @var \Drupal\entity_reference_revisions\EntityReferenceRevisionsFieldItemList $ticketCategories */
+    $ticketCategories = $event->get(self::FIELD_TICKET_CATEGORIES);
+    // Make sure that (at least) one ticket category exists.
+    if ($ticketCategories->isEmpty()) {
+      $paragraph = Paragraph::create([
+        'type' => 'event_ticket_category',
+        'field_ticket_category_name' => $this->settings->getEventNodes()->defaultTicketCategoryName,
+        // Force user to set price.
+        'field_ticket_category_price' => NULL,
+      ]);
+      $ticketCategories->appendItem($paragraph);
+    }
   }
 
   /**
@@ -215,6 +244,8 @@ class FormHelper {
         $element['#weight'] = $form[self::FIELD_TICKET_CATEGORIES]['#weight'];
       }
       WebformArrayHelper::insertBefore($form, self::FIELD_TICKET_CATEGORIES, self::FIELD_TICKET_CATEGORIES . '_message', $element);
+      // Require (at least) one ticket category.
+      $form[self::FIELD_TICKET_CATEGORIES]['widget']['#required'] = TRUE;
     }
   }
 
