@@ -13,6 +13,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\webform\Utility\WebformArrayHelper;
 
@@ -78,6 +79,9 @@ class FormHelper {
     if ($event = $this->getEventSeriesEntity($formState)) {
       $this->formAlterEventSeries($form, $formState, $event);
     }
+    elseif ($instance = $this->getEventInstanceEntity($formState)) {
+      $this->formAlterEventInstance($form, $formState, $instance);
+    }
   }
 
   /**
@@ -128,13 +132,11 @@ class FormHelper {
       $this->disableElement($form, self::FIELD_TICKET_URL,
         $this->t('This field is managed by pretix for this event.'));
     }
-    else {
-      $form[self::FIELD_TICKET_URL]['#states'] = [
-        'disabled' => [
-          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
-        ],
-      ];
-    }
+    $form[self::FIELD_TICKET_URL]['#states'] = [
+      'disabled' => [
+        ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+      ],
+    ];
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
     $metaKey = $ding_pretix_psp_elements->pretixPspMetaKey ?? NULL;
@@ -219,7 +221,7 @@ class FormHelper {
       ];
     }
 
-    $form['#validate'][] = [$this, 'validateForm'];
+    $form['#validate'][] = [$this, 'validateEventForm'];
 
     if (isset($form[self::FIELD_TICKET_CATEGORIES])) {
       $element = [
@@ -250,9 +252,27 @@ class FormHelper {
   }
 
   /**
+   * Alters event form.
+   */
+  private function formAlterEventInstance(
+    array &$form,
+    FormStateInterface $formState,
+    EventInstance $entity,
+  ): void {
+    /** @var \Drupal\recurring_events\Entity\EventSeries $series */
+    $series = $entity->getEventSeries();
+    $eventData = $this->eventDataHelper->getEventData($series);
+    // We don't allow manual change of the ticket link if pretix is used.
+    if ($eventData?->maintainCopy && isset($eventData->pretixEvent)) {
+      $this->disableElement($form, self::FIELD_TICKET_URL,
+        $this->t('This field is managed by pretix for this event instance.'));
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
-  public function validateForm(array $form, FormStateInterface $formState): void {
+  public function validateEventForm(array $form, FormStateInterface $formState): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
       // Store our custom values for use in entity save/update hook.
       $values = $formState->getValue(self::FORM_KEY) ?? [];
@@ -277,14 +297,30 @@ class FormHelper {
   }
 
   /**
-   * Get event entity for a form.
+   * Get event series entity for a form.
    */
-  private function getEventSeriesEntity(FormStateInterface $formState): EventSeries|null {
+  private function getEventSeriesEntity(FormStateInterface $formState): ?EventSeries {
 
     $formObject = $formState->getFormObject();
     if ($formObject instanceof EntityForm) {
       $entity = $formObject->getEntity();
       if ($entity instanceof EventSeries) {
+        return $entity;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Get event instance entity for a form.
+   */
+  private function getEventInstanceEntity(FormStateInterface $formState): ?EventInstance {
+
+    $formObject = $formState->getFormObject();
+    if ($formObject instanceof EntityForm) {
+      $entity = $formObject->getEntity();
+      if ($entity instanceof EventInstance) {
         return $entity;
       }
     }
@@ -299,15 +335,10 @@ class FormHelper {
     if (isset($form[$field])) {
       $element = &$form[$field];
       $element['#disabled'] = TRUE;
-      // @todo show reason somewhere reasonable.
-      // $element['widget'][0]['#prefix']
-      // = '<div class="form-item__description">'.$reason .'</div>';
-      // if (isset($element['widget'][0]['#description'])) {
-      // $element['widget'][0]['#description'] .= $reason;
-      // }
-      // elseif (isset($element['widget'][0])) {
-      // $element['widget'][0]['#description'] = $reason;
-      // }
+      // @fixme We only handle link fields for now.
+      if (isset($element['widget'][0]['uri']['#description']['#items'])) {
+        $element['widget'][0]['uri']['#description']['#items'][] = $reason;
+      }
     }
   }
 
