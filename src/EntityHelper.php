@@ -67,7 +67,7 @@ final class EntityHelper {
       $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      $this->entityUpdate($entity->getEventSeries());
+      $this->entityUpdate($this->getEventSeries($entity));
     }
   }
 
@@ -140,7 +140,7 @@ final class EntityHelper {
 
     if ($event instanceof EventInstance) {
       // Copy form values from series.
-      $seriesEventData = $this->getEventData($event->getEventSeries());
+      $seriesEventData = $this->getEventData($this->getEventSeries($event));
       $seriesEventData->setFormValues($seriesEventData->getFormValues() ?? []);
     }
     $this->eventDataHelper->saveEventData($event, $data);
@@ -733,8 +733,7 @@ final class EntityHelper {
   private function getEventName(EventSeries|EventInstance $event): array {
     $label = $event->label();
     if (empty($label) && $event instanceof EventInstance) {
-      $series = $event->getEventSeries();
-      $label = $series->label();
+      $label = $this->getEventSeries($event)->label();
     }
 
     if (empty($label)) {
@@ -761,9 +760,7 @@ final class EntityHelper {
     $place = $event->get('field_event_place')->first()?->getString();
 
     if (empty($address) && $event instanceof EventInstance) {
-      /** @var \Drupal\recurring_events\Entity\EventSeries $series */
-      $series = $event->getEventSeries();
-      return $this->getLocation($series);
+      return $this->getLocation($this->getEventSeries($event));
     }
 
     return [
@@ -785,9 +782,9 @@ final class EntityHelper {
     $fieldName = FormHelper::FIELD_TICKET_CAPACITY;
 
     $capacity = $event->get($fieldName)->getString();
+    // We cannot use `empty` here since 0 is a valid capacity.
     if ('' === $capacity && $event instanceof EventInstance) {
-      $series = $event->getEventSeries();
-      $capacity = $series->get($fieldName)->getString();
+      $capacity = $this->getEventSeries($event)->get($fieldName)->getString();
     }
 
     $capacity = (int) $capacity;
@@ -807,9 +804,7 @@ final class EntityHelper {
    */
   private function getPrice(EventSeries|EventInstance $event): string {
     if ($event instanceof EventInstance) {
-      /** @var \Drupal\recurring_events\Entity\EventSeries $series */
-      $series = $event->getEventSeries();
-      return $this->getPrice($series);
+      return $this->getPrice($this->getEventSeries($event));
     }
 
     $fieldName = FormHelper::FIELD_TICKET_CATEGORIES;
@@ -974,6 +969,24 @@ final class EntityHelper {
       $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
       $event->save();
     }
+  }
+
+  /**
+   * Get event series for an instance.
+   *
+   * This is basically just a wrapper to get a proper type on
+   * EventInstance::getEventSeries().
+   *
+   * @see EventInstance::getEventSeries();
+   */
+  private function getEventSeries(EventInstance $instance): EventSeries {
+    $series = $instance->getEventSeries();
+
+    if (!($series instanceof EventSeries)) {
+      throw new \RuntimeException(sprintf('Cannot get event series for %s (#%s)', $instance->label(), $instance->id()));
+    }
+    return $series;
+
   }
 
 }
