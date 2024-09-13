@@ -110,18 +110,8 @@ final class EntityHelper {
         : $this->updateEvent($event, $templateEvent, $data);
 
       $this->setEventLive($event, $pretixEvent, $data);
-
       $this->setEntitySynchronized($event, $pretixEvent);
-
-      // Set the ticket URL on new events. Important: must be done after the
-      // call to `setEntitySynchronized` to prevent an infinite loop.
-      if ($isNew) {
-        $url = $data->getEventShopUrl();
-        if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
-          $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
-          $event->save();
-        }
-      }
+      $this->setTicketUrl($event, $data);
 
       return $pretixEvent;
     }
@@ -314,11 +304,13 @@ final class EntityHelper {
 
     $data = $this->getEventData($instance);
 
-    $pretixSubEvent = NULL === $data->pretixSubeventId
+    $isNew = NULL === $data->pretixSubeventId;
+    $pretixSubEvent = $isNew
       ? $this->createEventInstance($instance, $templateEvent, $pretixSubEvent, $data)
       : $this->updateEventInstance($instance, $pretixSubEvent, $data);
 
     $this->setEntitySynchronized($instance, $pretixSubEvent);
+    $this->setTicketUrl($instance, $data);
 
     return $pretixSubEvent;
   }
@@ -460,8 +452,11 @@ final class EntityHelper {
       }
     }
 
+    $settings = $this->settings->getPretixSettings();
     $instanceData->pretixEvent = is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug();
     $instanceData->pretixSubeventId = $subEvent->getId();
+    $instanceData->pretixUrl = $settings->url;
+    $instanceData->pretixOrganizer = $settings->organizer;
     $this->eventDataHelper->saveEventData($instance, $instanceData);
 
     return $subEvent;
@@ -961,6 +956,23 @@ final class EntityHelper {
           '@event' => $event->label(),
           '@message' => $exception->getMessage(),
         ]), $exception);
+    }
+  }
+
+  /**
+   * Set the ticket URL on new events series and instances.
+   *
+   * Important: must be called after the call to `setEntitySynchronized` to
+   * prevent an infinite loop.
+   *
+   * @see self::setEntitySynchronized()
+   */
+  private function setTicketUrl(EventSeries|EventInstance $event, EventData $data): void {
+    $url = $data->getEventShopUrl();
+    if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)
+      ->getString()) {
+      $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
+      $event->save();
     }
   }
 
