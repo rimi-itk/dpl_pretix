@@ -17,8 +17,8 @@ class EventNodeSettings extends AbstractSettings {
   public ?bool $maintainCopy = NULL;
 
   /**
-   * The ticket type.
+   * The default ticket category name.
    */
-  public ?string $ticketType = NULL;
+  public ?string $defaultTicketCategoryName = NULL;
 
 }

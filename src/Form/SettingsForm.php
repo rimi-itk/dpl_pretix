@@ -223,7 +223,7 @@ final class SettingsForm extends ConfigFormBase {
           '#title' => $this->t('Event slug template'),
           '#default_value' => $defaults->eventSlugTemplate,
           '#required' => TRUE,
-          '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/><code>{id}</code>: the event (node) id<br/><code>{randow}</code>: a random string'),
+          '#description' => $this->t('Template used to generate event short forms in pretix. Placeholders<br/><code>{id}</code>: the event (node) id<br/><code>{random}</code>: a random string'),
         ],
 
         'default_language_code' => [
@@ -453,6 +453,12 @@ YAML
         '#description' => $this->t('Default value of %field on new event series.', ['%field' => $this->t('Create and update in pretix')]),
       ],
 
+      'default_ticket_category_name' => [
+        '#type' => 'textfield',
+        '#title' => $this->t('Default ticket category name'),
+        '#default_value' => $defaults->defaultTicketCategoryName,
+        '#description' => $this->t('The name of the default ticket category added to an event.'),
+      ],
     ];
   }
 

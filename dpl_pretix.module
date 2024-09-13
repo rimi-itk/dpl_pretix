@@ -4,6 +4,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\dpl_pretix\EntityHelper;
 use Drupal\dpl_pretix\FormHelper;
+use Drupal\recurring_events\Entity\EventSeries;
 
 /**
  * Implements hook_form_alter().
@@ -31,6 +32,25 @@ function dpl_pretix_entity_update(EntityInterface $entity): void {
  */
 function dpl_pretix_entity_delete(EntityInterface $entity): void {
   _dpl_pretix_entity_helper()->entityDelete($entity);
+}
+
+/**
+ * Implements hook_entity_prepare_form().
+ */
+function dpl_pretix_entity_prepare_form(EntityInterface $entity, string $operation, FormStateInterface $form_state): void {
+  _dpl_pretix_form_helper()->prepareForm($entity, $operation, $form_state);
+}
+
+/**
+ * Implements hook_recurring_events_event_instances_pre_create_alter().
+ *
+ * @param array<string, mixed> $events_to_create
+ *    The events to create.
+ * @param \Drupal\recurring_events\Entity\EventSeries $event
+ *    The event.
+ */
+function dpl_pretix_recurring_events_event_instances_pre_create_alter(array $events_to_create, EventSeries $event): array {
+  return _dpl_pretix_entity_helper()->recurringEventsEventInstancesPreCreateAlter($events_to_create, $event);
 }
 
 /**

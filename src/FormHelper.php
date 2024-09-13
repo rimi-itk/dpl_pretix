@@ -4,6 +4,7 @@ namespace Drupal\dpl_pretix;
 
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityForm;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -11,6 +12,8 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
+use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\webform\Utility\WebformArrayHelper;
 
@@ -43,11 +46,41 @@ class FormHelper {
   }
 
   /**
+   * Implements hook_prepare_form().
+   */
+  public function prepareForm(EntityInterface $entity, string $operation, FormStateInterface $formState): void {
+    if ($event = $this->getEventSeriesEntity($formState)) {
+      $this->prepareFormEventSeries($event, $operation, $formState);
+    }
+  }
+
+  /**
+   * Prepare event.
+   */
+  public function prepareFormEventSeries(EventSeries $event, string $operation, FormStateInterface $formState): void {
+    /** @var \Drupal\entity_reference_revisions\EntityReferenceRevisionsFieldItemList $ticketCategories */
+    $ticketCategories = $event->get(self::FIELD_TICKET_CATEGORIES);
+    // Make sure that (at least) one ticket category exists.
+    if ($ticketCategories->isEmpty()) {
+      $paragraph = Paragraph::create([
+        'type' => 'event_ticket_category',
+        'field_ticket_category_name' => $this->settings->getEventNodes()->defaultTicketCategoryName,
+        // Force user to set price.
+        'field_ticket_category_price' => NULL,
+      ]);
+      $ticketCategories->appendItem($paragraph);
+    }
+  }
+
+  /**
    * Implements hook_form_alter().
    */
   public function formAlter(array &$form, FormStateInterface $formState, string $formId): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
       $this->formAlterEventSeries($form, $formState, $event);
+    }
+    elseif ($instance = $this->getEventInstanceEntity($formState)) {
+      $this->formAlterEventInstance($form, $formState, $instance);
     }
   }
 
@@ -99,13 +132,11 @@ class FormHelper {
       $this->disableElement($form, self::FIELD_TICKET_URL,
         $this->t('This field is managed by pretix for this event.'));
     }
-    else {
-      $form[self::FIELD_TICKET_URL]['#states'] = [
-        'disabled' => [
-          ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
-        ],
-      ];
-    }
+    $form[self::FIELD_TICKET_URL]['#states'] = [
+      'disabled' => [
+        ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
+      ],
+    ];
 
     $ding_pretix_psp_elements = $this->settings->getPspElements();
     $metaKey = $ding_pretix_psp_elements->pretixPspMetaKey ?? NULL;
@@ -190,7 +221,7 @@ class FormHelper {
       ];
     }
 
-    $form['#validate'][] = [$this, 'validateForm'];
+    $form['#validate'][] = [$this, 'validateEventForm'];
 
     if (isset($form[self::FIELD_TICKET_CATEGORIES])) {
       $element = [
@@ -215,13 +246,33 @@ class FormHelper {
         $element['#weight'] = $form[self::FIELD_TICKET_CATEGORIES]['#weight'];
       }
       WebformArrayHelper::insertBefore($form, self::FIELD_TICKET_CATEGORIES, self::FIELD_TICKET_CATEGORIES . '_message', $element);
+      // Require (at least) one ticket category.
+      $form[self::FIELD_TICKET_CATEGORIES]['widget']['#required'] = TRUE;
+    }
+  }
+
+  /**
+   * Alters event form.
+   */
+  private function formAlterEventInstance(
+    array &$form,
+    FormStateInterface $formState,
+    EventInstance $entity,
+  ): void {
+    /** @var \Drupal\recurring_events\Entity\EventSeries $series */
+    $series = $entity->getEventSeries();
+    $eventData = $this->eventDataHelper->getEventData($series);
+    // We don't allow manual change of the ticket link if pretix is used.
+    if ($eventData?->maintainCopy && isset($eventData->pretixEvent)) {
+      $this->disableElement($form, self::FIELD_TICKET_URL,
+        $this->t('This field is managed by pretix for this event instance.'));
     }
   }
 
   /**
    * {@inheritdoc}
    */
-  public function validateForm(array $form, FormStateInterface $formState): void {
+  public function validateEventForm(array $form, FormStateInterface $formState): void {
     if ($event = $this->getEventSeriesEntity($formState)) {
       // Store our custom values for use in entity save/update hook.
       $values = $formState->getValue(self::FORM_KEY) ?? [];
@@ -246,14 +297,30 @@ class FormHelper {
   }
 
   /**
-   * Get event entity for a form.
+   * Get event series entity for a form.
    */
-  private function getEventSeriesEntity(FormStateInterface $formState): EventSeries|null {
+  private function getEventSeriesEntity(FormStateInterface $formState): ?EventSeries {
 
     $formObject = $formState->getFormObject();
     if ($formObject instanceof EntityForm) {
       $entity = $formObject->getEntity();
       if ($entity instanceof EventSeries) {
+        return $entity;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Get event instance entity for a form.
+   */
+  private function getEventInstanceEntity(FormStateInterface $formState): ?EventInstance {
+
+    $formObject = $formState->getFormObject();
+    if ($formObject instanceof EntityForm) {
+      $entity = $formObject->getEntity();
+      if ($entity instanceof EventInstance) {
         return $entity;
       }
     }
@@ -268,15 +335,10 @@ class FormHelper {
     if (isset($form[$field])) {
       $element = &$form[$field];
       $element['#disabled'] = TRUE;
-      // @todo show reason somewhere reasonable.
-      // $element['widget'][0]['#prefix']
-      // = '<div class="form-item__description">'.$reason .'</div>';
-      // if (isset($element['widget'][0]['#description'])) {
-      // $element['widget'][0]['#description'] .= $reason;
-      // }
-      // elseif (isset($element['widget'][0])) {
-      // $element['widget'][0]['#description'] = $reason;
-      // }
+      // @fixme We only handle link fields for now.
+      if (isset($element['widget'][0]['uri']['#description']['#items'])) {
+        $element['widget'][0]['uri']['#description']['#items'][] = $reason;
+      }
     }
   }
 

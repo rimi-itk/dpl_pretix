@@ -67,7 +67,12 @@ final class EntityHelper {
       $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      $this->entityUpdate($entity->getEventSeries());
+      // Check if the event series's instances have not yet been build (cf.
+      // $this->eventsWithPendingInstances).
+      $series = $this->getEventSeries($entity);
+      if (!isset($this->eventsWithPendingInstances[$series->id()])) {
+        $this->entityUpdate($series);
+      }
     }
   }
 
@@ -110,18 +115,8 @@ final class EntityHelper {
         : $this->updateEvent($event, $templateEvent, $data);
 
       $this->setEventLive($event, $pretixEvent, $data);
-
       $this->setEntitySynchronized($event, $pretixEvent);
-
-      // Set the ticket URL on new events. Important: must be done after the
-      // call to `setEntitySynchronized` to prevent an infinite loop.
-      if ($isNew) {
-        $url = $data->getEventShopUrl();
-        if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)->getString()) {
-          $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
-          $event->save();
-        }
-      }
+      $this->setTicketUrl($event, $data);
 
       return $pretixEvent;
     }
@@ -150,7 +145,7 @@ final class EntityHelper {
 
     if ($event instanceof EventInstance) {
       // Copy form values from series.
-      $seriesEventData = $this->getEventData($event->getEventSeries());
+      $seriesEventData = $this->getEventData($this->getEventSeries($event));
       $seriesEventData->setFormValues($seriesEventData->getFormValues() ?? []);
     }
     $this->eventDataHelper->saveEventData($event, $data);
@@ -314,11 +309,13 @@ final class EntityHelper {
 
     $data = $this->getEventData($instance);
 
-    $pretixSubEvent = NULL === $data->pretixSubeventId
+    $isNew = NULL === $data->pretixSubeventId;
+    $pretixSubEvent = $isNew
       ? $this->createEventInstance($instance, $templateEvent, $pretixSubEvent, $data)
       : $this->updateEventInstance($instance, $pretixSubEvent, $data);
 
     $this->setEntitySynchronized($instance, $pretixSubEvent);
+    $this->setTicketUrl($instance, $data);
 
     return $pretixSubEvent;
   }
@@ -460,8 +457,11 @@ final class EntityHelper {
       }
     }
 
+    $settings = $this->settings->getPretixSettings();
     $instanceData->pretixEvent = is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug();
     $instanceData->pretixSubeventId = $subEvent->getId();
+    $instanceData->pretixUrl = $settings->url;
+    $instanceData->pretixOrganizer = $settings->organizer;
     $this->eventDataHelper->saveEventData($instance, $instanceData);
 
     return $subEvent;
@@ -738,8 +738,7 @@ final class EntityHelper {
   private function getEventName(EventSeries|EventInstance $event): array {
     $label = $event->label();
     if (empty($label) && $event instanceof EventInstance) {
-      $series = $event->getEventSeries();
-      $label = $series->label();
+      $label = $this->getEventSeries($event)->label();
     }
 
     if (empty($label)) {
@@ -763,17 +762,17 @@ final class EntityHelper {
     $fieldName = 'field_event_address';
     /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
     $address = $event->get($fieldName)->first();
+    $place = $event->get('field_event_place')->first()?->getString();
 
     if (empty($address) && $event instanceof EventInstance) {
-      $series = $event->getEventSeries();
-      /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
-      $address = $series->get($fieldName)->first();
+      return $this->getLocation($this->getEventSeries($event));
     }
 
     return [
       $this->getDefaultLanguageCode($event) => empty($address)
         ? ''
         : implode(PHP_EOL, array_filter([
+          $place,
           $address->getAddressLine1(),
           $address->getAddressLine2(),
           $address->getPostalCode() . ' ' . $address->getLocality(),
@@ -788,9 +787,9 @@ final class EntityHelper {
     $fieldName = FormHelper::FIELD_TICKET_CAPACITY;
 
     $capacity = $event->get($fieldName)->getString();
+    // We cannot use `empty` here since 0 is a valid capacity.
     if ('' === $capacity && $event instanceof EventInstance) {
-      $series = $event->getEventSeries();
-      $capacity = $series->get($fieldName)->getString();
+      $capacity = $this->getEventSeries($event)->get($fieldName)->getString();
     }
 
     $capacity = (int) $capacity;
@@ -810,9 +809,7 @@ final class EntityHelper {
    */
   private function getPrice(EventSeries|EventInstance $event): string {
     if ($event instanceof EventInstance) {
-      /** @var \Drupal\recurring_events\Entity\EventSeries $series */
-      $series = $event->getEventSeries();
-      return $this->getPrice($series);
+      return $this->getPrice($this->getEventSeries($event));
     }
 
     $fieldName = FormHelper::FIELD_TICKET_CATEGORIES;
@@ -960,6 +957,63 @@ final class EntityHelper {
           '@message' => $exception->getMessage(),
         ]), $exception);
     }
+  }
+
+  /**
+   * Set the ticket URL on new events series and instances.
+   *
+   * Important: must be called after the call to `setEntitySynchronized` to
+   * prevent an infinite loop.
+   *
+   * @see self::setEntitySynchronized()
+   */
+  private function setTicketUrl(EventSeries|EventInstance $event, EventData $data): void {
+    $url = $data->getEventShopUrl();
+    if ($url && $url !== $event->get(self::EVENT_TICKET_LINK_FIELD)
+      ->getString()) {
+      $event->set(self::EVENT_TICKET_LINK_FIELD, $url);
+      $event->save();
+    }
+  }
+
+  /**
+   * Get event series for an instance.
+   *
+   * This is basically just a wrapper to get a proper type on
+   * EventInstance::getEventSeries().
+   *
+   * @see EventInstance::getEventSeries();
+   */
+  private function getEventSeries(EventInstance $instance): EventSeries {
+    $series = $instance->getEventSeries();
+
+    if (!($series instanceof EventSeries)) {
+      throw new \RuntimeException(sprintf('Cannot get event series for %s (#%s)', $instance->label(), $instance->id()));
+    }
+    return $series;
+  }
+
+  /**
+   * List of events that are not yet ready for a complete export to pretix.
+   *
+   * @var \Drupal\recurring_events\Entity\EventSeries[]
+   */
+  private array $eventsWithPendingInstances = [];
+
+  /**
+   * Implements hook_recurring_events_event_instances_pre_create_alter().
+   *
+   * @param array<string, mixed> $events_to_create
+   *   The events to create.
+   * @param \Drupal\recurring_events\Entity\EventSeries $event
+   *   The event.
+   *
+   * @see \Drupal\recurring_events\EventCreationService::createInstances()
+   */
+  public function recurringEventsEventInstancesPreCreateAlter(array $events_to_create, EventSeries $event): array {
+    $this->eventsWithPendingInstances[$event->id()] = $event;
+
+    return $events_to_create;
   }
 
 }
