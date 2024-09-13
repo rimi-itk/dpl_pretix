@@ -67,7 +67,12 @@ final class EntityHelper {
       $this->synchronizeEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      $this->entityUpdate($this->getEventSeries($entity));
+      // Check if the event series's instances have not yet been build (cf.
+      // $this->eventsWithPendingInstances).
+      $series = $this->getEventSeries($entity);
+      if (!isset($this->eventsWithPendingInstances[$series->id()])) {
+        $this->entityUpdate($series);
+      }
     }
   }
 
@@ -986,7 +991,29 @@ final class EntityHelper {
       throw new \RuntimeException(sprintf('Cannot get event series for %s (#%s)', $instance->label(), $instance->id()));
     }
     return $series;
+  }
 
+  /**
+   * List of events that are not yet ready for a complete export to pretix.
+   *
+   * @var \Drupal\recurring_events\Entity\EventSeries[]
+   */
+  private array $eventsWithPendingInstances = [];
+
+  /**
+   * Implements hook_recurring_events_event_instances_pre_create_alter().
+   *
+   * @param array<string, mixed> $events_to_create
+   *   The events to create.
+   * @param \Drupal\recurring_events\Entity\EventSeries $event
+   *   The event.
+   *
+   * @see \Drupal\recurring_events\EventCreationService::createInstances()
+   */
+  public function recurringEventsEventInstancesPreCreateAlter(array $events_to_create, EventSeries $event): array {
+    $this->eventsWithPendingInstances[$event->id()] = $event;
+
+    return $events_to_create;
   }
 
 }
