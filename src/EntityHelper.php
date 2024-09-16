@@ -93,7 +93,7 @@ final class EntityHelper {
    */
   public function synchronizeEvent(EventSeries $event): ?PretixEvent {
     $synchronized = $this->getEntitySynchronized($event);
-    if (NULL !== $synchronized && $synchronized instanceof PretixEvent) {
+    if ($synchronized instanceof PretixEvent) {
       return $synchronized;
     }
 
@@ -303,7 +303,7 @@ final class EntityHelper {
    */
   private function synchronizeEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixSubEvent): PretixSubEvent {
     $synchronized = $this->getEntitySynchronized($instance);
-    if (NULL !== $synchronized && $synchronized instanceof PretixSubEvent) {
+    if ($synchronized instanceof PretixSubEvent) {
       return $synchronized;
     }
 
@@ -564,12 +564,30 @@ final class EntityHelper {
    * Delete event in pretix.
    */
   public function deleteEvent(EventSeries $event): bool {
-    $data = $this->eventDataHelper->loadEventData($event);
+    $synchronized = $this->getEntitySynchronized($event);
+    if (is_bool($synchronized)) {
+      return $synchronized;
+    }
 
-    if (NULL !== $data?->pretixEvent) {
-      $this->pretix()->deleteEvent($data->pretixEvent);
+    try {
+      $data = $this->eventDataHelper->loadEventData($event);
 
-      return TRUE;
+      if (NULL !== $data?->pretixEvent) {
+        $this->pretix()->deleteEvent($data->pretixEvent);
+
+        return TRUE;
+      }
+    }
+    catch (\Throwable $t) {
+      $this->messenger->addError($this->t('Error deleting @event in pretix: @message', [
+        '@event' => sprintf('%s:%s', $event->getEntityTypeId(), $event->id()),
+        '@message' => $t->getMessage(),
+      ]));
+      $this->logger->error('Error deleting @event in pretix: @message', [
+        '@event' => sprintf('%s:%s', $event->getEntityTypeId(), $event->id()),
+        '@message' => $t->getMessage(),
+        '@throwable' => $t,
+      ]);
     }
 
     return FALSE;
@@ -579,13 +597,38 @@ final class EntityHelper {
    * Delete event instance in pretix.
    */
   public function deleteEventInstance(EventInstance $instance): bool {
-    $data = $this->eventDataHelper->loadEventData($instance);
+    $synchronized = $this->getEntitySynchronized($instance);
+    if (is_bool($synchronized)) {
+      return $synchronized;
+    }
 
-    if (NULL !== $data && isset($data->pretixEvent, $data->pretixSubeventId)) {
-      // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
-      $this->pretix()->deleteSubEvent($data->pretixEvent, $data->pretixSubeventId);
+    try {
+      $data = $this->eventDataHelper->loadEventData($instance);
 
-      return TRUE;
+      if (NULL !== $data && isset($data->pretixEvent, $data->pretixSubeventId)) {
+        // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
+        $this->pretix()->deleteSubEvent($data->pretixEvent, $data->pretixSubeventId);
+
+        return TRUE;
+      }
+    }
+    catch (\Throwable $t) {
+      try {
+        $event = $this->getEventSeries($instance);
+      }
+      catch (\Throwable) {
+      }
+      $this->messenger->addError($this->t('Error deleting pretix sub-event @sub_event from event @event: @message', [
+        '@sub_event' => isset($data) ? $this->pretixHelper->getPretixName($data->getSubEvent()) : '👻',
+        '@event' => isset($event) ? sprintf('%s:%s', $event->getEntityTypeId(), $event->id()) : '👻',
+        '@message' => $t->getMessage(),
+      ]));
+      $this->logger->error('Error deleting pretix sub-event @sub_event from event @event: @message', [
+        '@sub_event' => isset($data) ? $this->pretixHelper->getPretixName($data->getSubEvent()) : '👻',
+        '@event' => isset($event) ? sprintf('%s:%s', $event->getEntityTypeId(), $event->id()) : '👻',
+        '@message' => $t->getMessage(),
+        '@throwable' => $t,
+      ]);
     }
 
     return FALSE;
@@ -902,22 +945,22 @@ final class EntityHelper {
   /**
    * Used to keep track of which entities have already been synchronized.
    *
-   * @var array<string, PretixEvent|PretixSubEvent>
+   * @var array<string, PretixEvent|PretixSubEvent|bool>
    */
   private static array $synchronizedEntities = [];
 
   /**
    * Get data for a synchronized entity, if any.
    */
-  private function getEntitySynchronized(EventInterface $event): null|PretixEvent|PretixSubEvent {
+  private function getEntitySynchronized(EventInterface $event): null|PretixEvent|PretixSubEvent|bool {
     return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] ?? NULL;
   }
 
   /**
    * Set data for a synchronized entity.
    */
-  private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent $pretixEntity): PretixEntity {
-    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $pretixEntity;
+  private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent|bool $data): PretixEntity|bool {
+    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $data;
   }
 
   /**
