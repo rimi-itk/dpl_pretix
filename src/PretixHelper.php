@@ -196,4 +196,20 @@ final class PretixHelper {
     ]);
   }
 
+  /**
+   * Get pretix name, i.e. the first localized value.
+   *
+   * @param array<string, mixed>|null $data
+   *   The data (should be a serialized pretix item).
+   */
+  public function getPretixName(?array $data): ?string {
+    if (empty($data)) {
+      return NULL;
+    }
+
+    $values = $data['name'] ?? [];
+
+    return reset($values) ?: NULL;
+  }
+
 }

@@ -305,8 +305,14 @@ final class EventData implements \JsonSerializable {
     }
 
     assert(isset($this->pretixUrl, $this->pretixOrganizer, $this->pretixEvent));
-    return sprintf('%s/control/event/%s/%s', rtrim($this->pretixUrl, '/'), urlencode($this->pretixOrganizer),
+    $url = sprintf('%s/control/event/%s/%s', rtrim($this->pretixUrl, '/'), urlencode($this->pretixOrganizer),
       urlencode($this->pretixEvent));
+
+    if (isset($this->pretixSubeventId)) {
+      $url .= '/subevents/' . $this->pretixSubeventId;
+    }
+
+    return $url;
   }
 
   /**

@@ -3,6 +3,7 @@
 namespace Drupal\dpl_pretix;
 
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+use Drupal\Core\Entity\ContentEntityFormInterface;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -49,6 +50,10 @@ class FormHelper {
    * Implements hook_prepare_form().
    */
   public function prepareForm(EntityInterface $entity, string $operation, FormStateInterface $formState): void {
+    if (!in_array($operation, ['add', 'edit'], TRUE)) {
+      return;
+    }
+
     if ($event = $this->getEventSeriesEntity($formState)) {
       $this->prepareFormEventSeries($event, $operation, $formState);
     }
@@ -76,6 +81,15 @@ class FormHelper {
    * Implements hook_form_alter().
    */
   public function formAlter(array &$form, FormStateInterface $formState, string $formId): void {
+    $formObject = $formState->getFormObject();
+    if (!($formObject instanceof ContentEntityFormInterface)) {
+      return;
+    }
+    $operation = $formObject->getOperation();
+    if (!in_array($operation, ['add', 'edit'], TRUE)) {
+      return;
+    }
+
     if ($event = $this->getEventSeriesEntity($formState)) {
       $this->formAlterEventSeries($form, $formState, $event);
     }
@@ -262,10 +276,30 @@ class FormHelper {
     /** @var \Drupal\recurring_events\Entity\EventSeries $series */
     $series = $entity->getEventSeries();
     $eventData = $this->eventDataHelper->getEventData($series);
-    // We don't allow manual change of the ticket link if pretix is used.
     if ($eventData?->maintainCopy && isset($eventData->pretixEvent)) {
+      // We don't allow manual change of the ticket link if pretix is used.
       $this->disableElement($form, self::FIELD_TICKET_URL,
         $this->t('This field is managed by pretix for this event instance.'));
+
+      $form[self::FORM_KEY] = [
+        '#weight' => $this->settings->getEventForm()->weight ?? 9999,
+        '#type' => 'details',
+        '#title' => $this->t('pretix'),
+        '#tree' => TRUE,
+        '#open' => TRUE,
+      ];
+
+      $instanceData = $this->eventDataHelper->getEventData($entity);
+      if ($pretixAdminUrl = $instanceData?->getEventAdminUrl()) {
+        $pretix_link = Link::fromTextAndUrl($pretixAdminUrl, Url::fromUri($pretixAdminUrl))->toString();
+
+        $form[self::FORM_KEY]['pretix_info'] = [
+          '#type' => 'item',
+          '#title' => $this->t('pretix date (sub-event)'),
+          '#markup' => $pretix_link,
+          '#description' => $this->t('A link to the corresponding date (sub-event) in pretix.'),
+        ];
+      }
     }
   }
 
