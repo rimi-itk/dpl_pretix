@@ -59,7 +59,9 @@ final class EntityHelper {
     private readonly LoggerInterface $logger,
     EntityTypeManagerInterface $entityTypeManager,
   ) {
-    $this->eventSeriesStorage = $entityTypeManager->getStorage('eventseries');
+    /** @var \Drupal\recurring_events\EventSeriesStorageInterface $eventSeriesStorage */
+    $eventSeriesStorage = $entityTypeManager->getStorage('eventseries');
+    $this->eventSeriesStorage = $eventSeriesStorage;
   }
 
   /**
@@ -1113,18 +1115,21 @@ final class EntityHelper {
   public function recurringEventsSavePostInstancesDeletion(EventSeries $event): void {
     unset($this->eventsWithPendingInstances[$event->id()]);
 
+    // An update is not triggered for the event after instances have been
+    // deleted and created, so we register a shutdown function to synchronize
+    // the event.
     drupal_register_shutdown_function(function () use ($event) {
       try {
         // Get a fresh eventseries instance.
         $this->eventSeriesStorage->resetCache([$event->id()]);
-        $event = $this->eventSeriesStorage->load($event->id());
-        if (NULL !== $event) {
-          $this->synchronizeEvent($event, TRUE);
+        $e = $this->eventSeriesStorage->load($event->id());
+        if ($e instanceof EventSeries) {
+          $this->synchronizeEvent($e, TRUE);
         }
       }
       catch (\Throwable $t) {
         $this->logger->error('Error synchronizing @event (during shutdown): @message', [
-          '@event' => sprintf('%s:%s', $event?->getEntityTypeId(), $event?->id()),
+          '@event' => sprintf('%s:%s', $event->getEntityTypeId(), $event->id()),
           '@message' => $t->getMessage(),
           '@throwable' => $t,
         ]);
