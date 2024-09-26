@@ -34,7 +34,7 @@ class Settings {
    * @return \Drupal\dpl_pretix\Settings\PretixSettings
    *   The pretix setting(s).
    */
-  public function getPretixSettings(string $domain = NULL): PretixSettings {
+  public function getPretixSettings(?string $domain = NULL): PretixSettings {
     $domain ??= $this->getCurrentDomain();
 
     $values = $this->getValue(SettingsForm::SECTION_PRETIX);
