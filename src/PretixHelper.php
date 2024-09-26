@@ -122,7 +122,7 @@ final class PretixHelper {
    *
    * @see https://docs.pretix.eu/en/latest/user/events/create.html
    */
-  public function isSingularEvent(string|array $event = NULL): bool {
+  public function isSingularEvent(string|array|null $event = NULL): bool {
     try {
       if (is_string($event)) {
         $event = $this->client()->getEvent($event);

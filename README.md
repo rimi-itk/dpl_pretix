@@ -29,9 +29,50 @@ The template event must
 1. be a multiple dates event
 2. have a single subevent (date)
 
+## Mapping DPL CMS data to pretix data
+
+DPL CMS uses the [Recurring Events](https://www.drupal.org/project/recurring_events) module to create and manage events.
+Technically, a _event_ actually consists of an _event series_ entity and a number of associated _event instance_
+entities. See the [Recurring Events module page](https://www.drupal.org/project/recurring_events) and documentation
+pages, e.g. [Recurring Events Main
+Module](https://www.drupal.org/docs/contributed-modules/recurring-events/recurring-events-main-module), for further
+details and explanations.
+
+An event instance in DPL CMS is mapped to an event in pretix, and an event instances are mapped to a dates (sub-events).
+As a special case, an event series with _only one instance_ can be mapped to a singular event in pretix, i.e. the single
+instance is not mapped to an object in pretix. See the [pretix User
+Guide](https://docs.pretix.eu/en/latest/user/index.html#) for details on pretix and its events.
+
+So far, so good … how this is actually done is a little (more) complicated.
+
+### Hooks
+
+> [!WARNING]
+> Incomplete section ahead!
+
+A number of Drupal hooks are implemented to make event and dates in pretix reflect event series and instances in DPL CMS.
+
+First, the obvious ones:
+
+* [`hook_entity_insert`](https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21entity.api.php/function/hook_entity_insert/10)
+* [`hook_entity_update`](https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21entity.api.php/function/hook_entity_update/10)
+* [`hook_entity_delete`](https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21entity.api.php/function/hook_entity_delete/10)
+
+And them some less obvious ones (from Recurring Events) used to make everything fall into place:
+
+* [`hook_recurring_events_event_instances_pre_create_alter`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L136)
+* [`hook_recurring_events_save_pre_instances_deletion`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L187)
+* [`hook_recurring_events_save_post_instances_deletion`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L201)
+
 ### Edit event
 
+> [!WARNING]
+> Incomplete section ahead!
+
 ### Delete event
+
+> [!WARNING]
+> Incomplete section ahead!
 
 ## pretix API client
 
@@ -74,11 +115,5 @@ task dev:code-analysis
 docker compose build && docker compose run --rm php scripts/create-release dev-test
 ```
 
-## Bugs and caveats
-
-* It seems that updating an event instance uses old data for the update.
-
-## To dos
-
-* Set pretix event live
-* Metadata (PSP)
+[DPL CMS]: https://github.com/danskernesdigitalebibliotek/dpl-cms/
+[pretix]: https://pretix.eu/
