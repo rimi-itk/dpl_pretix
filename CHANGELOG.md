@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+* [PR-14](https://github.com/rimi-itk/dpl_pretix/pull/14)
+  Cleaned up and handled event instance updates
 * [PR-13](https://github.com/rimi-itk/dpl_pretix/pull/13)
   Cleaned up deletion stuff
 * [PR-12](https://github.com/rimi-itk/dpl_pretix/pull/12)

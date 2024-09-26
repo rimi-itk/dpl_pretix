@@ -54,6 +54,26 @@ function dpl_pretix_recurring_events_event_instances_pre_create_alter(array $eve
 }
 
 /**
+ * Implements hook_recurring_events_save_pre_instances_deletion().
+ *
+ * @param \Drupal\recurring_events\Entity\EventSeries $event
+ *   The event.
+ */
+function dpl_pretix_recurring_events_save_pre_instances_deletion(EventSeries $event): void {
+  _dpl_pretix_entity_helper()->recurringEventsSavePreInstancesDeletion($event);
+}
+
+/**
+ * Implements hook_recurring_events_save_post_instances_deletion().
+ *
+ * @param \Drupal\recurring_events\Entity\EventSeries $event
+ *   The event.
+ */
+function dpl_pretix_recurring_events_save_post_instances_deletion(EventSeries $event): void {
+  _dpl_pretix_entity_helper()->recurringEventsSavePostInstancesDeletion($event);
+}
+
+/**
  * Get form helper.
  */
 function _dpl_pretix_form_helper(): FormHelper {

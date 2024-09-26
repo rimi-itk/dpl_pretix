@@ -179,20 +179,19 @@ class FormHelper {
       ] + $states;
     }
 
+    try {
+      $options = $this->pretixHelper->parseTemplateEvents(
+        $this->settings->getPretixSettings()->templateEvents ?? ''
+      );
+    }
+    catch (\Exception) {
+      $this->messenger->addError($this->t('Error parsing pretix template events.'));
+      $options = [];
+    }
+
     $disabled = !empty($eventData->templateEvent);
     if ($disabled) {
-      $options = [$eventData->templateEvent => $eventData->templateEvent];
-    }
-    else {
-      try {
-        $options = $this->pretixHelper->parseTemplateEvents(
-          $this->settings->getPretixSettings()->templateEvents ?? ''
-        );
-      }
-      catch (\Exception) {
-        $this->messenger->addError($this->t('Error parsing pretix template events.'));
-        $options = [];
-      }
+      $options = [$eventData->templateEvent => $options[$eventData->templateEvent] ?? $eventData->templateEvent];
     }
 
     $form[self::FORM_KEY][self::ELEMENT_TEMPLATE_EVENT] = [

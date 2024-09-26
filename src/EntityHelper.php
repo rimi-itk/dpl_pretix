@@ -5,6 +5,7 @@ namespace Drupal\dpl_pretix;
 use Drupal\Component\Utility\Random;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\dpl_pretix\Entity\EventData;
@@ -18,6 +19,7 @@ use Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent as PretixSubEvent;
 use Drupal\recurring_events\Entity\EventInstance;
 use Drupal\recurring_events\Entity\EventSeries;
 use Drupal\recurring_events\EventInterface;
+use Drupal\recurring_events\EventSeriesStorageInterface;
 use Psr\Log\LoggerInterface;
 use Safe\DateTimeImmutable;
 use function Safe\sprintf;
@@ -42,13 +44,22 @@ final class EntityHelper {
   private const ITEM_PRICE_OVERRIDES = 'item_price_overrides';
   private const VARIATION_PRICE_OVERRIDES = 'variation_price_overrides';
 
+  /**
+   * The event series storage.
+   *
+   * @var \Drupal\recurring_events\EventSeriesStorageInterface
+   */
+  private EventSeriesStorageInterface $eventSeriesStorage;
+
   public function __construct(
     private readonly Settings $settings,
     private readonly EventDataHelper $eventDataHelper,
     private readonly PretixHelper $pretixHelper,
     private readonly MessengerInterface $messenger,
     private readonly LoggerInterface $logger,
+    EntityTypeManagerInterface $entityTypeManager,
   ) {
+    $this->eventSeriesStorage = $entityTypeManager->getStorage('eventseries');
   }
 
   /**
@@ -84,16 +95,21 @@ final class EntityHelper {
       $this->deleteEvent($entity);
     }
     elseif ($entity instanceof EventInstance) {
-      $this->deleteEventInstance($entity);
+      // Check if the event series's instances are being rebuilt (deleted and
+      // created) (cf. $this->eventsWithPendingInstances).
+      $series = $this->getEventSeries($entity);
+      if (!isset($this->eventsWithPendingInstances[$series->id()])) {
+        $this->deleteEventInstance($entity);
+      }
     }
   }
 
   /**
    * Synchronize event in pretix.
    */
-  public function synchronizeEvent(EventSeries $event): ?PretixEvent {
-    $synchronized = $this->getEntitySynchronized($event);
-    if ($synchronized instanceof PretixEvent) {
+  public function synchronizeEvent(EventSeries $event, bool $force = FALSE): ?PretixEvent {
+    $synchronized = $this->getProcessedEntity($event);
+    if (!$force && $synchronized instanceof PretixEvent) {
       return $synchronized;
     }
 
@@ -115,7 +131,7 @@ final class EntityHelper {
         : $this->updateEvent($event, $templateEvent, $data);
 
       $this->setEventLive($event, $pretixEvent, $data);
-      $this->setEntitySynchronized($event, $pretixEvent);
+      $this->setProcessedEntity($event, $pretixEvent);
       $this->setTicketUrl($event, $data);
 
       return $pretixEvent;
@@ -207,6 +223,7 @@ final class EntityHelper {
     ]);
 
     assert(NULL !== $data->pretixEvent);
+    $this->synchronizeEventInstances($templateEvent, $data->pretixEvent, $event);
     $pretixEvent = $this->pretixHelper->client()->updateEvent(
       $data->pretixEvent,
       $this->getPretixEventData($event, $data)
@@ -220,8 +237,6 @@ final class EntityHelper {
       ':event_url' => $data->getEventAdminUrl(),
       '@event' => $event->label(),
     ]));
-
-    $this->synchronizeEventInstances($templateEvent, $pretixEvent, $event);
 
     return $pretixEvent;
   }
@@ -264,7 +279,7 @@ final class EntityHelper {
   /**
    * Synchronize event instances.
    */
-  private function synchronizeEventInstances(string $templateEvent, PretixEvent $pretixEvent, EventSeries $event): array {
+  private function synchronizeEventInstances(string $templateEvent, PretixEvent|string $pretixEvent, EventSeries $event): array {
     $eventData = $this->getEventData($event);
     if ($this->pretixHelper->isSingularEvent($eventData->getEvent())) {
       return [];
@@ -287,7 +302,7 @@ final class EntityHelper {
       $subEvents = $this->pretix()->getSubEvents($pretixEvent);
       foreach ($subEvents as $subEvent) {
         if (!in_array($subEvent->getId(), $subEventIds, TRUE)) {
-          $this->pretix()->deleteSubEvent($event, $subEvent);
+          $this->pretix()->deleteSubEvent($pretixEvent, $subEvent);
         }
       }
     }
@@ -302,7 +317,7 @@ final class EntityHelper {
    * Synchronize event instance.
    */
   private function synchronizeEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixSubEvent): PretixSubEvent {
-    $synchronized = $this->getEntitySynchronized($instance);
+    $synchronized = $this->getProcessedEntity($instance);
     if ($synchronized instanceof PretixSubEvent) {
       return $synchronized;
     }
@@ -314,7 +329,7 @@ final class EntityHelper {
       ? $this->createEventInstance($instance, $templateEvent, $pretixSubEvent, $data)
       : $this->updateEventInstance($instance, $pretixSubEvent, $data);
 
-    $this->setEntitySynchronized($instance, $pretixSubEvent);
+    $this->setProcessedEntity($instance, $pretixSubEvent);
     $this->setTicketUrl($instance, $data);
 
     return $pretixSubEvent;
@@ -515,7 +530,7 @@ final class EntityHelper {
   /**
    * Get sub-event data.
    */
-  private function getSubEventData(EventInstance $instance, EventData $instanceData, PretixItem $product = NULL): array {
+  private function getSubEventData(EventInstance $instance, EventData $instanceData, ?PretixItem $product = NULL): array {
     $range = $this->getDateRange($instance);
 
     $data = array_merge(
@@ -564,7 +579,7 @@ final class EntityHelper {
    * Delete event in pretix.
    */
   public function deleteEvent(EventSeries $event): bool {
-    $synchronized = $this->getEntitySynchronized($event);
+    $synchronized = $this->getProcessedEntity($event);
     if (is_bool($synchronized)) {
       return $synchronized;
     }
@@ -597,7 +612,7 @@ final class EntityHelper {
    * Delete event instance in pretix.
    */
   public function deleteEventInstance(EventInstance $instance): bool {
-    $synchronized = $this->getEntitySynchronized($instance);
+    $synchronized = $this->getProcessedEntity($instance);
     if (is_bool($synchronized)) {
       return $synchronized;
     }
@@ -609,7 +624,10 @@ final class EntityHelper {
         // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
         $this->pretix()->deleteSubEvent($data->pretixEvent, $data->pretixSubeventId);
 
-        return TRUE;
+        $result = TRUE;
+        $this->setProcessedEntity($instance, $result);
+
+        return $result;
       }
     }
     catch (\Throwable $t) {
@@ -764,7 +782,7 @@ final class EntityHelper {
   /**
    * Handle a pretix api client exception.
    */
-  protected function pretixException(string $message, \Exception $exception = NULL): SynchronizeException {
+  protected function pretixException(string $message, ?\Exception $exception = NULL): SynchronizeException {
     if (NULL === $exception) {
       $this->logger->error($message);
     }
@@ -943,31 +961,38 @@ final class EntityHelper {
   }
 
   /**
-   * Used to keep track of which entities have already been synchronized.
+   * Used to keep track of which entities have already been processed.
+   *
+   * This is used for two purposes:
+   *
+   * 1. We update ticket URLs on event series and instances and hence save
+   *    entities during Hook_entity_insert and update.
+   * 2. Apparently, hook_entity_delete is called more than once (twice) and we
+   *    can only delete stuff in pretix once.
    *
    * @var array<string, PretixEvent|PretixSubEvent|bool>
    */
-  private static array $synchronizedEntities = [];
+  private static array $processedEntities = [];
 
   /**
-   * Get data for a synchronized entity, if any.
+   * Get data for a processed entity, if any.
    */
-  private function getEntitySynchronized(EventInterface $event): null|PretixEvent|PretixSubEvent|bool {
-    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] ?? NULL;
+  private function getProcessedEntity(EventInterface $event): null|PretixEvent|PretixSubEvent|bool {
+    return static::$processedEntities[$event->getEntityTypeId() . ':' . $event->id()] ?? NULL;
   }
 
   /**
-   * Set data for a synchronized entity.
+   * Set data for a processed entity.
    */
-  private function setEntitySynchronized(EventInterface $event, PretixEvent|PretixSubEvent|bool $data): PretixEntity|bool {
-    return static::$synchronizedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $data;
+  private function setProcessedEntity(EventInterface $event, PretixEvent|PretixSubEvent|bool $data): PretixEntity|bool {
+    return static::$processedEntities[$event->getEntityTypeId() . ':' . $event->id()] = $data;
   }
 
   /**
    * Set event live(ness) in pretix.
    */
-  private function setEventLive(EventSeries $event, PretixEvent $pretixEvent, EventData $data): void {
-    $live = $event->isPublished();
+  private function setEventLive(EventSeries $event, PretixEvent|string $pretixEvent, EventData $data, ?bool $live = NULL): void {
+    $live ??= $event->isPublished();
     $instances = $this->getEventInstances($event);
     if ($live && empty($instances)) {
       $this->messenger->addWarning($this->t('At least one event instance is required to set <a href=":pretix_event_url">@event</a> live in pretix', [
@@ -994,11 +1019,17 @@ final class EntityHelper {
       );
     }
     catch (\Exception $exception) {
-      throw $this->pretixException($this->t('Error setting @event live in pretix: @message',
-        [
-          '@event' => $event->label(),
-          '@message' => $exception->getMessage(),
-        ]), $exception);
+      throw $live
+        ? $this->pretixException($this->t('Error setting @event live in pretix: @message',
+          [
+            '@event' => $event->label(),
+            '@message' => $exception->getMessage(),
+          ]), $exception)
+        : $this->pretixException($this->t('Error setting @event not live in pretix: @message',
+          [
+            '@event' => $event->label(),
+            '@message' => $exception->getMessage(),
+          ]), $exception);
     }
   }
 
@@ -1008,7 +1039,7 @@ final class EntityHelper {
    * Important: must be called after the call to `setEntitySynchronized` to
    * prevent an infinite loop.
    *
-   * @see self::setEntitySynchronized()
+   * @see self::setProcessedEntity()
    */
   private function setTicketUrl(EventSeries|EventInstance $event, EventData $data): void {
     $url = $data->getEventShopUrl();
@@ -1057,6 +1088,48 @@ final class EntityHelper {
     $this->eventsWithPendingInstances[$event->id()] = $event;
 
     return $events_to_create;
+  }
+
+  /**
+   * Implements hook_recurring_events_save_pre_instances_deletion().
+   *
+   * @param \Drupal\recurring_events\Entity\EventSeries $event
+   *   The event.
+   *
+   * @see \Drupal\recurring_events\EventCreationService::clearEventInstances()
+   */
+  public function recurringEventsSavePreInstancesDeletion(EventSeries $event): void {
+    $this->eventsWithPendingInstances[$event->id()] = $event;
+  }
+
+  /**
+   * Implements hook_recurring_events_save_post_instances_deletion().
+   *
+   * @param \Drupal\recurring_events\Entity\EventSeries $event
+   *   The event.
+   *
+   * @see \Drupal\recurring_events\EventCreationService::clearEventInstances()
+   */
+  public function recurringEventsSavePostInstancesDeletion(EventSeries $event): void {
+    unset($this->eventsWithPendingInstances[$event->id()]);
+
+    drupal_register_shutdown_function(function () use ($event) {
+      try {
+        // Get a fresh eventseries instance.
+        $this->eventSeriesStorage->resetCache([$event->id()]);
+        $event = $this->eventSeriesStorage->load($event->id());
+        if (NULL !== $event) {
+          $this->synchronizeEvent($event, TRUE);
+        }
+      }
+      catch (\Throwable $t) {
+        $this->logger->error('Error synchronizing @event (during shutdown): @message', [
+          '@event' => sprintf('%s:%s', $event?->getEntityTypeId(), $event?->id()),
+          '@message' => $t->getMessage(),
+          '@throwable' => $t,
+        ]);
+      }
+    });
   }
 
 }
