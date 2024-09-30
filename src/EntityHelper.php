@@ -83,7 +83,7 @@ final class EntityHelper {
       // Check if the event series's instances have not yet been build (cf.
       // $this->eventsWithPendingInstances).
       $series = $this->getEventSeries($entity);
-      if (!isset($this->eventsWithPendingInstances[$series->id()])) {
+      if (!$this->eventHasPendingInstances($series)) {
         $this->entityUpdate($series);
       }
     }
@@ -100,7 +100,7 @@ final class EntityHelper {
       // Check if the event series's instances are being rebuilt (deleted and
       // created) (cf. $this->eventsWithPendingInstances).
       $series = $this->getEventSeries($entity);
-      if (!isset($this->eventsWithPendingInstances[$series->id()])) {
+      if (!$this->eventHasPendingInstances($series)) {
         $this->deleteEventInstance($entity);
       }
     }
@@ -113,6 +113,14 @@ final class EntityHelper {
     $synchronized = $this->getProcessedEntity($event);
     if (!$force && $synchronized instanceof PretixEvent) {
       return $synchronized;
+    }
+
+    // Get a fresh copy of the event with updated instance data.
+    $eventId = $event->id();
+    $this->eventSeriesStorage->resetCache([$eventId]);
+    $event = $this->eventSeriesStorage->load($eventId);
+    if (!($event instanceof EventSeries)) {
+      throw new SynchronizeException(sprintf('Cannot load event series %s', $eventId));
     }
 
     try {
@@ -996,7 +1004,9 @@ final class EntityHelper {
   private function setEventLive(EventSeries $event, PretixEvent|string $pretixEvent, EventData $data, ?bool $live = NULL): void {
     $live ??= $event->isPublished();
     $instances = $this->getEventInstances($event);
-    if ($live && empty($instances)) {
+
+    $pretixEventData = $pretixEvent instanceof PretixEvent ? $pretixEvent->toArray() : $pretixEvent;
+    if ($live && empty($instances) && !$this->pretixHelper->isSingularEvent($pretixEventData)) {
       $this->messenger->addWarning($this->t('At least one event instance is required to set <a href=":pretix_event_url">@event</a> live in pretix', [
         ':pretix_event_url' => $data->getEventAdminUrl(),
         '@event' => $event->label(),
@@ -1077,6 +1087,20 @@ final class EntityHelper {
   private array $eventsWithPendingInstances = [];
 
   /**
+   * Tell that event has pending instances.
+   */
+  private function setEventHasPendingInstances(EventSeries $event): void {
+    $this->eventsWithPendingInstances[$event->getEntityTypeId() . ':' . $event->id()] = $event;
+  }
+
+  /**
+   * Check if event has pending instances.
+   */
+  private function eventHasPendingInstances(EventSeries $event): bool {
+    return isset($this->eventsWithPendingInstances[$event->getEntityTypeId() . ':' . $event->id()]);
+  }
+
+  /**
    * Implements hook_recurring_events_event_instances_pre_create_alter().
    *
    * @param array<string, mixed> $events_to_create
@@ -1087,54 +1111,9 @@ final class EntityHelper {
    * @see \Drupal\recurring_events\EventCreationService::createInstances()
    */
   public function recurringEventsEventInstancesPreCreateAlter(array $events_to_create, EventSeries $event): array {
-    $this->eventsWithPendingInstances[$event->id()] = $event;
+    $this->setEventHasPendingInstances($event);
 
     return $events_to_create;
-  }
-
-  /**
-   * Implements hook_recurring_events_save_pre_instances_deletion().
-   *
-   * @param \Drupal\recurring_events\Entity\EventSeries $event
-   *   The event.
-   *
-   * @see \Drupal\recurring_events\EventCreationService::clearEventInstances()
-   */
-  public function recurringEventsSavePreInstancesDeletion(EventSeries $event): void {
-    $this->eventsWithPendingInstances[$event->id()] = $event;
-  }
-
-  /**
-   * Implements hook_recurring_events_save_post_instances_deletion().
-   *
-   * @param \Drupal\recurring_events\Entity\EventSeries $event
-   *   The event.
-   *
-   * @see \Drupal\recurring_events\EventCreationService::clearEventInstances()
-   */
-  public function recurringEventsSavePostInstancesDeletion(EventSeries $event): void {
-    unset($this->eventsWithPendingInstances[$event->id()]);
-
-    // An update is not triggered for the event after instances have been
-    // deleted and created, so we register a shutdown function to synchronize
-    // the event.
-    drupal_register_shutdown_function(function () use ($event) {
-      try {
-        // Get a fresh eventseries instance.
-        $this->eventSeriesStorage->resetCache([$event->id()]);
-        $e = $this->eventSeriesStorage->load($event->id());
-        if ($e instanceof EventSeries) {
-          $this->synchronizeEvent($e, TRUE);
-        }
-      }
-      catch (\Throwable $t) {
-        $this->logger->error('Error synchronizing @event (during shutdown): @message', [
-          '@event' => sprintf('%s:%s', $event->getEntityTypeId(), $event->id()),
-          '@message' => $t->getMessage(),
-          '@throwable' => $t,
-        ]);
-      }
-    });
   }
 
 }
