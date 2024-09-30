@@ -58,11 +58,9 @@ First, the obvious ones:
 * [`hook_entity_update`](https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21entity.api.php/function/hook_entity_update/10)
 * [`hook_entity_delete`](https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21entity.api.php/function/hook_entity_delete/10)
 
-And them some less obvious ones (from Recurring Events) used to make everything fall into place:
+And them a less obvious one (from Recurring Events) used to make everything fall into place:
 
 * [`hook_recurring_events_event_instances_pre_create_alter`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L136)
-* [`hook_recurring_events_save_pre_instances_deletion`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L187)
-* [`hook_recurring_events_save_post_instances_deletion`](https://git.drupalcode.org/project/recurring_events/-/blob/2.0.x/recurring_events.api.php?ref_type=heads#L201)
 
 ### Edit event
 
