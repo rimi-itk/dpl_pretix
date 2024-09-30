@@ -835,19 +835,32 @@ final class EntityHelper {
     $address = $event->get($fieldName)->first();
     $place = $event->get('field_event_place')->first()?->getString();
 
-    if (empty($address) && $event instanceof EventInstance) {
-      return $this->getLocation($this->getEventSeries($event));
+    if (empty($address)) {
+      $branches = $event->get('field_branch')->referencedEntities();
+      if (!empty($branches)) {
+        /** @var \Drupal\node\NodeInterface $branch */
+        $branch = reset($branches);
+        /** @var ?\Drupal\address\Plugin\Field\FieldType\AddressItem $address */
+        $address = $branch->get('field_address')->first();
+      }
+
+      if (empty($address) && $event instanceof EventInstance) {
+        return $this->getLocation($this->getEventSeries($event));
+      }
     }
 
     return [
       $this->getDefaultLanguageCode($event) => empty($address)
         ? ''
-        : implode(PHP_EOL, array_filter([
-          $place,
-          $address->getAddressLine1(),
-          $address->getAddressLine2(),
-          $address->getPostalCode() . ' ' . $address->getLocality(),
-        ])),
+        : implode(PHP_EOL, array_filter(array_map(
+            'trim',
+            [
+              $place ?? '',
+              $address->getAddressLine1(),
+              $address->getAddressLine2(),
+              $address->getPostalCode() . ' ' . $address->getLocality(),
+            ]
+          ))),
     ];
   }
 
