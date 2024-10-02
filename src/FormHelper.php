@@ -142,10 +142,6 @@ class FormHelper {
     $pretixEventId = $eventData->pretixEvent;
 
     // We don't allow manual change of the ticket link if pretix is used.
-    if ($eventData->maintainCopy && isset($pretixEventId)) {
-      $this->disableElement($form, self::FIELD_TICKET_URL,
-        $this->t('This field is managed by pretix for this event.'));
-    }
     $form[self::FIELD_TICKET_URL]['#states'] = [
       'disabled' => [
         ':input[name="dpl_pretix[maintain_copy]"]' => ['checked' => TRUE],
