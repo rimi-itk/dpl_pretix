@@ -68,6 +68,10 @@ final class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     // The entity has already been saved and has an id.
     $this->entityUpdate($entity);
   }
@@ -76,6 +80,10 @@ final class EntityHelper {
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity);
     }
@@ -93,6 +101,10 @@ final class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     if ($entity instanceof EventSeries) {
       $this->deleteEvent($entity);
     }

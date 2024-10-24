@@ -41,4 +41,11 @@ class PretixSettings extends AbstractSettings {
    */
   public string $defaultLanguageCode = 'da';
 
+  /**
+   * Decide if the settings are ready for use.
+   */
+  public function isReady(): bool {
+    return !empty(trim($this->url ?? ''));
+  }
+
 }

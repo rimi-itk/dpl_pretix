@@ -51,6 +51,10 @@ class Settings {
       }
     }
 
+    if (!isset($pretixValues['domain']) && NULL !== $domain) {
+      $pretixValues['domain'] = $domain;
+    }
+
     return new PretixSettings($pretixValues);
   }
 
