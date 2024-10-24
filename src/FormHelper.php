@@ -54,6 +54,10 @@ class FormHelper {
       return;
     }
 
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     if ($event = $this->getEventSeriesEntity($formState)) {
       $this->prepareFormEventSeries($event, $operation, $formState);
     }
@@ -119,6 +123,24 @@ class FormHelper {
     ];
 
     $settings = $this->settings->getPretixSettings();
+    if (!$settings->isReady()) {
+      $form[self::FORM_KEY]['warning'] = [
+        // Wrap message in container to make states work.
+        '#type' => 'container',
+
+        'message' => [
+          '#theme' => 'status_messages',
+          '#message_list' => [
+            'warning' => [
+              $this->t('No pretix settings found for domain %domain.', ['%domain' => $settings->domain]),
+            ],
+          ],
+        ],
+      ];
+
+      return;
+    }
+
     $form[self::FORM_KEY][self::ELEMENT_MAINTAIN_COPY] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Create and update in pretix'),

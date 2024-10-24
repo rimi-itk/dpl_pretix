@@ -68,6 +68,10 @@ final class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     // The entity has already been saved and has an id.
     $this->entityUpdate($entity);
   }
@@ -76,6 +80,10 @@ final class EntityHelper {
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     if ($entity instanceof EventSeries) {
       $this->synchronizeEvent($entity);
     }
@@ -93,6 +101,10 @@ final class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return;
+    }
+
     if ($entity instanceof EventSeries) {
       $this->deleteEvent($entity);
     }
@@ -448,24 +460,29 @@ final class EntityHelper {
       // https://docs.pretix.eu/en/latest/api/resources/quotas.html#resource-description
       $quotaData = array_merge($quotaData, [
         'subevent' => $subEvent->getId(),
-        'items' => [$product->getId()],
+        'items' => $items->map(static fn (PretixItem $item) => $item->getId())->toArray(),
         'size' => $this->getCapacity($instance),
       ]);
 
       // Check if quota uses variants.
       if (!empty($quotaData['variations'])) {
-        $productData = $product->toArray();
-        if (!isset($productData['variations'][0]['id'])) {
-          throw $this->pretixException($this->t('Cannot create quota for sub-event @sub_event on event @event; product @product has no variations',
-            [
-              '@sub_event' => $subEvent->getId(),
-              '@event' => is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug(),
-              '@product' => reset($productData['name']) ?: $product->getId(),
-            ])
-          );
+        $quotaData['variations'] = [];
+        foreach ($items as $product) {
+          $productData = $product->toArray();
+          $variationId = $productData['variations'][0]['id'];
+          if (empty($variationId)) {
+            throw $this->pretixException($this->t('Cannot create quota for sub-event @sub_event on event @event; product @product has no variations',
+              [
+                '@sub_event' => $subEvent->getId(),
+                '@event' => is_string($pretixEvent) ? $pretixEvent : $pretixEvent->getSlug(),
+                '@product' => reset($productData['name']) ?: $product->getId(),
+              ])
+            );
+          }
+          else {
+            $quotaData['variations'][] = $variationId;
+          }
         }
-
-        $quotaData['variations'] = [$productData['variations'][0]['id']];
       }
 
       try {
