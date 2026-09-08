@@ -561,6 +561,21 @@ YAML
         '#default_value' => $defaults->rolesThatCanDeleteEventInstances,
         '#description' => $this->t('Select all roles that should be allowed to delete event instances.'),
       ],
+
+      'sync_during_system_update' => [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Synchronize events with pretix during Drupal system update'),
+        '#default_value' => $defaults->syncDuringSystemUpdate,
+        '#description' => $this->t('If checked, events will be synchronized with pretix during Drupal system updates'),
+      ],
+
+      'sync_past_events' => [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Synchronize past events with pretix'),
+        '#default_value' => $defaults->syncPastEvents,
+        '#description' => $this->t('If checked, events occurring in the past will be synchronized with pretix'),
+      ],
+
     ];
   }
 

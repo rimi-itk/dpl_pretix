@@ -41,6 +41,16 @@ class EventFormSettings extends AbstractSettings {
   public array $rolesThatCanDeleteEventInstances = [];
 
   /**
+   * Whether to skip synchronization during Drupal system update.
+   */
+  public bool $syncDuringSystemUpdate = FALSE;
+
+  /**
+   * Whether to skip synchronization of past events.
+   */
+  public bool $syncPastEvents = FALSE;
+
+  /**
    * Get roles that can delete event instances.
    */
   public function getRolesThatCanDeleteEventInstances(): array {
