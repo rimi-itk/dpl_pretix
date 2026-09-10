@@ -135,5 +135,11 @@ translations.
 * The “Relevant for ticket manager” field can be disabled
 * User roles can be denied access to “Delete event instance“
 
+## New in 11.0
+
+* New settings to control when and what to synchronize with pretix:
+  * "Synchronize events with pretix during Drupal system update"
+  * "Synchronize past events with pretix"
+
 [DPL CMS]: https://github.com/danskernesdigitalebibliotek/dpl-cms/
 [pretix]: https://pretix.eu/

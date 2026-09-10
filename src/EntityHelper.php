@@ -2,6 +2,7 @@
 
 namespace Drupal\dpl_pretix;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Utility\Random;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Access\AccessResultInterface;
@@ -43,6 +44,10 @@ final class EntityHelper {
   private const ITEM_PRICE_OVERRIDES = 'item_price_overrides';
   private const VARIATION_PRICE_OVERRIDES = 'variation_price_overrides';
 
+  private const OPERATION_UPDATE = 'update';
+  private const OPERATION_INSERT = 'insert';
+  private const OPERATION_DELETE = 'delete';
+
   public function __construct(
     // See https://github.com/mglaman/phpstan-drupal/issues/730 for details on
     // why we use protected properties here.
@@ -53,6 +58,7 @@ final class EntityHelper {
     protected readonly LoggerInterface $logger,
     protected readonly ConfigFactoryInterface $configFactory,
     protected readonly EntityTypeManagerInterface $entityTypeManager,
+    protected readonly TimeInterface $time,
   ) {
   }
 
@@ -60,7 +66,7 @@ final class EntityHelper {
    * Implements hook_entity_insert().
    */
   public function entityInsert(EntityInterface $entity): void {
-    if (!$this->settings->getPretixSettings()->isReady()) {
+    if (!$this->shouldSynchronizeEntity($entity, self::OPERATION_INSERT)) {
       return;
     }
 
@@ -72,7 +78,7 @@ final class EntityHelper {
    * Implements hook_entity_update().
    */
   public function entityUpdate(EntityInterface $entity): void {
-    if (!$this->settings->getPretixSettings()->isReady()) {
+    if (!$this->shouldSynchronizeEntity($entity, self::OPERATION_UPDATE)) {
       return;
     }
 
@@ -93,7 +99,7 @@ final class EntityHelper {
    * Implements hook_entity_delete().
    */
   public function entityDelete(EntityInterface $entity): void {
-    if (!$this->settings->getPretixSettings()->isReady()) {
+    if (!$this->shouldSynchronizeEntity($entity, self::OPERATION_DELETE)) {
       return;
     }
 
@@ -195,12 +201,11 @@ final class EntityHelper {
       '@event' => $event->id(),
     ]);
 
-    $pretix = $this->pretixHelper->client();
-    $pretixTemplateEvent = $pretix->getEvent($templateEvent);
+    $pretixTemplateEvent = $this->pretix()->getEvent($templateEvent);
 
     // Create event in pretix (by cloning the template event).
     // @see https://docs.pretix.eu/en/latest/api/resources/events.html#post--api-v1-organizers-(organizer)-events-(event)-clone-
-    $pretixEvent = $pretix->cloneEvent(
+    $pretixEvent = $this->pretix()->cloneEvent(
       $pretixTemplateEvent->getSlug(),
       $this->getPretixEventData($event, $data, [
         // We cannot set the event live on create
@@ -240,7 +245,7 @@ final class EntityHelper {
 
     assert(NULL !== $data->pretixEvent);
     $this->synchronizeEventInstances($templateEvent, $data->pretixEvent, $event);
-    $pretixEvent = $this->pretixHelper->client()->updateEvent(
+    $pretixEvent = $this->pretix()->updateEvent(
       $data->pretixEvent,
       $this->getPretixEventData($event, $data)
     );
@@ -261,17 +266,15 @@ final class EntityHelper {
    * Update product prices.
    */
   private function updateProductPrices(EventSeries $event, PretixEvent $pretixEvent, EventData $data): void {
-    $pretix = $this->pretixHelper->client();
-
     $price = $this->getPrice($event);
-    $products = $pretix->getItems($pretixEvent);
+    $products = $this->pretix()->getItems($pretixEvent);
     $productsData = [];
     /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
     foreach ($products as $product) {
       $productDatum = $product->toArray();
       $defaultPrice = $productDatum['default_price'];
       if ($price !== $defaultPrice) {
-        $pretix->updateItem($pretixEvent, $product, [
+        $this->pretix()->updateItem($pretixEvent, $product, [
           'default_price' => $price,
         ]);
       }
@@ -283,9 +286,9 @@ final class EntityHelper {
     if ($this->pretixHelper->isSingularEvent($pretixEvent->toArray())) {
       $capacity = $this->getCapacity($event);
       // Set capacity (size) on all quotas.
-      $quotas = $pretix->getQuotas($pretixEvent->getSlug());
+      $quotas = $this->pretix()->getQuotas($pretixEvent->getSlug());
       foreach ($quotas as $quota) {
-        $pretix->updateQuota($pretixEvent->getSlug(), $quota->getId(), [
+        $this->pretix()->updateQuota($pretixEvent->getSlug(), $quota->getId(), [
           'size' => $capacity,
         ]);
       }
@@ -355,10 +358,9 @@ final class EntityHelper {
    * Synchronize event instance.
    */
   private function createEventInstance(EventInstance $instance, string $templateEvent, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
-    $pretix = $this->pretix();
 
     try {
-      $templateSubEvents = $pretix->getSubEvents($templateEvent);
+      $templateSubEvents = $this->pretix()->getSubEvents($templateEvent);
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot get sub-events for template event @event',
@@ -377,7 +379,7 @@ final class EntityHelper {
 
     // Get first product (item) from template event.
     try {
-      $items = $pretix->getItems($pretixEvent);
+      $items = $this->pretix()->getItems($pretixEvent);
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot get items for template event @event',
@@ -396,13 +398,13 @@ final class EntityHelper {
     /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Item $product */
     $product = $items->first();
 
-    $data = $this->getSubEventData($instance, $instanceData, $product)
+    $data = $this->getPretixSubEventData($instance, $instanceData, $product)
       + $templateSubEvent->toArray();
     // Remove the template id.
     unset($data['id']);
 
     try {
-      $subEvent = $pretix->createSubEvent($pretixEvent, $data);
+      $subEvent = $this->pretix()->createSubEvent($pretixEvent, $data);
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot create sub-event for event @event',
@@ -417,7 +419,7 @@ final class EntityHelper {
 
     // Get sub-event quotas.
     try {
-      $quotas = $pretix->getQuotas(
+      $quotas = $this->pretix()->getQuotas(
         $pretixEvent,
         ['query' => ['subevent' => $subEvent->getId()]]
       );
@@ -432,7 +434,7 @@ final class EntityHelper {
     if ($quotas->isEmpty()) {
       // Create a new quota for the sub-event.
       try {
-        $templateQuotas = $pretix->getQuotas(
+        $templateQuotas = $this->pretix()->getQuotas(
           $templateEvent,
           ['subevent' => $templateSubEvent->getId()]
         );
@@ -481,7 +483,7 @@ final class EntityHelper {
 
       try {
         /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota $quota */
-        $quota = $pretix->createQuota($pretixEvent, $quotaData);
+        $quota = $this->pretix()->createQuota($pretixEvent, $quotaData);
         $instanceData->setQuota($quota->toArray());
       }
       catch (\Exception $exception) {
@@ -507,7 +509,6 @@ final class EntityHelper {
    * Synchronize event instance.
    */
   private function updateEventInstance(EventInstance $instance, PretixEvent|string $pretixEvent, EventData $instanceData): PretixSubEvent {
-    $pretix = $this->pretix();
     $subEventId = $instanceData->pretixSubeventId;
     $quotaData = $instanceData->getQuota() ?? [];
 
@@ -519,10 +520,11 @@ final class EntityHelper {
         ]));
     }
     try {
-      $data = $this->getSubEventData($instance, $instanceData);
+      $data = $this->getPretixSubEventData($instance, $instanceData);
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\SubEvent $subEvent */
       // @phpstan-ignore argument.type (the type hints in https://github.com/itk-dev/pretix-api-client-php/ are f… up)
-      $subEvent = $pretix->updateSubEvent($pretixEvent, $subEventId, $data);
+      $subEvent = $this->pretix()->updateSubEvent($pretixEvent, $subEventId, $data);
+      // @todo Save data
     }
     catch (\Exception $exception) {
       throw $this->pretixException($this->t('Cannot update sub-event @sub_event on event @event',
@@ -535,7 +537,7 @@ final class EntityHelper {
     $quotaData['size'] = $this->getCapacity($instance);
     try {
       /** @var \Drupal\dpl_pretix\Pretix\ApiClient\Entity\Quota $quota */
-      $quota = $pretix->updateQuota($pretixEvent, $quotaData['id'], $quotaData);
+      $quota = $this->pretix()->updateQuota($pretixEvent, $quotaData['id'], $quotaData);
       $instanceData->setQuota($quota->toArray());
     }
     catch (\Exception $exception) {
@@ -550,8 +552,13 @@ final class EntityHelper {
 
   /**
    * Get sub-event data.
+   *
+   * Note: product is only passed when creating new sub-events in pretix (cf.
+   * self::createEventInstance()).
+   *
+   * @see self::createEventInstance()
    */
-  private function getSubEventData(EventInstance $instance, EventData $instanceData, ?PretixItem $product = NULL): array {
+  private function getPretixSubEventData(EventInstance $instance, EventData $instanceData, ?PretixItem $product = NULL): array {
     $range = $this->getDateRange($instance);
 
     $data = array_merge(
@@ -733,11 +740,7 @@ final class EntityHelper {
    * @see https://docs.pretix.eu/en/latest/api/resources/events.html#resource-description
    */
   private function getPretixEventData(EventSeries $event, EventData $eventData, array $data = []): array {
-    $instances = $this->getEventInstances($event);
-    $firstInstance = reset($instances) ?: NULL;
-    $lastInstance = end($instances) ?: NULL;
-    $dateFrom = NULL !== $firstInstance ? $this->getDateRange($firstInstance)[0] : NULL;
-    $dateTo = NULL !== $lastInstance ? $this->getDateRange($lastInstance)[1] : NULL;
+    [$dateFrom, $dateTo] = $this->getDateRange($event);
 
     $settings = $this->settings->getPspElements();
     if (!empty($settings->pretixPspMetaKey)) {
@@ -927,21 +930,36 @@ final class EntityHelper {
   }
 
   /**
-   * Get instance date range.
+   * Get event (instance) date range.
    *
-   * @return array<?\DateTime>
-   *   The start and end date.
+   * @return array{
+   *   0: ?\DateTime,
+   *   1: ?\DateTime,
+   *   } The start and end date.
    */
-  private function getDateRange(EventInstance $instance): array {
-    $range = [];
+  private function getDateRange(EventInterface $entity): array {
+    if ($entity instanceof EventSeries) {
+      $instances = $this->getEventInstances($entity);
+      $firstInstance = reset($instances) ?: NULL;
+      $lastInstance = end($instances) ?: NULL;
 
-    /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
-    $date = $instance->get('date')->first();
+      return [
+        NULL !== $firstInstance ? $this->getDateRange($firstInstance)[0] : NULL,
+        NULL !== $lastInstance ? $this->getDateRange($lastInstance)[1] : NULL,
+      ];
+    }
 
-    foreach (['start_date', 'end_date'] as $key) {
-      /** @var ?\Drupal\Core\Datetime\DrupalDateTime $value */
-      $value = $date->get($key)->getValue();
-      $range[] = $value?->getPhpDateTime();
+    $range = [NULL, NULL];
+
+    if ($entity instanceof EventInstance) {
+      /** @var \Drupal\datetime_range\Plugin\Field\FieldType\DateRangeItem $date */
+      $date = $entity->get('date')->first();
+
+      foreach (['start_date', 'end_date'] as $index => $key) {
+        /** @var ?\Drupal\Core\Datetime\DrupalDateTime $value */
+        $value = $date->get($key)->getValue();
+        $range[$index] = $value?->getPhpDateTime();
+      }
     }
 
     return $range;
@@ -1150,13 +1168,54 @@ final class EntityHelper {
     string $operation,
     AccountInterface $account,
   ): AccessResultInterface {
-    if (!$account->hasPermission('bypass node access') && 'delete' === $operation && $entity instanceof EventInstance) {
+    if (!$account->hasPermission('bypass node access') && self::OPERATION_DELETE === $operation && $entity instanceof EventInstance) {
       $roles = $account->getRoles();
       $allowedRoles = $this->settings->getEventForm()->getRolesThatCanDeleteEventInstances();
       return AccessResult::forbiddenIf(empty(array_intersect($roles, $allowedRoles)));
     }
 
     return AccessResult::neutral();
+  }
+
+  /**
+   * Decide if an event series or instance should be synchronized with pretix.
+   */
+  private function shouldSynchronizeEntity(EntityInterface $entity, string $operation): bool {
+    if (!$this->settings->getPretixSettings()->isReady()) {
+      return FALSE;
+    }
+
+    if (!$entity instanceof EventSeries
+      && !$entity instanceof EventInstance) {
+      return FALSE;
+    }
+
+    $settings = $this->settings->getEventForm();
+    if (!$settings->syncDuringSystemUpdate) {
+      // Skip any update hooks when Drupal is updating, cf.
+      // https://git.drupalcode.org/project/drupal/-/blob/11.x/core/authorize.php?ref_type=heads
+      // @todo "authorize.php is deprecated in drupal:11.2.0"
+      // (https://git.drupalcode.org/project/drupal/-/blob/11.x/core/authorize.php?ref_type=heads#L33)
+      if (defined('MAINTENANCE_MODE') && MAINTENANCE_MODE === 'update') {
+        return FALSE;
+      }
+    }
+
+    if (!$settings->syncPastEvents) {
+      [, $endTime] = $this->getDateRange($entity);
+      if (NULL !== $endTime && $endTime->getTimestamp() < $this->time->getCurrentTime()) {
+        $this->messenger->addWarning($this->t('Not synchronizing @type @label with pretix: @message',
+          [
+            '@type' => $entity->getEntityTypeId(),
+            '@label' => $entity->label(),
+            '@message' => $this->t('It ends in the past (@endTime)', ['@endTime' => $endTime->format(\DateTime::ATOM)]),
+          ]));
+
+        return FALSE;
+      }
+    }
+
+    return TRUE;
   }
 
 }

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+* [PR-27](https://github.com/itk-dev/dpl_pretix/pull/27)
+  Optimized pretix synchronization
 * [PR-25](https://github.com/itk-dev/dpl_pretix/pull/25)
   * Set up creating releases on GitHub
 * [PR-22](https://github.com/itk-dev/dpl_pretix/pull/22)
